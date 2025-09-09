@@ -173,20 +173,89 @@ export function insertarRecetas(recetasData, upsert = false) {
     };
 }
 
-export function procesarRecetaYEnviarASupabase() { /* ...código completo... */ };
-export function preProcess(jsonCompleto) { /* ...código completo... */ };
-function validarUUID(uuid) { /* ...código completo... */ }
-export function actualizarPrecioUnitario(items, type) { /* ...código completo... */ };
-function calcularPrecioUnitario(item) { /* ...código completo... */ }
-export function copiarAlPortapapeles(items, estado) { /* ...código completo... */ };
-export function crearItem(itemData, type, forId) { /* ...código completo... */ };
-export function updateItem(itemId, updatedFields, type) { /* ...código completo... */ };
-export function deleteItem(itemId, type) { /* ...código completo... */ };
-export const getRecepie = async (uuid, type) => { /* ...código completo... */ };
-export const getProveedor = async (uuid, type) => { /* ...código completo... */ };
-export const trimRecepie = (items, recepie) => { /* ...código completo... */ };
-export const resetExpandedGroups = () => { return { type: RESET_EXPANDED_GROUPS, }; };
-export function crearReceta(recetaData, productId) { /* ...código completo... */ };
-export const addOrderItem = (item) => ({ type: ADD_ORDER_ITEM, payload: item, });
-export const setLenguage = (language) => { return (dispatch) => { dispatch({ type: SET_LANGUAGE, payload: language, }); }; };
-export const updateLogStaff = (personaId, updatedTurnoPasados) => { /* ...código completo... */ };
+
+
+// ========================================
+// NUEVAS ACCIONES PARA ENTREGABLES_TEMPLATE
+// ========================================
+
+const TEMPLATE_TABLE = 'Entregables_template';
+
+// Acción para crear una nueva plantilla de entregable
+export const createEntregableTemplate = (templateData) => async (dispatch) => {
+  try {
+    const { data, error } = await supabase
+      .from(TEMPLATE_TABLE)
+      .insert([templateData])
+      .select();
+    
+    if (error) throw error;
+    
+    // Aquí podrías despachar una acción específica para agregar al store si es necesario
+    // Por simplicidad, podrías volver a llamar a getAllFromTable o manejarlo en el reducer.
+    // Ejemplo de dispatch específico:
+    dispatch({
+      type: 'CREATE_ENTREGABLE_TEMPLATE', // Asegúrate de tener este actionType definido
+      payload: data[0]
+    });
+    
+  } catch (error) {
+    console.error('Error creating entregable template:', error);
+    dispatch({
+      type: 'SET_ERROR',
+      entity: TEMPLATE_TABLE,
+      payload: error.message
+    });
+  }
+};
+
+// Acción para actualizar una plantilla de entregable
+export const updateEntregableTemplate = (templateId, updates) => async (dispatch) => {
+  try {
+    const { data, error } = await supabase
+      .from(TEMPLATE_TABLE)
+      .update(updates)
+      .eq('id', templateId)
+      .select();
+    
+    if (error) throw error;
+    
+    dispatch({
+      type: 'UPDATE_ENTREGABLE_TEMPLATE', // Asegúrate de tener este actionType definido
+      payload: data[0]
+    });
+    
+  } catch (error) {
+    console.error('Error updating entregable template:', error);
+    dispatch({
+      type: 'SET_ERROR',
+      entity: TEMPLATE_TABLE,
+      payload: error.message
+    });
+  }
+};
+
+// Acción para eliminar una plantilla de entregable
+export const deleteEntregableTemplate = (templateId) => async (dispatch) => {
+  try {
+    const { error } = await supabase
+      .from(TEMPLATE_TABLE)
+      .delete()
+      .eq('id', templateId);
+    
+    if (error) throw error;
+    
+    dispatch({
+      type: 'DELETE_ENTREGABLE_TEMPLATE', // Asegúrate de tener este actionType definido
+      payload: templateId
+    });
+    
+  } catch (error) {
+    console.error('Error deleting entregable template:', error);
+    dispatch({
+      type: 'SET_ERROR',
+      entity: TEMPLATE_TABLE,
+      payload: error.message
+    });
+  }
+};
