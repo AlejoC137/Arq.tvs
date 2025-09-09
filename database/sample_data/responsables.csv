@@ -1,0 +1,16 @@
+nombre,apellido,email,telefono,especialidad,activo
+Ronald,García,ronald.garcia@arq.tvs,+57 300 123 4567,Arquitecto Director,true
+Wiet,van der Berg,wiet.vandenberg@arq.tvs,+57 300 234 5678,Arquitecto Senior,true
+Alejandro,Pérez,alejandro.perez@arq.tvs,+57 300 345 6789,Ingeniero Estructural,true
+María Elena,Rodríguez,maria.rodriguez@arq.tvs,+57 300 456 7890,Diseñadora de Interiores,true
+Carlos,Mendoza,carlos.mendoza@arq.tvs,+57 300 567 8901,Ingeniero Eléctrico,true
+Ana Sofía,Vargas,ana.vargas@arq.tvs,+57 300 678 9012,Ingeniera Hidráulica,true
+Diego,Morales,diego.morales@arq.tvs,+57 300 789 0123,Arquitecto Paisajista,true
+Laura,Jiménez,laura.jimenez@arq.tvs,+57 300 890 1234,Especialista en Automatización,true
+Andrés,Castro,andres.castro@arq.tvs,+57 300 901 2345,Especialista en Seguridad,true
+Camila,Torres,camila.torres@arq.tvs,+57 300 012 3456,Coordinadora de Proyectos,true
+Ricardo,Salinas,ricardo.salinas@arq.tvs,+57 300 123 4568,Ingeniero de Gases,true
+Natalia,Herrera,natalia.herrera@arq.tvs,+57 300 234 5679,Especialista en Sostenibilidad,true
+Felipe,Montoya,felipe.montoya@arq.tvs,+57 300 345 6780,Diseñador de Piscinas,true
+Valentina,Ruiz,valentina.ruiz@arq.tvs,+57 300 456 7891,Arquitecta Técnica,true
+Miguel,Ospina,miguel.ospina@arq.tvs,+57 300 567 8902,Residente de Obra,true

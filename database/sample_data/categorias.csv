@@ -1,0 +1,17 @@
+nombre,descripcion,color,icono,etapa_principal
+Diseño Arquitectónico,Desarrollo de plantas arquitectónicas y distribuciones espaciales,#3B82F6,🏗️,Arquitectónica
+Diseño Estructural,Cálculo y diseño de elementos estructurales de concreto y acero,#EF4444,🔧,Técnica
+Diseño Eléctrico,Sistema eléctrico residencial con circuitos iluminación y tomas,#F59E0B,⚡,Técnica
+Diseño Hidráulico,Sistemas de agua potable agua caliente y aguas residuales,#06B6D4,💧,Técnica
+Diseño de Gases,Instalaciones de gas natural y sistemas de seguridad asociados,#8B5CF6,🔥,Técnica
+Diseño Paisajístico,Diseño de jardines áreas verdes y elementos de paisajismo,#10B981,🌱,Arquitectónica
+Diseño de Piscinas,Diseño estructural e hidráulico de piscinas y jacuzzis,#0EA5E9,🏊,Técnica
+Diseño de Riego,Sistemas automatizados de riego para jardines y áreas verdes,#22C55E,💦,Técnica
+Diseño de Climatización,Sistemas de aire acondicionado ventilación y calefacción,#64748B,❄️,Técnica
+Impermeabilizaciones,Especificaciones técnicas para sistemas de impermeabilización,#6B7280,🛡️,Construcción
+Acabados Interiores,Especificación de materiales pisos enchapes y acabados internos,#EC4899,🎨,Construcción
+Acabados Exteriores,Especificación de fachadas texturales y elementos decorativos externos,#F97316,🏠,Construcción
+Carpintería,Diseño de elementos en madera puertas ventanas y mobiliario fijo,#A3A3A3,🪚,Construcción
+Cerrajería,Elementos metálicos puertas de seguridad rejas y herrajes,#525252,🔒,Construcción
+Seguridad,Sistemas de alarmas cámaras control de acceso y seguridad perimetral,#DC2626,🔐,Técnica
+Automatización,Sistemas de domótica control inteligente del hogar y automatizaciones,#7C3AED,🤖,Técnica
