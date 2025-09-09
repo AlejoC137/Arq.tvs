@@ -4,7 +4,7 @@ import { Save, X } from 'lucide-react';
 const initialState = {
   task_description: '', project_id: '', staff_id: '',
   entregableType: '', status: 'Pendiente', notes: '',
-  stage_id: '', entregable_id: ''
+  stage_id: '', entregable_id: '', Progress: 0 // Nuevo campo
 };
 
 const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entregables, estados }) => {
@@ -20,7 +20,6 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
         stage_id: firstStageId,
       };
       setFormData(defaultData);
-      // Filtrar entregables para la primera etapa por defecto
       setFilteredEntregables(entregables.filter(e => e.Stage_id === firstStageId));
     }
   }, [isOpen, proyectos, stages, entregables]);
@@ -28,17 +27,15 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
   if (!isOpen) return null;
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    let updatedFormData = { ...formData, [name]: value };
+    const { name, value, type } = e.target;
+    let finalValue = type === 'number' ? parseInt(value, 10) || 0 : value;
+    let updatedFormData = { ...formData, [name]: finalValue };
 
-    // Si el usuario cambia la etapa (stage_id), filtramos los entregables correspondientes.
     if (name === "stage_id") {
       setFilteredEntregables(entregables.filter(ent => ent.Stage_id === value));
-      // También reseteamos la selección del entregable específico.
       updatedFormData.entregable_id = ''; 
     }
     
-    // Al seleccionar un entregable, actualizamos el nombre en 'entregableType' para consistencia.
     if (name === "entregable_id") {
         const selectedEntregable = entregables.find(e => e.id === value);
         if (selectedEntregable) {
@@ -56,7 +53,6 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
         return;
     }
     const finalData = { ...formData };
-    // Asignar el nombre del stage a 'entregableType' si no se seleccionó un entregable específico
     if (!finalData.entregable_id) {
         const selectedStage = stages.find(s => s.id === finalData.stage_id);
         if (selectedStage) {
@@ -81,7 +77,8 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
             <div><label htmlFor="staff_id" className="block text-sm font-medium text-gray-700 mb-1">Responsable</label><select id="staff_id" name="staff_id" value={formData.staff_id} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none"><option value="">-- Sin Asignar --</option>{staff.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}</select></div>
             <div><label htmlFor="stage_id" className="block text-sm font-medium text-gray-700 mb-1">Etapa (Categoría)</label><select id="stage_id" name="stage_id" value={formData.stage_id} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none"><option value="" disabled>-- Seleccionar --</option>{stages.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}</select></div>
             <div><label htmlFor="entregable_id" className="block text-sm font-medium text-gray-700 mb-1">Entregable Específico</label><select id="entregable_id" name="entregable_id" value={formData.entregable_id} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" disabled={!formData.stage_id}><option value="">(Opcional)</option>{filteredEntregables.map(e => (<option key={e.id} value={e.id}>{e.entregable_nombre}</option>))}</select></div>
-            <div className="md:col-span-2"><label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Estado Inicial</label><select id="status" name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none">{Object.values(estados).map(estado => (<option key={estado} value={estado}>{estado}</option>))}</select></div>
+            <div><label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Estado Inicial</label><select id="status" name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none">{Object.values(estados).map(estado => (<option key={estado} value={estado}>{estado}</option>))}</select></div>
+            <div><label htmlFor="Progress" className="block text-sm font-medium text-gray-700 mb-1">Progreso Inicial (%)</label><input id="Progress" name="Progress" type="number" min="0" max="100" value={formData.Progress} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" /></div>
             <div className="md:col-span-2"><label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales</label><textarea id="notes" name="notes" value={formData.notes} onChange={handleChange} rows="2" className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" placeholder="Añadir detalles..."></textarea></div>
           </div>
           <div className="flex justify-end items-center p-4 border-t bg-gray-50 rounded-b-lg">

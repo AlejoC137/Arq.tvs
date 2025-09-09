@@ -16,14 +16,12 @@ import FormTask from './FormTask';
 import { getAllFromTable, updateTask, addTask, deleteTask } from '../store/actions/actions'; 
 import { CATEGORIES } from '../store/actionTypes';
 
-// Constante de estados completa
 const ESTADOS = {
   PENDIENTE: 'Pendiente', EN_PROCESO: 'En Progreso', COMPLETADO: 'Completado',
   CANCELADO: 'Cancelado', EN_REVISION: 'En Revisión', BLOQUEADO: 'Bloqueado',
   APROBACION_REQUERIDA: 'Aprobación Requerida', EN_DISENO: 'En Diseño', EN_DISCUSION: 'En Discusión'
 };
 
-// Función de colores completa
 const getEstadoColor = (estado) => {
   const colors = {
     'Pendiente': 'bg-yellow-100 text-yellow-800', 'En Progreso': 'bg-blue-100 text-blue-800', 
@@ -87,7 +85,6 @@ const ProjectExcelView = () => {
       sortableItems.sort((a, b) => {
         let aValue = a[sortConfig.key] || '';
         let bValue = b[sortConfig.key] || '';
-        // Lógica para ordenar por nombre en lugar de ID
         if (sortConfig.key === 'project_id') {
             aValue = proyectos.find(p => p.id === aValue)?.name || aValue;
             bValue = proyectos.find(p => p.id === bValue)?.name || bValue;
@@ -104,7 +101,10 @@ const ProjectExcelView = () => {
             aValue = entregables.find(e => e.id === aValue)?.entregable_nombre || aValue;
             bValue = entregables.find(e => e.id === bValue)?.entregable_nombre || bValue;
         }
-        // Fin de la lógica de ordenamiento por nombre
+        if (sortConfig.key === 'Progress') {
+            aValue = Number(aValue || 0);
+            bValue = Number(bValue || 0);
+        }
         if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
         if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
         return 0;
@@ -138,16 +138,25 @@ const ProjectExcelView = () => {
     const [editValue, setEditValue] = useState(value);
     
     const handleSave = () => {
-        if (editValue !== value) {
-            let fieldsToUpdate = { [field]: editValue };
+        let finalValue = editValue;
+        if (type === 'progress') {
+            finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
+        }
+
+        if (finalValue !== value) {
+            let fieldsToUpdate = { [field]: finalValue };
             if (field === 'stage_id') {
-                const selectedStage = stages.find(s => s.id === editValue);
+                const selectedStage = stages.find(s => s.id === finalValue);
                 fieldsToUpdate.entregableType = selectedStage ? selectedStage.name : '';
                 fieldsToUpdate.entregable_id = null;
             }
             if (field === 'entregable_id') {
-                const selectedEntregable = entregables.find(e => e.id === editValue);
+                const selectedEntregable = entregables.find(e => e.id === finalValue);
                 if (selectedEntregable) fieldsToUpdate.entregableType = selectedEntregable.entregable_nombre;
+            }
+            // Si el progreso llega a 100, cambiar el estado a "Completado"
+            if (field === 'Progress' && finalValue === 100) {
+                fieldsToUpdate.status = 'Completado';
             }
             updateCell(rowId, fieldsToUpdate);
         }
@@ -157,6 +166,7 @@ const ProjectExcelView = () => {
     const handleKeyPress = (e) => { if (e.key === 'Enter' && type !== 'textarea') handleSave(); else if (e.key === 'Escape') { setEditValue(value); setIsEditing(false); } };
     
     if (isEditing) {
+        if (type === 'progress') return (<input type="number" min="0" max="100" value={editValue || 0} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none" autoFocus />);
         if (type === 'select') return (<select value={editValue || ''} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none" autoFocus><option value="">-- Seleccionar --</option>{options.map(option => (<option key={option.id} value={option.id}>{option.name}</option>))}</select>);
         if (type === 'entregable-select') {
             const filteredOptions = options.filter(o => o.Stage_id === currentStageId);
@@ -166,6 +176,19 @@ const ProjectExcelView = () => {
         return (<textarea value={editValue || ''} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none" rows="3" autoFocus/>);
     }
     
+    if (field === 'Progress') {
+        const progress = Math.max(0, Math.min(100, Number(value) || 0));
+        return (
+            <div className="w-full p-1 cursor-pointer" onClick={() => setIsEditing(true)}>
+                <div className="flex items-center">
+                    <span className="text-xs font-semibold mr-2 w-8">{progress}%</span>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
     if (field === 'status') return (<span className={`px-2 py-1 rounded-full text-xs font-medium cursor-pointer ${getEstadoColor(value)}`} onClick={() => setIsEditing(true)}>{value}</span>);
     if (field === 'project_id' && proyectos.length > 0) { const p = proyectos.find(p => p.id === value); return (<div className="cursor-pointer p-1" onClick={() => setIsEditing(true)}>{p ? p.name : value || '-'}</div>); }
     if (field === 'staff_id' && staff.length > 0) { const s = staff.find(s => s.id === value); return (<div className="cursor-pointer p-1" onClick={() => setIsEditing(true)}>{s ? s.name : value || '-'}</div>); }
@@ -205,6 +228,7 @@ const ProjectExcelView = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-48"><button onClick={() => requestSort('stage_id')} className="flex items-center gap-1 hover:text-gray-800">Etapa <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('entregable_id')} className="flex items-center gap-1 hover:text-gray-800">Entregable <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-96"><button onClick={() => requestSort('task_description')} className="flex items-center gap-1 hover:text-gray-800">Tarea <ArrowUpDown size={12} /></button></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('Progress')} className="flex items-center gap-1 hover:text-gray-800">Progreso <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('status')} className="flex items-center gap-1 hover:text-gray-800">Estado <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('project_id')} className="flex items-center gap-1 hover:text-gray-800">Proyecto <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('staff_id')} className="flex items-center gap-1 hover:text-gray-800">Responsable <ArrowUpDown size={12} /></button></th>
@@ -218,6 +242,7 @@ const ProjectExcelView = () => {
                     <td className="px-4 py-2 border-r"><EditableCell rowId={item.id} field="stage_id" value={item.stage_id} type="select" options={stages} /></td>
                     <td className="px-4 py-2 border-r"><EditableCell rowId={item.id} field="entregable_id" value={item.entregable_id} type="entregable-select" options={entregables} currentStageId={item.stage_id} /></td>
                     <td className="px-4 py-2 border-r"><EditableCell rowId={item.id} field="task_description" value={item.task_description} type="textarea" /></td>
+                    <td className="px-4 py-2 border-r"><EditableCell rowId={item.id} field="Progress" value={item.Progress} type="progress" /></td>
                     <td className="px-4 py-2 border-r"><EditableCell rowId={item.id} field="status" value={item.status} type="status-select" options={Object.keys(ESTADOS).map(k => ({id: k, name: ESTADOS[k]}))} /></td>
                     <td className="px-4 py-2 border-r"><EditableCell rowId={item.id} field="project_id" value={item.project_id} type="select" options={proyectos} /></td>
                     <td className="px-4 py-2 border-r"><EditableCell rowId={item.id} field="staff_id" value={item.staff_id} type="select" options={staff} /></td>
