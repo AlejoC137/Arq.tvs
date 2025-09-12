@@ -95,7 +95,7 @@ function App() {
     { 
       id: 'planos', 
       path: '/planos',
-      label: 'Lista de Planos', 
+      label: 'Plantilla de Documentos', 
       icon: FileText, 
       description: 'Gestión de planos por etapas' 
     }
