@@ -138,7 +138,17 @@ const ProjectExcelView = () => {
     });
   };
 
-  const handleAddTask = (taskData) => { dispatch(addTask(taskData)); };
+  const handleAddTask = (taskData) => { 
+    const processedTaskData = {
+      ...taskData,
+      project_id: taskData.project_id || null,
+      staff_id: taskData.staff_id || null,
+      stage_id: taskData.stage_id || null,
+      entregable_id: taskData.entregable_id || null,
+      notes: taskData.notes || null
+    };
+    dispatch(addTask(processedTaskData)); 
+  };
   
   const handleDeleteTask = (taskId, taskDescription) => {
     if (window.confirm(`¿Estás seguro de que deseas eliminar la tarea?\n\n"${taskDescription}"`)) {
