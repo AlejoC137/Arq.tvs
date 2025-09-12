@@ -11,6 +11,7 @@ import {
   Home as HomeIcon
 } from 'lucide-react';
 import ProjectExcelView from './components/ProjectExcelView';
+import ProjectKanbanView from './components/ProjectKanbanView';
 import ProjectDashboard from './components/ProjectDashboard';
 import PlanosView from './components/PlanosView';
 import './index.css';
@@ -71,6 +72,13 @@ function App() {
 
   const navigationItems = [
     { 
+      id: 'ProjectKanbanView', 
+      path: '/ProjectKanbanView',
+      label: 'ProjectKanbanView', 
+      icon: LayoutDashboard, 
+      description: 'Gráficos y estadísticas ejecutivas' 
+    },
+    { 
       id: 'dashboard', 
       path: '/dashboard',
       label: 'Dashboard', 
@@ -123,7 +131,7 @@ function App() {
   };
 
   return (
-    <Router>
+    // <Router>
       <div className="flex h-screen bg-gray-50">
         {/* Sidebar */}
         <div className="w-64 bg-white shadow-lg flex flex-col">
@@ -205,11 +213,12 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<ProjectDashboard data={data} />} />
             <Route path="/gestion" element={<ProjectExcelView data={data} setData={setData} />} />
+            <Route path="/ProjectKanbanView" element={<ProjectKanbanView data={data} setData={setData} />} />
             <Route path="/planos" element={<PlanosView />} />
           </Routes>
         </div>
       </div>
-    </Router>
+    // </Router>
   );
 }
 
