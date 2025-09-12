@@ -174,28 +174,22 @@ export function insertarRecetas(recetasData, upsert = false) {
 }
 
 
-
-// ========================================
-// NUEVAS ACCIONES PARA ENTREGABLES_TEMPLATE
-// ========================================
-
-const TEMPLATE_TABLE = 'Entregables_template';
+// ARCHIVO: src/store/actions/actions.js
+// ... (agrega esto al final de tu archivo existente)
 
 // Acción para crear una nueva plantilla de entregable
 export const createEntregableTemplate = (templateData) => async (dispatch) => {
   try {
     const { data, error } = await supabase
-      .from(TEMPLATE_TABLE)
+      .from('Entregables_template')
       .insert([templateData])
       .select();
     
     if (error) throw error;
     
-    // Aquí podrías despachar una acción específica para agregar al store si es necesario
-    // Por simplicidad, podrías volver a llamar a getAllFromTable o manejarlo en el reducer.
-    // Ejemplo de dispatch específico:
     dispatch({
-      type: 'CREATE_ENTREGABLE_TEMPLATE', // Asegúrate de tener este actionType definido
+      type: 'CREATE_IN_TABLE', // Usamos el tipo de acción genérico
+      path: 'entregables', // El path que actualiza el estado en tu reducer
       payload: data[0]
     });
     
@@ -203,7 +197,7 @@ export const createEntregableTemplate = (templateData) => async (dispatch) => {
     console.error('Error creating entregable template:', error);
     dispatch({
       type: 'SET_ERROR',
-      entity: TEMPLATE_TABLE,
+      entity: 'entregables',
       payload: error.message
     });
   }
@@ -213,7 +207,7 @@ export const createEntregableTemplate = (templateData) => async (dispatch) => {
 export const updateEntregableTemplate = (templateId, updates) => async (dispatch) => {
   try {
     const { data, error } = await supabase
-      .from(TEMPLATE_TABLE)
+      .from('Entregables_template')
       .update(updates)
       .eq('id', templateId)
       .select();
@@ -221,15 +215,16 @@ export const updateEntregableTemplate = (templateId, updates) => async (dispatch
     if (error) throw error;
     
     dispatch({
-      type: 'UPDATE_ENTREGABLE_TEMPLATE', // Asegúrate de tener este actionType definido
-      payload: data[0]
+      type: 'UPDATE_IN_TABLE', // Usamos el tipo de acción genérico
+      path: 'entregables',
+      payload: { id: templateId, ...data[0] }
     });
     
   } catch (error) {
     console.error('Error updating entregable template:', error);
     dispatch({
       type: 'SET_ERROR',
-      entity: TEMPLATE_TABLE,
+      entity: 'entregables',
       payload: error.message
     });
   }
@@ -239,14 +234,15 @@ export const updateEntregableTemplate = (templateId, updates) => async (dispatch
 export const deleteEntregableTemplate = (templateId) => async (dispatch) => {
   try {
     const { error } = await supabase
-      .from(TEMPLATE_TABLE)
+      .from('Entregables_template')
       .delete()
       .eq('id', templateId);
     
     if (error) throw error;
     
     dispatch({
-      type: 'DELETE_ENTREGABLE_TEMPLATE', // Asegúrate de tener este actionType definido
+      type: 'DELETE_FROM_TABLE', // Usamos el tipo de acción genérico
+      path: 'entregables',
       payload: templateId
     });
     
@@ -254,7 +250,7 @@ export const deleteEntregableTemplate = (templateId) => async (dispatch) => {
     console.error('Error deleting entregable template:', error);
     dispatch({
       type: 'SET_ERROR',
-      entity: TEMPLATE_TABLE,
+      entity: 'entregables',
       payload: error.message
     });
   }

@@ -1,175 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from './ui/Button.jsx';
-import { Input } from './ui/Input.jsx';
-import { Label } from './ui/Label.jsx';
-import { Select } from './ui/Select.jsx';
-import { Textarea } from './ui/Textarea.jsx';
+// ARCHIVO: src/components/CrudForm.jsx
 
-const CrudForm = ({ 
-  fields = [], 
-  initialData = {}, 
-  onSubmit, 
-  onCancel, 
-  loading = false,
-  submitText = "Guardar",
-  cancelText = "Cancelar"
-}) => {
-  const [formData, setFormData] = useState(initialData);
-  const [errors, setErrors] = useState({});
+import React, { useState, useEffect } from 'react';
+import { Button } from './ui/Button';
+
+const CrudForm = ({ initialData, fields, onSubmit }) => {
+  // --- LA SOLUCIÓN ESTÁ AQUÍ ---
+  // Si initialData es null (creando nuevo), usamos un objeto vacío {} como valor inicial.
+  const [formData, setFormData] = useState(initialData || {});
 
   useEffect(() => {
-    setFormData(initialData);
+    // Esto asegura que si el item a editar cambia, el formulario se actualice.
+    setFormData(initialData || {});
   }, [initialData]);
 
-  const handleChange = (fieldName, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (errors[fieldName]) {
-      setErrors(prev => ({
-        ...prev,
-        [fieldName]: null
-      }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    fields.forEach(field => {
-      if (field.required && !formData[field.name]) {
-        newErrors[field.name] = `${field.label} es requerido`;
-      }
-      
-      if (field.validate) {
-        const error = field.validate(formData[field.name], formData);
-        if (error) {
-          newErrors[field.name] = error;
-        }
-      }
-    });
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (validateForm()) {
-      onSubmit(formData);
-    }
+    onSubmit(formData);
   };
 
   const renderField = (field) => {
-    const commonProps = {
-      id: field.name,
-      value: formData[field.name] || '',
-      onChange: (e) => handleChange(field.name, e.target.value),
-      placeholder: field.placeholder,
-      disabled: loading || field.disabled,
-      className: errors[field.name] ? 'border-destructive' : ''
-    };
+    const { name, label, type = 'text', placeholder, required, options } = field;
+    const value = formData[name] || '';
 
-    switch (field.type) {
-      case 'select':
-        return (
-          <Select {...commonProps}>
-            {field.placeholder && (
-              <option value="">{field.placeholder}</option>
-            )}
-            {field.options?.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        );
-        
+    switch (type) {
       case 'textarea':
         return (
-          <Textarea 
-            {...commonProps} 
-            rows={field.rows || 3}
+          <textarea
+            id={name}
+            name={name}
+            value={value}
+            onChange={handleChange}
+            placeholder={placeholder || `Escribe ${label.toLowerCase()}...`}
+            required={required}
+            className="w-full p-2 border border-gray-300 rounded-lg"
+            rows="3"
           />
         );
-        
-      case 'number':
+      case 'select':
         return (
-          <Input 
-            {...commonProps} 
-            type="number"
-            min={field.min}
-            max={field.max}
-            step={field.step}
+          <select
+            id={name}
+            name={name}
+            value={value}
+            onChange={handleChange}
+            required={required}
+            className="w-full p-2 border border-gray-300 rounded-lg"
+          >
+            <option value="">-- Seleccionar --</option>
+            {options.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        );
+      default: // 'text', 'number', 'email', etc.
+        return (
+          <input
+            id={name}
+            type={type}
+            name={name}
+            value={value}
+            onChange={handleChange}
+            placeholder={placeholder || `Ingresa ${label.toLowerCase()}`}
+            required={required}
+            className="w-full p-2 border border-gray-300 rounded-lg"
           />
         );
-        
-      case 'email':
-        return <Input {...commonProps} type="email" />;
-        
-      case 'password':
-        return <Input {...commonProps} type="password" />;
-        
-      case 'date':
-        return <Input {...commonProps} type="date" />;
-        
-      case 'datetime-local':
-        return <Input {...commonProps} type="datetime-local" />;
-        
-      default:
-        return <Input {...commonProps} type="text" />;
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 gap-4">
-        {fields.map(field => (
-          <div key={field.name} className={field.className || ''}>
-            <Label htmlFor={field.name} className="block text-sm font-medium mb-2">
-              {field.label}
-              {field.required && <span className="text-destructive ml-1">*</span>}
-            </Label>
-            
-            {renderField(field)}
-            
-            {errors[field.name] && (
-              <p className="text-sm text-destructive mt-1">
-                {errors[field.name]}
-              </p>
-            )}
-            
-            {field.help && !errors[field.name] && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {field.help}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-end gap-3 pt-4 border-t">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={loading}
-        >
-          {cancelText}
-        </Button>
-        <Button
-          type="submit"
-          disabled={loading}
-        >
-          {loading ? 'Guardando...' : submitText}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {fields.map(field => (
+        <div key={field.name}>
+          <label htmlFor={field.name} className="block text-sm font-medium text-gray-700 mb-1">
+            {field.label} {field.required && <span className="text-red-500">*</span>}
+          </label>
+          {renderField(field)}
+        </div>
+      ))}
+      <div className="flex justify-end pt-4">
+        <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+          {initialData ? 'Actualizar' : 'Crear'}
         </Button>
       </div>
     </form>
   );
 };
 
-export { CrudForm };
+export default CrudForm;

@@ -210,8 +210,8 @@ function App() {
         {/* Contenido principal */}
         <div className="flex-1 overflow-hidden">
           <Routes>
-            {/* <Route path="/" element={<Navigate to="/dashboard" replace />} /> */}
-            <Route path="/" element={<ProjectDashboard data={data} />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<ProjectDashboard data={data} />} />
             <Route path="/gestion" element={<ProjectExcelView data={data} setData={setData} />} />
             <Route path="/ProjectKanbanView" element={<ProjectKanbanView data={data} setData={setData} />} />
             <Route path="/planos" element={<PlanosView />} />
