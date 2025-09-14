@@ -4,12 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
 
 const CrudForm = ({ initialData, fields, onSubmit }) => {
-  // --- LA SOLUCIÓN ESTÁ AQUÍ ---
-  // Si initialData es null (creando nuevo), usamos un objeto vacío {} como valor inicial.
+  // Inicializa el estado con los datos iniciales o un objeto vacío si es nulo (para 'Crear')
   const [formData, setFormData] = useState(initialData || {});
 
+  // Sincroniza el estado si el `initialData` cambia (al editar otro ítem)
   useEffect(() => {
-    // Esto asegura que si el item a editar cambia, el formulario se actualice.
     setFormData(initialData || {});
   }, [initialData]);
 
@@ -25,6 +24,7 @@ const CrudForm = ({ initialData, fields, onSubmit }) => {
 
   const renderField = (field) => {
     const { name, label, type = 'text', placeholder, required, options } = field;
+    // Asegura que el valor sea siempre un string para evitar errores con inputs no controlados
     const value = formData[name] || '';
 
     switch (type) {

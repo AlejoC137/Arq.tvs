@@ -136,7 +136,7 @@ const CrudForm = ({ fields, initialData, onSubmit, onCancel, loading, submitText
       ))}
       <div className="flex justify-end gap-3 pt-4 border-t mt-6">
         <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded-md">Cancelar</button>
-        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-blue-300">
+        <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-600   rounded-md disabled:bg-blue-300">
           {loading ? 'Guardando...' : submitText}
         </button>
       </div>
@@ -160,7 +160,7 @@ const DataTable = ({ title, description, data, columns, loading, onAdd, onEdit, 
                         <h3 className="text-lg font-semibold">{title}</h3>
                         <p className="text-sm text-gray-500">{description}</p>
                     </div>
-                    <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md">
+                    <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-600   rounded-md">
                         <Plus size={16} /> Agregar
                     </button>
                 </div>

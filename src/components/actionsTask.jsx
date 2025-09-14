@@ -126,7 +126,7 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
                 <input id="lista-checkbox" type="checkbox" name="lista" checked={currentAction.lista} onChange={handleInputChange} className="h-5 w-5 text-blue-600 border-gray-300 rounded" />
                 <label htmlFor="lista-checkbox" className="ml-2 text-sm text-gray-700">¿Lista?</label>
               </div>
-              <button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 w-full">
+              <button type="submit" className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500   rounded-lg hover:bg-blue-600 w-full">
                 {editingIndex !== null ? <Edit2 size={16} /> : <Plus size={16} />}
                 {editingIndex !== null ? 'Actualizar' : 'Agregar'}
               </button>
@@ -165,7 +165,7 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
 
         <div className="flex justify-end items-center p-4 border-t bg-gray-50">
           <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 mr-2">Cancelar</button>
-          <button onClick={handleSaveToSupabase} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+          <button onClick={handleSaveToSupabase} className="px-4 py-2 bg-green-600   rounded-lg hover:bg-green-700 flex items-center gap-2">
             <Save size={16} /> Guardar Cambios
           </button>
         </div>

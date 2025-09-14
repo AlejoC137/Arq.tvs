@@ -41,7 +41,7 @@ const getPriorityColor = (priority) => {
     'Media-Baja': 'bg-green-100 text-green-800',
     'Media': 'bg-yellow-100 text-yellow-800',
     'Media-Alta': 'bg-orange-200 text-orange-900',
-    'Alta': 'bg-red-500 text-white font-bold', // <-- CORREGIDO: Añadido text-white
+    'Alta': 'bg-red-500   font-bold', // <-- CORREGIDO: Añadido text-white
   };
   return colors[priority] || 'bg-gray-100 text-gray-800';
 };
@@ -85,7 +85,10 @@ const ProjectExcelView = () => {
       if (proyectosAction?.payload) setProyectos(proyectosAction.payload);
       if (staffAction?.payload) setStaff(staffAction.payload);
       if (stagesAction?.payload) setStages(stagesAction.payload);
+      // if (entregablesAction?.payload) console.log(entregablesAction.payload);
       if (entregablesAction?.payload) setEntregables(entregablesAction.payload);
+      
+
     };
     fetchAllData();
     fetchTasks();
@@ -233,6 +236,29 @@ const ProjectExcelView = () => {
   
   const deselectAll = () => setSelectedRows(new Set());
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
   const EditableCell = ({ rowId, field, value, type = 'text', options = [], currentStageId = null }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
@@ -266,8 +292,8 @@ const ProjectExcelView = () => {
             case 'priority-select':
                 return <select value={editValue || ''} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none bg-white" autoFocus><option value="">-- Seleccionar --</option>{options.map(option => (<option key={option.id} value={option.id}>{option.name}</option>))}</select>;
             case 'entregable-select':
-                const filteredOptions = options.filter(o => o.Stage_id === currentStageId);
-                return <select value={editValue || ''} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none" autoFocus><option value="">-- Seleccionar --</option>{filteredOptions.map(option => (<option key={option.id} value={option.id}>{option.entregable_nombre}</option>))}</select>;
+                // const filteredOptions = options.filter(o => o.Stage_id === currentStageId);
+                return <select value={editValue || ''} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none" autoFocus><option value="">-- Seleccionar --</option>{options.map(option => (<option key={option.id} value={option.id}>{option.entregable_nombre}</option>))}</select>;
             default:
                 return <textarea value={editValue || ''} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none" rows="3" autoFocus/>;
         }
@@ -305,7 +331,35 @@ const ProjectExcelView = () => {
     return <div className="cursor-pointer p-1 min-h-[28px]" onClick={() => setIsEditing(true)}>{displayValue(field, value)}</div>;
   };
 
-  const exportToExcel = () => { /* ... */ };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const exportToExcel = () => { /* ... */ };
 
   return (
     <>
@@ -315,8 +369,8 @@ const ProjectExcelView = () => {
           <div className="flex items-center justify-between mb-4">
             <div><h1 className="text-2xl font-bold text-gray-900">Gestión de Tareas</h1><p className="text-gray-600">Vista de Hoja de Cálculo Interactiva</p></div>
             <div className="flex items-center gap-2">
-              <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"><Download size={16} /> Exportar</button>
-              <button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"><Plus size={16} /> Nueva Tarea</button>
+              <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600   rounded-lg hover:bg-green-700"><Download size={16} /> Exportar</button>
+              <button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600   rounded-lg hover:bg-blue-700"><Plus size={16} /> Nueva Tarea</button>
             </div>
           </div>
           <div className="grid grid-cols-6 gap-4 p-2 bg-gray-50 rounded-lg border">
@@ -324,7 +378,7 @@ const ProjectExcelView = () => {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Etapa</label><select value={filters.stage_id} onChange={(e) => setFilters(prev => ({ ...prev, stage_id: e.target.value }))} className="w-full p-2 border border-gray-300 rounded-lg"><option value="">Todas</option>{stages.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Responsable</label><select value={filters.staff_id} onChange={(e) => setFilters(prev => ({ ...prev, staff_id: e.target.value }))} className="w-full p-2 border border-gray-300 rounded-lg"><option value="">Todos</option>{staff.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Estado</label><select value={filters.status} onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))} className="w-full p-2 border border-gray-300 rounded-lg"><option value="">Todos</option>{Object.values(ESTADOS).map(estado => (<option key={estado} value={estado}>{estado}</option>))}</select></div>
-            <div className="flex items-end"><button onClick={() => setFilters({ project_id: '', stage_id: '', staff_id: '', status: '', search: '' })} className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 w-full"><XCircle size={16} /> Limpiar</button></div>
+            <div className="flex items-end"><button onClick={() => setFilters({ project_id: '', stage_id: '', staff_id: '', status: '', search: '' })} className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-600   rounded-lg hover:bg-gray-700 w-full"><XCircle size={16} /> Limpiar</button></div>
           </div>
         </div>
         
@@ -345,7 +399,7 @@ const ProjectExcelView = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('status')} className="flex items-center gap-1 hover:text-gray-800">Estado <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('Progress')} className="flex items-center gap-1 hover:text-gray-800">Progreso <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('staff_id')} className="flex items-center gap-1 hover:text-gray-800">Responsable <ArrowUpDown size={12} /></button></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('entregable_id')} className="flex items-center gap-1 hover:text-gray-800">Entregable <ArrowUpDown size={12} /></button></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-32"><button onClick={() => requestSort('entregable_id')} className="flex items-center gap-1 hover:text-gray-800">Entregable <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('notes')} className="flex items-center gap-1 hover:text-gray-800">Notas <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-24">Borrar</th>
                 </tr>
@@ -373,7 +427,7 @@ const ProjectExcelView = () => {
                         <td className="px-4 py-2 border-r text-center align-top"><EditableCell rowId={item.id} field="status" value={item.status} type="status-select" options={Object.keys(ESTADOS).map(k => ({id: ESTADOS[k], name: ESTADOS[k]}))} /></td>
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="Progress" value={item.Progress} type="progress" /></td>
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="staff_id" value={item.staff_id} type="select" options={staff} /></td>
-                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="entregable_id" value={item.entregable_id} type="entregable-select" options={entregables} currentStageId={item.stage_id} /></td>
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="entregable_id" value={item.entregable_id} type="entregable-select" options={entregables} /></td>
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="notes" value={item.notes} type="textarea" /></td>
                         <td className="px-4 py-2 border-r align-top">
                           <div className="flex items-center justify-center">

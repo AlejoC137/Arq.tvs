@@ -2,23 +2,23 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
-import { 
-  getAllFromTable, 
-  createEntregableTemplate, 
-  updateEntregableTemplate, 
-  deleteEntregableTemplate 
+import {
+  getAllFromTable,
+  createEntregableTemplate,
+  updateEntregableTemplate,
+  deleteEntregableTemplate
 } from '../store/actions/actions';
 
 // Componentes de UI e Iconos
 import { Button } from './ui/Button';
 import CrudForm from './CrudForm';
-import {Modal} from './ui/Modal';
+import { Modal } from './ui/Modal';
 import { Plus, Trash2, Edit } from 'lucide-react';
 
 const TABLE_NAME = 'Entregables_template';
 
 // Opciones para los campos 'select' en el formulario
-const TIPO_OPTIONS = ['2D', '3D', '2D/3D', 'Documento'];
+const CATEGORIA_OPTIONS = ['2D', '3D', '2D/3D', 'Documento'];
 const VISTA_TIPO_OPTIONS = ['Planta', 'Alzado', 'Sección', 'Diagrama', 'Detalle', 'Isométrico', 'Perspectiva', 'Modelo 3D'];
 const SOFTWARE_OPTIONS = ['Revit/AutoCAD', 'Adobe Suite', 'SketchUp', 'Rhino', 'Office Suite'];
 
@@ -27,12 +27,9 @@ const PlanosView = () => {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Estados para el modal y la edición
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
-  // Cargar datos usando la acción de Redux
   const fetchData = async () => {
     setLoading(true);
     const actionResult = await dispatch(getAllFromTable(TABLE_NAME));
@@ -46,7 +43,6 @@ const PlanosView = () => {
     fetchData();
   }, [dispatch]);
 
-  // Manejadores de eventos CRUD
   const handleCreate = () => {
     setEditingItem(null);
     setIsModalOpen(true);
@@ -59,16 +55,22 @@ const PlanosView = () => {
 
   const handleDelete = (itemId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta plantilla?')) {
-      dispatch(deleteEntregableTemplate(itemId)).then(() => {
-        fetchData();
-      });
+      dispatch(deleteEntregableTemplate(itemId)).then(fetchData);
     }
   };
 
   const handleSubmit = (formData) => {
-    const action = editingItem 
-      ? updateEntregableTemplate(editingItem.id, formData)
-      : createEntregableTemplate(formData);
+    const sanitizedData = { ...formData };
+    // Convierte campos vacíos a null antes de enviar a Supabase
+    for (const key in sanitizedData) {
+      if (sanitizedData[key] === '') {
+        sanitizedData[key] = null;
+      }
+    }
+    
+    const action = editingItem
+      ? updateEntregableTemplate(editingItem.id, sanitizedData)
+      : createEntregableTemplate(sanitizedData);
 
     dispatch(action).then(() => {
       fetchData();
@@ -76,24 +78,20 @@ const PlanosView = () => {
     });
   };
 
-  // Definición de columnas para la tabla (incluyendo los nuevos campos)
+  // --- ✅ COLUMNAS ALINEADAS CON LA BASE DE DATOS ---
   const columns = useMemo(() => [
     { Header: 'Nombre del Entregable', accessor: 'entregable_nombre' },
-    { Header: 'Tipo', accessor: 'tipo' },
+    { Header: 'Categoría', accessor: 'Categoria' }, // Corresponde a la columna 'Categoria'
     { Header: 'Tipo de Vista', accessor: 'vistaTipo' },
     { Header: 'Escala Típica', accessor: 'escala_tipica' },
     { Header: 'Software', accessor: 'software_utilizado' },
-    {
-      Header: 'Acciones',
-      accessor: 'actions',
-    },
+    { Header: 'Acciones', accessor: 'actions' },
   ], []);
 
-  // Campos para el formulario CrudForm (actualizado con las nuevas propiedades)
+  // --- ✅ FORMULARIO ALINEADO CON LA BASE DE DATOS ---
   const formFields = [
     { name: 'entregable_nombre', label: 'Nombre del Entregable', type: 'text', required: true },
-    { name: 'description', label: 'Descripción', type: 'textarea' },
-    { name: 'tipo', label: 'Tipo', type: 'select', options: TIPO_OPTIONS },
+    { name: 'Categoria', label: 'Categoría', type: 'select', options: CATEGORIA_OPTIONS }, // Corresponde a la columna 'Categoria'
     { name: 'vistaTipo', label: 'Tipo de Vista', type: 'select', options: VISTA_TIPO_OPTIONS },
     { name: 'vistaSubTipo', label: 'Sub-tipo de Vista', type: 'text' },
     { name: 'escala_tipica', label: 'Escala Típica', type: 'text', placeholder: 'Ej: 1:50, 1:100' },
@@ -125,7 +123,7 @@ const PlanosView = () => {
             {items.map(item => (
               <tr key={item.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{item.entregable_nombre}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.tipo}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{item.Categoria}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{item.vistaTipo}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{item.escala_tipica}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{item.software_utilizado}</td>

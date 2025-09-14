@@ -142,7 +142,7 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
           </div>
           <div className="flex justify-end items-center p-4 border-t bg-gray-50 rounded-b-lg">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 mr-2">Cancelar</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"><Save size={16} />Guardar Tarea</button>
+            <button type="submit" className="px-4 py-2 bg-blue-600   rounded-lg hover:bg-blue-700 flex items-center gap-2"><Save size={16} />Guardar Tarea</button>
           </div>
         </form>
       </div>
