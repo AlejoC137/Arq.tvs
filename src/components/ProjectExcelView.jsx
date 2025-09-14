@@ -1,16 +1,16 @@
 // ARCHIVO: src/components/ProjectExcelView.jsx
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import { 
   Search, Download, Plus,
-  XCircle, ArrowUpDown, Trash2
+  XCircle, ArrowUpDown, Trash2, ChevronRight, ChevronDown
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 import FormTask from './FormTask'; 
 import TaskActions from './TaskActions';
-import InlineActionsTask from './InlineActionsTask'; // <-- 1. IMPORTAR EL NUEVO COMPONENTE
+import InlineActionsTask from './InlineActionsTask';
 import { 
   getAllFromTable, 
   updateTask, 
@@ -18,7 +18,6 @@ import {
   deleteTask 
 } from '../store/actions/actions'; 
 
-// ... (El resto de tus constantes y helpers permanecen igual)
 const ESTADOS = {
   PENDIENTE: 'Pendiente', EN_PROCESO: 'En Progreso', COMPLETADO: 'Completado',
   CANCELADO: 'Cancelado', EN_REVISION: 'En Revisión', BLOQUEADO: 'Bloqueado',
@@ -38,11 +37,11 @@ const getEstadoColor = (estado) => {
 
 const getPriorityColor = (priority) => {
   const colors = {
-'Baja': 'bg-blue-100 text-blue-800',          // Azul para indicar baja urgencia
-    'Media-Baja': 'bg-green-100 text-green-800',   // Verde como un paso intermedio
-    'Media': 'bg-yellow-100 text-yellow-800',       // Amarillo para llamar la atención
-    'Media-Alta': 'bg-orange-200 text-orange-900',// Naranja para urgencia elevada
-    'Alta': 'bg-red-500  font-bold',   // Rojo sólido para máxima criticidad
+    'Baja': 'bg-blue-100 text-blue-800',
+    'Media-Baja': 'bg-green-100 text-green-800',
+    'Media': 'bg-yellow-100 text-yellow-800',
+    'Media-Alta': 'bg-orange-200 text-orange-900',
+    'Alta': 'bg-red-500 text-white font-bold', // <-- CORREGIDO: Añadido text-white
   };
   return colors[priority] || 'bg-gray-100 text-gray-800';
 };
@@ -68,6 +67,7 @@ const ProjectExcelView = () => {
   const [filters, setFilters] = useState({ project_id: '', stage_id: '', staff_id: '', status: '', search: '' });
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: 'task_description', direction: 'ascending' });
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set()); // <-- AÑADIDO: Estado para grupos colapsados
 
   const fetchTasks = async () => {
     const tareasAction = await dispatch(getAllFromTable("Tareas"));
@@ -108,7 +108,7 @@ const ProjectExcelView = () => {
     return filtered;
   }, [data, filters]);
 
-  const sortedItems = useMemo(() => {
+  const groupedAndSortedItems = useMemo(() => {
     let sortableItems = [...filteredData];
     if (sortConfig.key !== null) {
       sortableItems.sort((a, b) => {
@@ -130,8 +130,28 @@ const ProjectExcelView = () => {
         return 0;
       });
     }
-    return sortableItems;
-  }, [filteredData, sortConfig, proyectos, staff, stages, entregables]);
+    
+    return sortableItems.reduce((acc, item) => {
+      const projectName = proyectos.find(p => p.id === item.project_id)?.name || 'Tareas sin Proyecto';
+      if (!acc[projectName]) {
+        acc[projectName] = [];
+      }
+      acc[projectName].push(item);
+      return acc;
+    }, {});
+  }, [filteredData, sortConfig, proyectos]);
+
+  const toggleGroup = (groupName) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupName)) {
+        newSet.delete(groupName);
+      } else {
+        newSet.add(groupName);
+      }
+      return newSet;
+    });
+  };
     
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -150,21 +170,14 @@ const ProjectExcelView = () => {
     });
   };
 
- const handleAddTask = (taskData) => { 
-    // 1. Crea una copia de los datos de la tarea para poder modificarla.
+  const handleAddTask = (taskData) => { 
     const sanitizedTaskData = { ...taskData };
-
-    // 2. Define los campos que son UUIDs y podrían venir como strings vacíos.
     const foreignKeyFields = ['project_id', 'staff_id', 'stage_id', 'entregable_id'];
-
-    // 3. Recorre estos campos y convierte cualquier "" en null.
     foreignKeyFields.forEach(field => {
       if (sanitizedTaskData[field] === '') {
         sanitizedTaskData[field] = null;
       }
     });
-
-    // 4. Envía los datos ya limpios a la acción de Redux.
     dispatch(addTask(sanitizedTaskData)).then(fetchTasks);
     setIsFormOpen(false);
   };
@@ -306,7 +319,7 @@ const ProjectExcelView = () => {
               <button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"><Plus size={16} /> Nueva Tarea</button>
             </div>
           </div>
-          <div className="grid grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg border">
+          <div className="grid grid-cols-6 gap-4 p-2 bg-gray-50 rounded-lg border">
             <div className="col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Búsqueda General</label><div className="relative"><Search size={16} className="absolute left-3 top-3 text-gray-400" /><input type="text" placeholder="Buscar en toda la tabla..." value={filters.search} onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))} className="pl-10 w-full p-2 border border-gray-300 rounded-lg"/></div></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Etapa</label><select value={filters.stage_id} onChange={(e) => setFilters(prev => ({ ...prev, stage_id: e.target.value }))} className="w-full p-2 border border-gray-300 rounded-lg"><option value="">Todas</option>{stages.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Responsable</label><select value={filters.staff_id} onChange={(e) => setFilters(prev => ({ ...prev, staff_id: e.target.value }))} className="w-full p-2 border border-gray-300 rounded-lg"><option value="">Todos</option>{staff.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}</select></div>
@@ -317,50 +330,61 @@ const ProjectExcelView = () => {
         
         <div className="flex-1 overflow-auto">
           <div className="min-w-full">
-            {/* <-- 2. AJUSTAR CLASE DE LA TABLA PARA MEJOR LAYOUT --> */}
             <table className="w-full bg-white text-sm">
               <thead className="bg-gray-100 sticky top-0 z-10">
                 <tr>
-                  <th className=" text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-12"><input type="checkbox" onChange={(e) => e.target.checked ? setSelectedRows(new Set(sortedItems.map(i => i.id))) : deselectAll()} /></th>
-                  <th className=" text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-12"><button onClick={() => requestSort('Priority')} className="flex items-center gap-1 hover:text-gray-800">Prioridad <ArrowUpDown size={12} /></button></th>
-                  <th className=" text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-12"><button onClick={() => requestSort('stage_id')} className="flex items-center gap-1 hover:text-gray-800">Etapa <ArrowUpDown size={12} /></button></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-12">
+                    <input type="checkbox" onChange={(e) => e.target.checked 
+                      ? setSelectedRows(new Set(Object.values(groupedAndSortedItems).flat().map(i => i.id))) 
+                      : deselectAll()} />
+                  </th>
+                  <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-20"><button onClick={() => requestSort('Priority')} className="flex items-center gap-1 hover:text-gray-800">Prioridad <ArrowUpDown size={12} /></button></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-20"><button onClick={() => requestSort('stage_id')} className="flex items-center gap-1 hover:text-gray-800">Etapa <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('task_description')} className="flex items-center gap-1 hover:text-gray-800">Tarea <ArrowUpDown size={12} /></button></th>
-                  {/* <-- 3. AÑADIR NUEVA COLUMNA PARA ACCIONES --> */}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-96">Acciones de Tarea</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b" style={{ width: '1200px' }}>Acciones de Tarea</th>                  
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('status')} className="flex items-center gap-1 hover:text-gray-800">Estado <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('Progress')} className="flex items-center gap-1 hover:text-gray-800">Progreso <ArrowUpDown size={12} /></button></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-20"><button onClick={() => requestSort('staff_id')} className="flex items-center gap-1 hover:text-gray-800">Responsable <ArrowUpDown size={12} /></button></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('staff_id')} className="flex items-center gap-1 hover:text-gray-800">Responsable <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('entregable_id')} className="flex items-center gap-1 hover:text-gray-800">Entregable <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('notes')} className="flex items-center gap-1 hover:text-gray-800">Notas <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-24">Borrar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {sortedItems.map((item) => (
-                  <tr key={item.id} className={`hover:bg-gray-50 ${selectedRows.has(item.id) ? 'bg-blue-50' : ''}`}>
-                    <td className="px-4 py-2 border-r align-top"><input type="checkbox" checked={selectedRows.has(item.id)} onChange={() => handleSelectRow(item.id)} /></td>
-                    <td className={`px-4 py-2 border-r text-center align-top ${getPriorityColor(item.Priority)}`}>
-                        <EditableCell rowId={item.id} field="Priority" value={item.Priority} type="priority-select" options={Priorities} />
-                    </td>
-                    <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="stage_id" value={item.stage_id} type="select" options={stages} /></td>
-                    <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="task_description" value={item.task_description} type="textarea" /></td>
-                    
-                    {/* <-- 4. RENDERIZAR EL COMPONENTE INLINE EN SU CELDA --> */}
-                    <td className="p-0 border-r align-top"><InlineActionsTask task={item} /></td>
-                    
-                    <td className="px-4 py-2 border-r text-center align-top"><EditableCell rowId={item.id} field="status" value={item.status} type="status-select" options={Object.keys(ESTADOS).map(k => ({id: ESTADOS[k], name: ESTADOS[k]}))} /></td>
-                    <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="Progress" value={item.Progress} type="progress" /></td>
-                    <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="staff_id" value={item.staff_id} type="select" options={staff} /></td>
-                    <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="entregable_id" value={item.entregable_id} type="entregable-select" options={entregables} currentStageId={item.stage_id} /></td>
-                    <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="notes" value={item.notes} type="textarea" /></td>
-                    <td className="px-4 py-2 border-r align-top">
-                      <div className="flex items-center justify-center">
-                        <button onClick={() => handleDeleteTask(item.id, item.task_description)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100" title="Eliminar Tarea">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                {Object.keys(groupedAndSortedItems).map(projectName => (
+                  <React.Fragment key={projectName}>
+                    <tr className="bg-gray-200 sticky top-12 z-10 cursor-pointer" onClick={() => toggleGroup(projectName)}>
+                      <td colSpan="12" className="py-2 px-4 font-bold text-gray-700">
+                        <div className="flex items-center gap-2">
+                          {collapsedGroups.has(projectName) ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                          {projectName} ({groupedAndSortedItems[projectName].length})
+                        </div>
+                      </td>
+                    </tr>
+                    {!collapsedGroups.has(projectName) && groupedAndSortedItems[projectName].map((item) => (
+                      <tr key={item.id} className={`hover:bg-gray-50 ${selectedRows.has(item.id) ? 'bg-blue-50' : ''}`}>
+                        <td className="px-4 py-2 border-r align-top"><input type="checkbox" checked={selectedRows.has(item.id)} onChange={() => handleSelectRow(item.id)} /></td>
+                        <td className={`px-4 py-2 border-r text-center align-top ${getPriorityColor(item.Priority)}`}>
+                            <EditableCell rowId={item.id} field="Priority" value={item.Priority} type="priority-select" options={Priorities} />
+                        </td>
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="stage_id" value={item.stage_id} type="select" options={stages} /></td>
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="task_description" value={item.task_description} type="textarea" /></td>
+                        <td className="p-0 border-r align-top"><InlineActionsTask task={item} /></td>
+                        <td className="px-4 py-2 border-r text-center align-top"><EditableCell rowId={item.id} field="status" value={item.status} type="status-select" options={Object.keys(ESTADOS).map(k => ({id: ESTADOS[k], name: ESTADOS[k]}))} /></td>
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="Progress" value={item.Progress} type="progress" /></td>
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="staff_id" value={item.staff_id} type="select" options={staff} /></td>
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="entregable_id" value={item.entregable_id} type="entregable-select" options={entregables} currentStageId={item.stage_id} /></td>
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="notes" value={item.notes} type="textarea" /></td>
+                        <td className="px-4 py-2 border-r align-top">
+                          <div className="flex items-center justify-center">
+                            <button onClick={() => handleDeleteTask(item.id, item.task_description)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100" title="Eliminar Tarea">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

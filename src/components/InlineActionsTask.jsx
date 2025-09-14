@@ -1,11 +1,11 @@
 // ARCHIVO: src/components/InlineActionsTask.jsx
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { Plus, Edit2, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { updateTask } from '../store/actions/actions';
 
-// Usaremos un debounce para no llamar a la API en cada tecleo
+// Debounce para no llamar a la API en cada tecleo
 const debounce = (func, delay) => {
   let timeout;
   return (...args) => {
@@ -14,15 +14,26 @@ const debounce = (func, delay) => {
   };
 };
 
+// Componente Textarea que se auto-ajusta
+const AutoResizingTextarea = ({ value, onChange, ...props }) => {
+    const textAreaRef = useRef(null);
+
+    useEffect(() => {
+        if (textAreaRef.current) {
+            textAreaRef.current.style.height = "auto";
+            textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
+        }
+    }, [value]);
+
+    return <textarea ref={textAreaRef} value={value} onChange={onChange} {...props} />;
+};
+
 const InlineActionsTask = ({ task }) => {
   const dispatch = useDispatch();
   
-  // Estado para la lista de acciones
   const [actions, setActions] = useState([]);
-  // Estado para la nueva acción a agregar
   const [newAction, setNewAction] = useState({ action: '', executer: '', lista: false });
 
-  // Cargar las acciones de la tarea al montar el componente
   useEffect(() => {
     try {
       if (task.acciones && typeof task.acciones === 'string') {
@@ -37,16 +48,14 @@ const InlineActionsTask = ({ task }) => {
     }
   }, [task.acciones]);
 
-  // Función para guardar los cambios en Supabase (con debounce)
   const saveChangesToSupabase = useMemo(
     () => debounce((updatedActions) => {
       const actionsJsonString = JSON.stringify(updatedActions);
       dispatch(updateTask(task.id, { acciones: actionsJsonString }));
-    }, 1000), // Espera 1 segundo después del último cambio para guardar
+    }, 1000),
     [dispatch, task.id]
   );
 
-  // Manejar cambios en los inputs de una acción existente
   const handleActionChange = (index, field, value) => {
     const updatedActions = actions.map((act, i) => 
       i === index ? { ...act, [field]: value } : act
@@ -55,13 +64,11 @@ const InlineActionsTask = ({ task }) => {
     saveChangesToSupabase(updatedActions);
   };
 
-  // Manejar cambios en los inputs del formulario de nueva acción
   const handleNewActionChange = (e) => {
     const { name, value, type, checked } = e.target;
     setNewAction(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  // Agregar una nueva acción a la lista
   const handleAddAction = (e) => {
     e.preventDefault();
     if (!newAction.action || !newAction.executer) {
@@ -70,15 +77,14 @@ const InlineActionsTask = ({ task }) => {
     }
     const updatedActions = [...actions, newAction];
     setActions(updatedActions);
-    saveChangesToSupabase(updatedActions); // Guardar inmediatamente al agregar
-    setNewAction({ action: '', executer: '', lista: false }); // Limpiar formulario
+    saveChangesToSupabase(updatedActions);
+    setNewAction({ action: '', executer: '', lista: false });
   };
 
-  // Eliminar una acción de la lista
   const handleDeleteAction = (indexToDelete) => {
     const updatedActions = actions.filter((_, index) => index !== indexToDelete);
     setActions(updatedActions);
-    saveChangesToSupabase(updatedActions); // Guardar inmediatamente al eliminar
+    saveChangesToSupabase(updatedActions);
   };
 
   return (
@@ -87,22 +93,22 @@ const InlineActionsTask = ({ task }) => {
       {actions.length > 0 && (
         <div className="space-y-1">
           {actions.map((act, index) => (
-            <div key={index} className={`grid grid-cols-12 gap-x-2 items-center p-1 rounded ${act.lista ? 'bg-green-100' : ''}`}>
-              <input
-                type="text"
+            <div key={index} className={`grid grid-cols-11 gap-x-2 items-start p-1 rounded ${act.lista ? 'bg-green-100 opacity-70' : ''}`}>
+              <AutoResizingTextarea
                 value={act.action}
                 onChange={(e) => handleActionChange(index, 'action', e.target.value)}
-                className="col-span-5 p-1 border rounded text-xs bg-transparent"
+                className={`col-span-6 p-1 border rounded text-xs bg-transparent resize-none overflow-hidden ${act.lista ? 'line-through' : ''}`}
                 placeholder="Acción"
+                rows="1"
               />
               <input
                 type="text"
                 value={act.executer}
                 onChange={(e) => handleActionChange(index, 'executer', e.target.value)}
-                className="col-span-4 p-1 border rounded text-xs bg-transparent"
+                className={`col-span-3 p-1 border rounded text-xs bg-transparent self-center ${act.lista ? 'line-through' : ''}`}
                 placeholder="Ejecutor"
               />
-              <div className="col-span-2 flex items-center justify-center">
+              <div className="col-span-1 flex items-center justify-center self-center h-full">
                  <input
                     type="checkbox"
                     checked={!!act.lista}
@@ -110,7 +116,7 @@ const InlineActionsTask = ({ task }) => {
                     className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                  />
               </div>
-              <div className="col-span-1 flex justify-end">
+              <div className="col-span-1 flex justify-end self-center">
                 <button onClick={() => handleDeleteAction(index)} className="text-red-500 hover:text-red-700 p-1" title="Eliminar">
                   <Trash2 size={14} />
                 </button>
@@ -121,24 +127,24 @@ const InlineActionsTask = ({ task }) => {
       )}
 
       {/* Formulario para agregar nueva acción */}
-      <form onSubmit={handleAddAction} className="grid grid-cols-12 gap-x-2 items-center pt-2 border-t">
-        <input
-          type="text"
+      <form onSubmit={handleAddAction} className="grid grid-cols-11 gap-x-2 items-center pt-2 border-t">
+        <textarea
           name="action"
           value={newAction.action}
           onChange={handleNewActionChange}
-          className="col-span-5 p-1 border rounded text-xs"
+          className="col-span-6 p-1 border rounded text-xs resize-none"
           placeholder="Nueva acción..."
+          rows="1"
         />
         <input
           type="text"
           name="executer"
           value={newAction.executer}
           onChange={handleNewActionChange}
-          className="col-span-4 p-1 border rounded text-xs"
+          className="col-span-3 p-1 border rounded text-xs"
           placeholder="Ejecutor..."
         />
-        <div className="col-span-2 flex items-center justify-center">
+        <div className="col-span-1 flex items-center justify-center">
            <input
               type="checkbox"
               name="lista"

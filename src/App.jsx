@@ -71,13 +71,13 @@ function App() {
   }, [data]);
 
   const navigationItems = [
-    { 
-      id: 'ProjectKanbanView', 
-      path: '/ProjectKanbanView',
-      label: 'ProjectKanbanView', 
-      icon: LayoutDashboard, 
-      description: 'Gráficos y estadísticas ejecutivas' 
-    },
+    // { 
+    //   id: 'ProjectKanbanView', 
+    //   path: '/ProjectKanbanView',
+    //   label: 'ProjectKanbanView', 
+    //   icon: LayoutDashboard, 
+    //   description: 'Gráficos y estadísticas ejecutivas' 
+    // },
     { 
       id: 'dashboard', 
       path: '/dashboard',
@@ -95,7 +95,7 @@ function App() {
     { 
       id: 'planos', 
       path: '/planos',
-      label: 'Plantilla de Documentos', 
+      label: 'Plantillas de Entregables', 
       icon: FileText, 
       description: 'Gestión de planos por etapas' 
     }
