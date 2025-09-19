@@ -2,21 +2,21 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch } from 'react-redux';
-import { 
+import {
   Search, Download, Plus,
   XCircle, ArrowUpDown, Trash2, ChevronRight, ChevronDown
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-import FormTask from './FormTask'; 
+import FormTask from './FormTask';
 import TaskActions from './TaskActions';
 import InlineActionsTask from './InlineActionsTask';
-import { 
-  getAllFromTable, 
-  updateTask, 
-  addTask, 
-  deleteTask 
-} from '../store/actions/actions'; 
+import {
+  getAllFromTable,
+  updateTask,
+  addTask,
+  deleteTask
+} from '../store/actions/actions';
 
 const ESTADOS = {
   PENDIENTE: 'Pendiente', EN_PROCESO: 'En Progreso', COMPLETADO: 'Completado',
@@ -26,7 +26,7 @@ const ESTADOS = {
 
 const getEstadoColor = (estado) => {
   const colors = {
-    'Pendiente': 'bg-yellow-100 text-yellow-800', 'En Progreso': 'bg-blue-100 text-blue-800', 
+    'Pendiente': 'bg-yellow-100 text-yellow-800', 'En Progreso': 'bg-blue-100 text-blue-800',
     'Completado': 'bg-green-100 text-green-800', 'Cancelado': 'bg-red-100 text-red-800',
     'En Revisión': 'bg-purple-100 text-purple-800', 'Bloqueado': 'bg-gray-400 text-white',
     'Aprobación Requerida': 'bg-orange-100 text-orange-800', 'En Diseño': 'bg-pink-100 text-pink-800',
@@ -48,13 +48,13 @@ const getPriorityColor = (priority) => {
 
 const ProjectExcelView = () => {
   const dispatch = useDispatch();
-  
+
   const [data, setData] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [staff, setStaff] = useState([]);
   const [stages, setStages] = useState([]);
   const [entregables, setEntregables] = useState([]);
-  
+
   const [Priorities, setPriorities] = useState([
     { id: "Baja", name: "Baja" },
     { id: "Media-Baja", name: "Media-Baja" },
@@ -78,7 +78,7 @@ const ProjectExcelView = () => {
     const fetchAllData = async () => {
       const [proyectosAction, staffAction, stagesAction, entregablesAction] = await Promise.all([
         dispatch(getAllFromTable("Proyectos")),
-        dispatch(getAllFromTable("Staff")), 
+        dispatch(getAllFromTable("Staff")),
         dispatch(getAllFromTable("Stage")),
         dispatch(getAllFromTable("Entregables_template"))
       ]);
@@ -87,7 +87,7 @@ const ProjectExcelView = () => {
       if (stagesAction?.payload) setStages(stagesAction.payload);
       // if (entregablesAction?.payload) console.log(entregablesAction.payload);
       if (entregablesAction?.payload) setEntregables(entregablesAction.payload);
-      
+
 
     };
     fetchAllData();
@@ -98,8 +98,8 @@ const ProjectExcelView = () => {
     let filtered = [...data];
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(item => 
-        Object.values(item).some(val => 
+      filtered = filtered.filter(item =>
+        Object.values(item).some(val =>
           String(val).toLowerCase().includes(searchLower)
         )
       );
@@ -133,7 +133,7 @@ const ProjectExcelView = () => {
         return 0;
       });
     }
-    
+
     return sortableItems.reduce((acc, item) => {
       const projectName = proyectos.find(p => p.id === item.project_id)?.name || 'Tareas sin Proyecto';
       if (!acc[projectName]) {
@@ -155,7 +155,7 @@ const ProjectExcelView = () => {
       return newSet;
     });
   };
-    
+
   const requestSort = (key) => {
     let direction = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
@@ -163,7 +163,7 @@ const ProjectExcelView = () => {
     }
     setSortConfig({ key, direction });
   };
-  
+
   const handleSelectRow = (rowId) => {
     setSelectedRows(prevSelected => {
       const newSelected = new Set(prevSelected);
@@ -173,7 +173,7 @@ const ProjectExcelView = () => {
     });
   };
 
-  const handleAddTask = (taskData) => { 
+  const handleAddTask = (taskData) => {
     const sanitizedTaskData = { ...taskData };
     const foreignKeyFields = ['project_id', 'staff_id', 'stage_id', 'entregable_id'];
     foreignKeyFields.forEach(field => {
@@ -184,13 +184,13 @@ const ProjectExcelView = () => {
     dispatch(addTask(sanitizedTaskData)).then(fetchTasks);
     setIsFormOpen(false);
   };
-  
+
   const handleDeleteTask = (taskId, taskDescription) => {
     if (window.confirm(`¿Estás seguro de que deseas eliminar la tarea?\n\n"${taskDescription}"`)) {
       dispatch(deleteTask(taskId)).then(fetchTasks);
     }
   };
-  
+
   const updateCell = (rowId, fieldsToUpdate) => {
     dispatch(updateTask(rowId, fieldsToUpdate)).then(() => {
       setData(prevData => prevData.map(item => item.id === rowId ? { ...item, ...fieldsToUpdate } : item));
@@ -198,7 +198,7 @@ const ProjectExcelView = () => {
   };
 
   const updateMultipleTasks = (fieldsToUpdate) => {
-    const promises = Array.from(selectedRows).map(taskId => 
+    const promises = Array.from(selectedRows).map(taskId =>
       dispatch(updateTask(taskId, fieldsToUpdate))
     );
     Promise.all(promises).then(() => {
@@ -233,7 +233,7 @@ const ProjectExcelView = () => {
       deselectAll();
     });
   };
-  
+
   const deselectAll = () => setSelectedRows(new Set());
 
 
@@ -258,11 +258,10 @@ const ProjectExcelView = () => {
 
 
 
-  
   const EditableCell = ({ rowId, field, value, type = 'text', options = [], currentStageId = null }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
-    
+
     const handleSave = () => {
         let finalValue = editValue;
         if (type === 'progress') {
@@ -282,7 +281,7 @@ const ProjectExcelView = () => {
       if (e.key === 'Enter' && type !== 'textarea') handleSave();
       else if (e.key === 'Escape') { setEditValue(value); setIsEditing(false); }
     };
-    
+
     if (isEditing) {
         switch(type) {
             case 'progress':
@@ -298,7 +297,7 @@ const ProjectExcelView = () => {
                 return <textarea value={editValue || ''} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyPress} className="w-full p-1 border rounded focus:outline-none" rows="3" autoFocus/>;
         }
     }
-    
+
     const displayValue = (field, val) => {
       switch(field) {
         case 'project_id': return proyectos.find(p => p.id === val)?.name || val || '-';
@@ -381,21 +380,21 @@ const ProjectExcelView = () => {
             <div className="flex items-end"><button onClick={() => setFilters({ project_id: '', stage_id: '', staff_id: '', status: '', search: '' })} className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-600  text-white rounded-lg hover:bg-gray-700 w-full"><XCircle size={16} /> Limpiar</button></div>
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-auto">
           <div className="min-w-full">
             <table className="w-full bg-white text-sm">
               <thead className="bg-gray-100 sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-12">
-                    <input type="checkbox" onChange={(e) => e.target.checked 
-                      ? setSelectedRows(new Set(Object.values(groupedAndSortedItems).flat().map(i => i.id))) 
+                    <input type="checkbox" onChange={(e) => e.target.checked
+                      ? setSelectedRows(new Set(Object.values(groupedAndSortedItems).flat().map(i => i.id)))
                       : deselectAll()} />
                   </th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-20"><button onClick={() => requestSort('Priority')} className="flex items-center gap-1 hover:text-gray-800">Prioridad <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-20"><button onClick={() => requestSort('stage_id')} className="flex items-center gap-1 hover:text-gray-800">Etapa <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('task_description')} className="flex items-center gap-1 hover:text-gray-800">Tarea <ArrowUpDown size={12} /></button></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b" style={{ width: '1200px' }}>Acciones de Tarea</th>                  
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b" style={{ width: '1200px' }}>Acciones de Tarea</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('status')} className="flex items-center gap-1 hover:text-gray-800">Estado <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('Progress')} className="flex items-center gap-1 hover:text-gray-800">Progreso <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('staff_id')} className="flex items-center gap-1 hover:text-gray-800">Responsable <ArrowUpDown size={12} /></button></th>
@@ -405,7 +404,7 @@ const ProjectExcelView = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {Object.keys(groupedAndSortedItems).map(projectName => (
+                {Object.keys(groupedAndSortedItems).sort().map(projectName => (
                   <React.Fragment key={projectName}>
                     <tr className="bg-gray-200 sticky top-12 z-10 cursor-pointer" onClick={() => toggleGroup(projectName)}>
                       <td colSpan="12" className="py-2 px-4 font-bold text-gray-700">
@@ -445,11 +444,11 @@ const ProjectExcelView = () => {
           </div>
         </div>
 
-        <TaskActions 
-          selectedRows={selectedRows} 
-          data={filteredData} 
+        <TaskActions
+          selectedRows={selectedRows}
+          data={filteredData}
           staff={staff}
-          updateMultipleTasks={updateMultipleTasks} 
+          updateMultipleTasks={updateMultipleTasks}
           handleBulkDelete={handleBulkDelete}
           handleDuplicateTasks={handleDuplicateTasks}
           deselectAll={deselectAll}
