@@ -17,7 +17,9 @@ import {
   addTask,
   deleteTask
 } from '../store/actions/actions';
-
+import TaskLog from './TaskLog';
+import DatesManager from './DatesManager';
+DatesManager
 const ESTADOS = {
   PENDIENTE: 'Pendiente', EN_PROCESO: 'En Progreso', COMPLETADO: 'Completado',
   CANCELADO: 'Cancelado', EN_REVISION: 'En Revisión', BLOQUEADO: 'Bloqueado',
@@ -122,6 +124,7 @@ const ProjectExcelView = () => {
                 case 'staff_id': return staff.find(s => s.id === value)?.name || value;
                 case 'stage_id': return stages.find(s => s.id === value)?.name || value;
                 case 'entregable_id': return entregables.find(e => e.id === value)?.entregable_nombre || value;
+                case 'dates': return entregables.find(e => e.id === value)?.dates || value;
                 case 'Progress': return Number(value || 0);
                 default: return value;
             }
@@ -358,7 +361,36 @@ const ProjectExcelView = () => {
 
 
 
-    const exportToExcel = () => { /* ... */ };
+    const exportToExcel = () => {
+    const dataToExport = Object.values(groupedAndSortedItems).flat().map(item => {
+        const dates = item.Dates ? JSON.parse(item.Dates) : {};
+        return {
+            'Proyecto': proyectos.find(p => p.id === item.project_id)?.name || 'N/A',
+            'Prioridad': item.Priority || '-',
+            'Etapa': stages.find(s => s.id === item.stage_id)?.name || '-',
+            'Tarea': item.task_description,
+            'Estado': item.status,
+            'Progreso (%)': item.Progress || 0,
+            'Responsable': staff.find(s => s.id === item.staff_id)?.name || 'Sin Asignar',
+            'Entregable': entregables.find(e => e.id === item.entregable_id)?.entregable_nombre || '-',
+            'Fecha Asignación': dates.assignDate || '-',
+            'Fecha Límite': dates.dueDate || '-',
+            'Notas': item.notes || ''
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tareas");
+    
+    // Auto-ajustar el ancho de las columnas
+    const colWidths = Object.keys(dataToExport[0] || {}).map(key => ({
+        wch: Math.max(...dataToExport.map(row => row[key]?.toString().length || 10), key.length)
+    }));
+    worksheet["!cols"] = colWidths;
+    
+    XLSX.writeFile(workbook, "Gestion_de_Tareas.xlsx");
+  };
 
   return (
     <>
@@ -399,8 +431,13 @@ const ProjectExcelView = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('Progress')} className="flex items-center gap-1 hover:text-gray-800">Progreso <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-40"><button onClick={() => requestSort('staff_id')} className="flex items-center gap-1 hover:text-gray-800">Responsable <ArrowUpDown size={12} /></button></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-32"><button onClick={() => requestSort('entregable_id')} className="flex items-center gap-1 hover:text-gray-800">Entregable <ArrowUpDown size={12} /></button></th>
+                  
+                  
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('dates')} className="flex items-center gap-1 hover:text-gray-800">Dates <ArrowUpDown size={12} /></button></th>
+                 
+                 
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('notes')} className="flex items-center gap-1 hover:text-gray-800">Notas <ArrowUpDown size={12} /></button></th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-24">Borrar</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-24">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -426,13 +463,37 @@ const ProjectExcelView = () => {
                         <td className="px-4 py-2 border-r text-center align-top"><EditableCell rowId={item.id} field="status" value={item.status} type="status-select" options={Object.keys(ESTADOS).map(k => ({id: ESTADOS[k], name: ESTADOS[k]}))} /></td>
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="Progress" value={item.Progress} type="progress" /></td>
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="staff_id" value={item.staff_id} type="select" options={staff} /></td>
-                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="entregable_id" value={item.entregable_id} type="entregable-select" options={entregables} /></td>
+                        
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="dates" value={item.dates} type="entregable-select" options={entregables} /></td>
+                        
+                        
+                  <td className="px-4 py-2 border-r align-top">
+    <DatesManager 
+        task={item} 
+        onSave={updateCell} 
+    />
+</td>
+
+
+
+
+
+
+
+
+                        
+                    
+
+
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="notes" value={item.notes} type="textarea" /></td>
                         <td className="px-4 py-2 border-r align-top">
                           <div className="flex items-center justify-center">
                             <button onClick={() => handleDeleteTask(item.id, item.task_description)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100" title="Eliminar Tarea">
                               <Trash2 size={16} />
                             </button>
+                                                      <TaskLog task={item} proyectos={proyectos} staff={staff} stages={stages} entregables={entregables} updateCell={updateCell} />
+
+
                           </div>
                         </td>
                       </tr>
