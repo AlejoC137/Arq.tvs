@@ -363,7 +363,7 @@ const ProjectExcelView = () => {
 
     const exportToExcel = () => {
     const dataToExport = Object.values(groupedAndSortedItems).flat().map(item => {
-        const dates = item.Dates ? JSON.parse(item.Dates) : {};
+        const dates = item.dates ? JSON.parse(item.dates) : {};
         return {
             'Proyecto': proyectos.find(p => p.id === item.project_id)?.name || 'N/A',
             'Prioridad': item.Priority || '-',
@@ -433,7 +433,7 @@ const ProjectExcelView = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-32"><button onClick={() => requestSort('entregable_id')} className="flex items-center gap-1 hover:text-gray-800">Entregable <ArrowUpDown size={12} /></button></th>
                   
                   
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('dates')} className="flex items-center gap-1 hover:text-gray-800">Dates <ArrowUpDown size={12} /></button></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('dates')} className="flex items-center gap-1 hover:text-gray-800">dates <ArrowUpDown size={12} /></button></th>
                  
                  
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('notes')} className="flex items-center gap-1 hover:text-gray-800">Notas <ArrowUpDown size={12} /></button></th>
@@ -464,8 +464,9 @@ const ProjectExcelView = () => {
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="Progress" value={item.Progress} type="progress" /></td>
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="staff_id" value={item.staff_id} type="select" options={staff} /></td>
                         
-                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="dates" value={item.dates} type="entregable-select" options={entregables} /></td>
                         
+                        <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="entregable_id" value={item.entregable_id} type="entregable-select" options={entregables} />
+                        </td>
                         
                   <td className="px-4 py-2 border-r align-top">
     <DatesManager 
@@ -482,7 +483,6 @@ const ProjectExcelView = () => {
 
 
                         
-                    
 
 
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="notes" value={item.notes} type="textarea" /></td>

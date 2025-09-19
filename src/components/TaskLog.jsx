@@ -15,21 +15,21 @@ const TaskLog = ({ task, onSave }) => {
             }
             return parsed;
         } catch (error) {
-            console.error("Error parsing Dates JSON:", error, datesJson);
+            console.error("Error parsing dates JSON:", error, datesJson);
             return { assignDate: '', dueDate: '', logs: [] };
         }
     };
 
     // SOLUCIÓN: Se inicializa el estado de forma perezosa para que solo se ejecute una vez.
-    const [dates, setDates] = useState(() => parseDates(task.Dates));
+    const [dates, setDates] = useState(() => parseDates(task.dates));
     const [newEvent, setNewEvent] = useState('');
 
-    // SOLUCIÓN: Se usa useEffect para sincronizar el estado si la prop 'task.Dates' cambia.
+    // SOLUCIÓN: Se usa useEffect para sincronizar el estado si la prop 'task.dates' cambia.
     useEffect(() => {
         if (isModalOpen) { // Solo actualiza si el modal está abierto para optimizar
-            setDates(parseDates(task.Dates));
+            setDates(parseDates(task.dates));
         }
-    }, [task.Dates, isModalOpen]);
+    }, [task.dates, isModalOpen]);
 
     const handleDateChange = (e) => {
         const { name, value } = e.target;
@@ -51,11 +51,11 @@ const TaskLog = ({ task, onSave }) => {
     };
     
     const handleSave = () => {
-        onSave(task.id, { Dates: JSON.stringify(dates) });
+        onSave(task.id, { dates: JSON.stringify(dates) });
         setIsModalOpen(false);
     };
 
-    const logsCount = parseDates(task.Dates).logs.length;
+    const logsCount = parseDates(task.dates).logs.length;
 
     return (
         <>

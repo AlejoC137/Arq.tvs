@@ -165,7 +165,7 @@ const initialState = {
   stage_id: '',
   entregable_id: '',
   Progress: 0,
-  Dates: JSON.stringify({
+  dates: JSON.stringify({
     assignDate: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }),
     dueDate: '',
     logs: []
@@ -180,7 +180,7 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
       // Reset form with today's assignDate when opened
       const resetState = {
         ...initialState,
-        Dates: JSON.stringify({
+        dates: JSON.stringify({
             assignDate: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }),
             dueDate: '',
             logs: []
@@ -212,9 +212,9 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
   const handleDateChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
-        const currentDates = JSON.parse(prev.Dates);
+        const currentDates = JSON.parse(prev.dates);
         const updatedDates = { ...currentDates, [name]: value };
-        return { ...prev, Dates: JSON.stringify(updatedDates) };
+        return { ...prev, dates: JSON.stringify(updatedDates) };
     });
   };
 
@@ -269,11 +269,11 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
             </div>
              <div>
                 <label htmlFor="assignDate" className="block text-sm font-medium text-gray-700 mb-1">Fecha Asignación</label>
-                <input id="assignDate" name="assignDate" type="text" value={JSON.parse(formData.Dates).assignDate} onChange={handleDateChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" placeholder="DD/MM/YYYY" />
+                <input id="assignDate" name="assignDate" type="text" value={JSON.parse(formData.dates).assignDate} onChange={handleDateChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" placeholder="DD/MM/YYYY" />
             </div>
             <div>
                 <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">Fecha Límite</label>
-                <input id="dueDate" name="dueDate" type="text" value={JSON.parse(formData.Dates).dueDate} onChange={handleDateChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" placeholder="DD/MM/YYYY" />
+                <input id="dueDate" name="dueDate" type="text" value={JSON.parse(formData.dates).dueDate} onChange={handleDateChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" placeholder="DD/MM/YYYY" />
             </div>
             <div className="md:col-span-2">
               <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Notas</label>

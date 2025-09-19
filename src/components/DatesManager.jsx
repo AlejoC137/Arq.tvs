@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Save, CalendarDays } from 'lucide-react';
 
 // Helper para convertir el formato DD/MM/YYYY a YYYY-MM-DD, que es el que necesita el input de tipo "date".
 const toInputDate = (dmyString) => {
@@ -7,7 +6,8 @@ const toInputDate = (dmyString) => {
     return ''; // Retorna un string vacío si el formato es inválido o no existe
   }
   const [day, month, year] = dmyString.split('/');
-  return `${year}-${month}-${day}`;
+  // Asegura que el mes y el día tengan dos dígitos (ej: 09 en vez de 9)
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 // Helper para convertir el formato YYYY-MM-DD (del input) de vuelta a DD/MM/YYYY para guardarlo.
@@ -24,49 +24,54 @@ const DatesManager = ({ task, onSave }) => {
   
   const parseDates = (datesJson) => {
     try {
-      // Si no hay JSON, devuelve una estructura por defecto
-      if (!datesJson) return { assignDate: '', dueDate: '', logs: [] };
+      // Si no hay JSON o no es un string, devuelve una estructura por defecto
+      if (!datesJson || typeof datesJson !== 'string') {
+          return { assignDate: '', dueDate: '', logs: [] };
+      }
       const parsed = JSON.parse(datesJson);
+      // Asegura que las propiedades existan y que logs sea un array
       return {
           assignDate: parsed.assignDate || '',
           dueDate: parsed.dueDate || '',
-          logs: parsed.logs || []
+          logs: Array.isArray(parsed.logs) ? parsed.logs : []
       };
     } catch (error) {
-      console.error("Error parsing Dates JSON in DatesManager:", error);
+      console.error("Error parsing dates JSON in DatesManager:", error);
       return { assignDate: '', dueDate: '', logs: [] };
     }
   };
 
-  // El estado local maneja las fechas de la tarea actual
-  const [dates, setDates] = useState(() => parseDates(task.Dates));
+  // El estado local maneja las fechas de la tarea actual, inicializado de forma segura
+  const [dates, setDates] = useState(() => parseDates(task.dates));
 
-  // Sincroniza el estado si la tarea que se pasa como prop cambia
+  // Sincroniza el estado si la tarea que se pasa como prop cambia desde el exterior
   useEffect(() => {
-    setDates(parseDates(task.Dates));
-  }, [task.Dates]);
+    setDates(parseDates(task.dates));
+  }, [task.dates]);
 
 
   const handleDateChange = (e) => {
-    const { name, value } = e.target; // 'value' viene en formato "YYYY-MM-DD"
+    const { name, value } = e.target; // 'value' del input date viene en formato "YYYY-MM-DD"
     
     // Convierte la fecha al formato DD/MM/YYYY antes de guardarla
     const displayDate = toDisplayDate(value);
 
-    // Crea el objeto de datos actualizado, manteniendo los logs existentes
+    // Crea el objeto de datos actualizado, asegurándose de mantener los logs existentes
+    const currentFullDateObject = parseDates(task.dates);
     const updatedDates = { 
-        ...parseDates(task.Dates), // Asegura que los logs no se pierdan
+        ...currentFullDateObject, 
         [name]: displayDate 
     };
     
-    // Llama a la función onSave del componente padre para persistir el cambio
+    // Llama a la función onSave del componente padre para persistir el cambio inmediatamente
+    // CORRECCIÓN: La clave debe ser 'dates' (mayúscula) para coincidir con el nombre de la columna en la BD.
     onSave(task.id, { dates: JSON.stringify(updatedDates) });
   };
 
   return (
     <div className="flex flex-col gap-1 text-xs p-1">
       <div className="flex items-center justify-between">
-        <label htmlFor={`assignDate-${task.id}`} className="font-semibold text-gray-600 mr-2">Asig:</label>
+        <label htmlFor={`assignDate-${task.id}`} className="font-semibold text-gray-600 mr-2 whitespace-nowrap">Asig:</label>
         <input
           id={`assignDate-${task.id}`}
           name="assignDate"
@@ -77,7 +82,7 @@ const DatesManager = ({ task, onSave }) => {
         />
       </div>
       <div className="flex items-center justify-between">
-        <label htmlFor={`dueDate-${task.id}`} className="font-semibold text-gray-600 mr-2">Límite:</label>
+        <label htmlFor={`dueDate-${task.id}`} className="font-semibold text-gray-600 mr-2 whitespace-nowrap">Límite:</label>
         <input
           id={`dueDate-${task.id}`}
           name="dueDate"
@@ -92,9 +97,3 @@ const DatesManager = ({ task, onSave }) => {
 };
 
 export default DatesManager;
-
-
-
-
-
-
