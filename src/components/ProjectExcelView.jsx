@@ -437,7 +437,7 @@ const ProjectExcelView = () => {
                  
                  
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-64"><button onClick={() => requestSort('notes')} className="flex items-center gap-1 hover:text-gray-800">Notas <ArrowUpDown size={12} /></button></th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-24">Acciones</th>
+                  {/* <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b w-24">Acciones</th> */}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -473,6 +473,8 @@ const ProjectExcelView = () => {
         task={item} 
         onSave={updateCell} 
     />
+                                                          <TaskLog task={item} proyectos={proyectos} staff={staff} stages={stages} entregables={entregables} updateCell={updateCell} />
+
 </td>
 
 
@@ -486,16 +488,15 @@ const ProjectExcelView = () => {
 
 
                         <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="notes" value={item.notes} type="textarea" /></td>
-                        <td className="px-4 py-2 border-r align-top">
+                        {/* <td className="px-4 py-2 border-r align-top">
                           <div className="flex items-center justify-center">
                             <button onClick={() => handleDeleteTask(item.id, item.task_description)} className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100" title="Eliminar Tarea">
                               <Trash2 size={16} />
                             </button>
-                                                      <TaskLog task={item} proyectos={proyectos} staff={staff} stages={stages} entregables={entregables} updateCell={updateCell} />
 
 
                           </div>
-                        </td>
+                        </td> */}
                       </tr>
                     ))}
                   </React.Fragment>
