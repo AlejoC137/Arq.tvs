@@ -20,7 +20,7 @@ const TABLE_NAME = 'Entregables_template';
 // Opciones para los campos 'select' en el formulario
 const CATEGORIA_OPTIONS = ['2D', '3D', '2D/3D', 'Documento'];
 const VISTA_TIPO_OPTIONS = ['Planta', 'Alzado', 'Sección', 'Diagrama', 'Detalle', 'Isométrico', 'Perspectiva', 'Modelo 3D'];
-const SOFTWARE_OPTIONS = ['Revit/AutoCAD', 'Adobe Suite', 'SketchUp', 'Rhino', 'Office Suite'];
+const SOFTWARE_OPTIONS = ['Revit',"AutoCAD" , 'Adobe Suite', 'SketchUp', 'Rhino', 'Office Suite'];
 
 const PlanosView = () => {
   const dispatch = useDispatch();
