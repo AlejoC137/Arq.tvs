@@ -50,7 +50,7 @@ const getPriorityColor = (priority) => {
 const initialColumns = [
     { key: 'Priority', label: 'Prioridad', width: 75, sortable: true },
     { key: 'stage_id', label: 'Etapa', width: 75, sortable: true },
-    { key: 'task_description', label: 'Tarea', width: 350, sortable: true },
+    { key: 'task_description', label: 'Tarea / Espacio', width: 350, sortable: true },
     { key: 'inline_actions', label: 'Acciones de Tarea', width: 500, sortable: false },
     { key: 'status', label: 'Estado', width: 75, sortable: true },
     { key: 'Progress', label: 'Progreso', width: 100, sortable: true },
