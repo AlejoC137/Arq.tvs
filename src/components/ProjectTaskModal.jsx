@@ -19,6 +19,7 @@ import TaskActions from './TaskActions';
 // import DatesManager from './DatesManager'; // YA NO ES NECESARIO
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
+import FormTask from './FormTask';
 
 // --- Constantes y Helpers de Estilo ---
 const ESTADOS = {
@@ -41,8 +42,11 @@ const getEstadoColor = (estado) => {
 const ProjectTaskModal = () => {
     const { id } = useParams();
     const dispatch = useDispatch();
+    const [isFormOpen, setIsFormOpen] = useState(false);
 
     // --- ESTADOS ---
+        const [data, setData] = useState([]);
+    
     const { projects, loading, error } = useSelector((state) => state.projects);
     const [projectTasks, setProjectTasks] = useState([]);
     const [staff, setStaff] = useState([]);
@@ -122,7 +126,7 @@ const ProjectTaskModal = () => {
             const newDates = task.dates ? JSON.parse(task.dates) : { assignDate: '', dueDate: '' };
             setAssignDate(newDates.assignDate);
             setDueDate(newDates.dueDate);
-        }, [task.dates]);
+        }, [task.dates , data, isFormOpen]);
 
         const handleDateChange = (field, value) => {
             const updatedDates = {
@@ -243,12 +247,14 @@ const ProjectTaskModal = () => {
         if (stagesAction?.payload) setStages(stagesAction.payload);
         if (entregablesAction?.payload) setEntregables(entregablesAction.payload);
         if (tareasAction?.payload) setProjectTasks(tareasAction.payload.filter(p => p.project_id === id));
-    }, [dispatch, id]);
+    }, [dispatch, id , isFormOpen]);
+
     useEffect(() => { fetchData(); }, [fetchData]);
     const projectProgress = useMemo(() => {
         if (!projectTasks || projectTasks.length === 0) return 0;
         return Math.round(projectTasks.reduce((sum, task) => sum + (Number(task.Progress) || 0), 0) / projectTasks.length);
-    }, [projectTasks]);
+    }, [projectTasks, isFormOpen]);
+
     const filteredAndSortedTasks = useMemo(() => {
         let items = [...projectTasks];
         if (searchTerm) items = items.filter(task => task.task_description?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -278,8 +284,24 @@ const ProjectTaskModal = () => {
     if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
     if (!selectedProject) return <div className="p-8 text-center">Proyecto no encontrado.</div>;
 
+   const fetchTasks = async () => {
+        const tareasAction = await dispatch(getAllFromTable("Tareas"));
+        if (tareasAction?.payload) setData(tareasAction.payload);
+    };
+
+        const handleAddTask = (taskData) => {
+            const sanitizedTaskData = { ...taskData };
+            ['project_id', 'staff_id', 'stage_id', 'entregable_id'].forEach(field => {
+                if (sanitizedTaskData[field] === '') sanitizedTaskData[field] = null;
+            });
+            dispatch(addTask(sanitizedTaskData)).then(fetchTasks);
+            setIsFormOpen(false);
+        };
+
+
     return (
         <div className="h-screen bg-gray-50 flex flex-col p-4 md:p-8 gap-6">
+                        <FormTask isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSubmit={handleAddTask} proyecto={id} staff={staff} stages={stages} entregables={entregables} estados={ESTADOS} />
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex-shrink-0">
                 <h1 className="text-3xl font-bold text-gray-800 mb-4">{selectedProject.name}</h1>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
@@ -299,7 +321,7 @@ const ProjectTaskModal = () => {
                         <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" /><input type="text" placeholder="Buscar tareas..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
                         <div className="flex items-center gap-2"><label htmlFor="sort-select" className="text-sm font-medium text-gray-600">Ordenar por:</label><select id="sort-select" value={sortConfig.key} onChange={(e) => setSortConfig({ ...sortConfig, key: e.target.value })} className="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-blue-500"><option value="Priority">Prioridad</option><option value="task_description">Nombre Tarea</option><option value="status">Estado</option></select><button onClick={() => setSortConfig({ ...sortConfig, direction: sortConfig.direction === 'ascending' ? 'descending' : 'ascending' })} className="p-2 border rounded-lg hover:bg-gray-100">{sortConfig.direction === 'ascending' ? <ArrowUp className="w-5 h-5" /> : <ArrowDown className="w-5 h-5" />}</button></div>
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"><Plus size={18} /> Nueva Tarea</button>
+                    <button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"><Plus size={18} /> Nueva Tarea</button>
                 </div>
                 
                 <div className="divide-y divide-gray-200 overflow-y-auto">
