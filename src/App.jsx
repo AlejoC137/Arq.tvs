@@ -15,6 +15,8 @@ import ProjectKanbanView from './components/ProjectKanbanView';
 import ProjectDashboard from './components/ProjectDashboard';
 import PlanosView from './components/PlanosView';
 import './index.css';
+import ProjectTaskModal from './components/ProjectTaskModal';
+import PreModalProjects from './components/PreModalProjects';
 
 function App() {
   const [data, setData] = useState([]);
@@ -78,19 +80,26 @@ function App() {
     //   icon: LayoutDashboard, 
     //   description: 'Gráficos y estadísticas ejecutivas' 
     // },
+//    { 
+//      id: 'dashboard', 
+//      path: '/dashboard',
+//      label: 'Dashboard', 
+//      icon: LayoutDashboard, 
+//      description: 'Gráficos y estadísticas ejecutivas' 
+//    },
+    // { 
+    //   id: 'gestion', 
+    //   path: '/gestion',
+    //   label: 'Gestión de Tareas', 
+    //   icon: Table, 
+    //   description: 'Vista Excel interactiva de tareas' 
+    // },
     { 
-      id: 'dashboard', 
-      path: '/dashboard',
-      label: 'Dashboard', 
-      icon: LayoutDashboard, 
-      description: 'Gráficos y estadísticas ejecutivas' 
-    },
-    { 
-      id: 'gestion', 
-      path: '/gestion',
-      label: 'Gestión de Tareas', 
+      id: 'PreModalProjects', 
+      path: '/Proyectos',
+      label: 'Proyectos', 
       icon: Table, 
-      description: 'Vista Excel interactiva de tareas' 
+    //   description: 'Vista Excel interactiva de tareas' 
     },
     { 
       id: 'planos', 
@@ -210,9 +219,12 @@ function App() {
         {/* Contenido principal */}
         <div className="flex-1 overflow-hidden">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<ProjectDashboard data={data} />} />
+            <Route path="/" element={<Navigate to="/Proyectos" replace />} />
+            {/* <Route path="/dashboard" element={<ProjectDashboard data={data} />} /> */}
             <Route path="/gestion" element={<ProjectExcelView data={data} setData={setData} />} />
+            <Route path="/ProjectTaskModal/:id" element={<ProjectTaskModal />} />
+            <Route path="/Proyectos" element={<PreModalProjects />} />
+
             <Route path="/ProjectKanbanView" element={<ProjectKanbanView data={data} setData={setData} />} />
             <Route path="/planos" element={<PlanosView />} />
           </Routes>

@@ -93,11 +93,11 @@ const InlineActionsTask = ({ task }) => {
       {actions.length > 0 && (
         <div className="space-y-1">
           {actions.map((act, index) => (
-            <div key={index} className={`grid grid-cols-11 gap-x-2 items-start p-1 rounded ${act.lista ? 'bg-green-100 opacity-70' : ''}`}>
+            <div key={index} className={`grid grid-cols-12 gap-x-2 items-start p-1 rounded ${act.lista ? 'bg-green-100 opacity-70' : ''}`}>
               <AutoResizingTextarea
                 value={act.action}
                 onChange={(e) => handleActionChange(index, 'action', e.target.value)}
-                className={`col-span-6 p-1 border rounded text-xs bg-transparent resize-none overflow-hidden ${act.lista ? 'line-through' : ''}`}
+                className={`col-span-9 p-1 border rounded text-xs bg-transparent resize-none overflow-hidden ${act.lista ? 'line-through' : ''}`}
                 placeholder="Acción"
                 rows="1"
               />
@@ -105,7 +105,7 @@ const InlineActionsTask = ({ task }) => {
                 type="text"
                 value={act.executer}
                 onChange={(e) => handleActionChange(index, 'executer', e.target.value)}
-                className={`col-span-3 p-1 border rounded text-xs bg-transparent self-center ${act.lista ? 'line-through' : ''}`}
+                className={`col-span-1 p-1 border rounded text-xs bg-transparent self-center ${act.lista ? 'line-through' : ''}`}
                 placeholder="Ejecutor"
               />
               <div className="col-span-1 flex items-center justify-center self-center h-full">
@@ -116,8 +116,8 @@ const InlineActionsTask = ({ task }) => {
                     className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                  />
               </div>
-              <div className="col-span-1 flex justify-end self-center">
-                <button onClick={() => handleDeleteAction(index)} className="text-red-500 hover:text-red-700 p-1" title="Eliminar">
+              <div className="col-span-1 flex  justify-center  self-center">
+                <button onClick={() => handleDeleteAction(index)} className="text-red-500 justify-center  hover:text-red-700 p-1" title="Eliminar">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -127,12 +127,12 @@ const InlineActionsTask = ({ task }) => {
       )}
 
       {/* Formulario para agregar nueva acción */}
-      <form onSubmit={handleAddAction} className="grid grid-cols-11 gap-x-2 items-center pt-2 border-t">
+      <form onSubmit={handleAddAction} className="grid grid-cols-12 gap-x-2 items-center pt-2 border-t">
         <textarea
           name="action"
           value={newAction.action}
           onChange={handleNewActionChange}
-          className="col-span-6 p-1 border rounded text-xs resize-none"
+          className="col-span-9 p-1 border rounded text-xs resize-none"
           placeholder="Nueva acción..."
           rows="1"
         />
@@ -141,7 +141,7 @@ const InlineActionsTask = ({ task }) => {
           name="executer"
           value={newAction.executer}
           onChange={handleNewActionChange}
-          className="col-span-3 p-1 border rounded text-xs"
+          className="col-span-1 p-1 border rounded text-xs"
           placeholder="Ejecutor..."
         />
         <div className="col-span-1 flex items-center justify-center">
@@ -153,7 +153,7 @@ const InlineActionsTask = ({ task }) => {
               className="h-4 w-4"
            />
         </div>
-        <div className="col-span-1 flex justify-end">
+        <div className="col-span-1 flex justify-center">
           <button type="submit" className="text-green-600 hover:text-green-800 p-1" title="Agregar">
             <Plus size={16} />
           </button>
