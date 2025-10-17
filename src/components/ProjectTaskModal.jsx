@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight, Settings
 } from 'lucide-react';
 
+// --- Acciones de Redux ---
 import {
   getAllFromTable,
   updateTask,
@@ -13,11 +14,13 @@ import {
   deleteTask
 } from '../store/actions/actions';
 
+// --- Componentes externos ---
 import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
 
+// --- Constantes de estado ---
 const ESTADOS = {
   PENDIENTE: 'Pendiente',
   EN_PROCESO: 'En Progreso',
@@ -50,6 +53,7 @@ const ProjectTaskModal = () => {
   const dispatch = useDispatch();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
+  // --- ESTADOS ---
   const [data, setData] = useState([]);
   const { projects, loading, error } = useSelector((state) => state.projects);
   const [projectTasks, setProjectTasks] = useState([]);
@@ -67,6 +71,7 @@ const ProjectTaskModal = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'Priority', direction: 'descending' });
   const [searchTerm, setSearchTerm] = useState('');
 
+  // --- Helpers CRUD ---
   const updateCell = (rowId, fieldsToUpdate) =>
     dispatch(updateTask(rowId, fieldsToUpdate))
       .then(() => setProjectTasks(p => p.map(i => i.id === rowId ? { ...i, ...fieldsToUpdate } : i)));
@@ -103,6 +108,7 @@ const ProjectTaskModal = () => {
     }))
       .then(() => { fetchData(); deselectAll(); });
 
+  // --- Carga de datos ---
   const fetchData = useCallback(async () => {
     dispatch(getAllFromTable("Proyectos"));
     const [tareasAction, staffAction, stagesAction, entregablesAction] = await Promise.all([
@@ -170,6 +176,7 @@ const ProjectTaskModal = () => {
     setIsFormOpen(false);
   };
 
+  // --- Componente Celda Editable ---
   const EditableCell = ({ rowId, field, value, type = 'text', options = [], onExitEditing = () => {} }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
@@ -181,7 +188,9 @@ const ProjectTaskModal = () => {
 
     const handleSave = () => {
       let finalValue = editValue;
-      if (type === 'progress') finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
+      if (type === 'progress') {
+        finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
+      }
       if (finalValue !== value) {
         const fieldsToUpdate = { [field]: finalValue };
         if (field === 'Progress' && finalValue === 100) fieldsToUpdate.status = 'Completado';
@@ -200,10 +209,13 @@ const ProjectTaskModal = () => {
         case 'progress':
           return (
             <input
-              type="number" min="0" max="100"
+              type="number"
+              min="0"
+              max="100"
               value={editValue || 0}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none bg-transparent"
               autoFocus
             />
@@ -215,7 +227,8 @@ const ProjectTaskModal = () => {
             <select
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none bg-white"
               autoFocus
             >
@@ -230,7 +243,8 @@ const ProjectTaskModal = () => {
             <select
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none"
               autoFocus
             >
@@ -245,9 +259,11 @@ const ProjectTaskModal = () => {
             <textarea
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none"
-              rows="3" autoFocus
+              rows="3"
+              autoFocus
             />
           );
       }
@@ -294,9 +310,11 @@ const ProjectTaskModal = () => {
     );
   };
 
+  // --- Item de Tarea ---
   const TaskItem = React.memo(({ task, isSelected, onSelectRow }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditingDesc, setIsEditingDesc] = useState(false);
+
     const taskRef = useRef(null);
 
     const initialDates = useMemo(
@@ -334,24 +352,63 @@ const ProjectTaskModal = () => {
 
     const responsible = staff.find(s => s.id === task.staff_id);
 
-    // ========================= IMPRESIÓN NUEVA =========================
+    // ================== IMPRESIÓN (lee valores reales de las acciones) ==================
     const printTask = () => {
       const title = task.task_description || '-';
-      const responsable = responsible?.name || 'Sin asignar';
-      const fecha = dueDate || 'Sin fecha';
-      const estado = task.status || 'Pendiente';
+      const responsableTop = responsible?.name || 'Sin asignar';
+      const fechaTop = dueDate || 'Sin fecha';
+      const estadoTop = task.status || 'Pendiente';
       const prioridad = task.Priority || '-';
       const etapa = stages.find(s => s.id === task.stage_id)?.name || '-';
-      const entregable = entregables.find(e => e.id === task.entregable_id)?.entregable_nombre || '-';
+      const entr = entregables.find(e => e.id === task.entregable_id)?.entregable_nombre || '-';
       const progreso = `${Math.max(0, Math.min(100, Number(task.Progress) || 0))}%`;
       const notas = (task.notes && String(task.notes).trim()) ? task.notes : '-';
-      const asignacion = assignDate || '-';
-      const limite = dueDate || '-';
+      const dates = task.dates ? JSON.parse(task.dates) : {};
+      const asignacion = dates.assignDate || '-';
+      const limite = dates.dueDate || '-';
 
-      // Tomamos el bloque de acciones ya renderizado
-      const accionesNode = taskRef.current?.querySelector('[data-section="acciones"]');
-      const accionesHTML = accionesNode ? accionesNode.innerHTML : '<div>-</div>';
+      // --- Extraer filas de acciones desde la UI (valores reales) ---
+      const accionesRoot = taskRef.current?.querySelector('[data-section="acciones"]');
+      const actRows = [];
 
+      if (accionesRoot) {
+        // Se asume una acción por checkbox. Para cada checkbox, obtenemos el texto (input/textarea) y el select de responsable.
+        const checkboxes = Array.from(accionesRoot.querySelectorAll('input[type="checkbox"]'));
+        checkboxes.forEach(cb => {
+          const row = cb.closest('div,li,tr') || cb.parentElement;
+          if (!row) return;
+
+          const rowTextInput = row.querySelector('textarea, input[type="text"], input:not([type])');
+          const textValue = rowTextInput ? (rowTextInput.value || rowTextInput.textContent || '').trim() : (row.textContent || '').trim();
+
+          // descartar la fila "Nueva acción…"
+          if ((rowTextInput?.placeholder || '').toLowerCase().includes('nueva acción') ||
+              (rowTextInput?.placeholder || '').toLowerCase().includes('nueva accion') ||
+              /^nueva acción/i.test(textValue) || /^nueva accion/i.test(textValue)) return;
+
+          const sel = row.querySelector('select');
+          const respText = sel ? (sel.options[sel.selectedIndex]?.text || sel.value || '') : '';
+
+          actRows.push({
+            checked: cb.checked,
+            text: textValue.replace(/\s+/g,' ').trim(),
+            resp: respText
+          });
+        });
+      }
+
+      const accionesHTML =
+        actRows.length === 0
+          ? '<div class="muted">-</div>'
+          : actRows.map(r => `
+              <div class="act-row">
+                <span class="cb ${r.checked ? 'on' : ''}"></span>
+                <span class="act-text">${r.text ? r.text.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '-'}</span>
+                ${r.resp ? `<span class="chip">${r.resp}</span>` : ''}
+              </div>
+            `).join('');
+
+      // --- Contenedor y estilos de impresión ---
       const container = document.createElement('div');
       container.className = '__print_root__';
       document.body.appendChild(container);
@@ -375,10 +432,7 @@ const ProjectTaskModal = () => {
         .chip.estado.pendiente { background:#fef3c7; border-color:#fde68a; color:#92400e; }
         .sep { border:0; border-top:1px solid #e5e7eb; margin:8px 0 10px; }
 
-        .grid4 { 
-          display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); 
-          gap:14px; margin-top:6px; 
-        }
+        .grid4 { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:14px; margin-top:6px; }
         .blk h4 { font-size:12px; font-weight:700; color:#111827; margin:12px 0 6px; }
         .kv { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         .kv .k { color:#6b7280; min-width:110px; }
@@ -388,17 +442,33 @@ const ProjectTaskModal = () => {
         .box { border:1px solid #e5e7eb; border-radius:8px; padding:8px; background:#fafafa; }
         .muted { color:#6b7280; }
 
-        /* Lista de acciones (dejamos los checkboxes cuadrados) */
-        .acciones input[type="checkbox"]{
-          appearance:none; -webkit-appearance:none; width:14px; height:14px;
-          border:1.5px solid #9ca3af; border-radius:3px; margin-right:8px; vertical-align:middle; position:relative; top:-1px; background:#fff;
+        /* ---- Acciones: filas flexibles, sin cortes, sin truncado ---- */
+        .acciones { margin-top: 2px; }
+        .act-row {
+          display:flex; align-items:flex-start; gap:10px; margin:6px 0;
+          break-inside: avoid; page-break-inside: avoid;
         }
-        .acciones input[type="checkbox"]:checked::after{
-          content:""; position:absolute; left:3px; top:0px; width:5px; height:9px; border: solid #2563eb;
-          border-width:0 2px 2px 0; transform:rotate(45deg);
+        .cb{
+          width:14px; height:14px; margin-top:2px;
+          border:1.5px solid #9ca3af; border-radius:3px; background:#fff; flex:0 0 auto;
+          position:relative;
+        }
+        .cb.on::after{
+          content:""; position:absolute; left:3px; top:0px; width:5px; height:9px;
+          border: solid #2563eb; border-width:0 2px 2px 0; transform:rotate(45deg);
+        }
+        .act-text{
+          flex:1 1 auto;
+          white-space: pre-wrap !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+          text-overflow: initial !important;
         }
 
-        /* Evitar cortes feos */
+        .truncate, [class*="line-clamp"] {
+          white-space: normal !important; display:block !important; max-height:none !important; overflow:visible !important;
+        }
+
         .avoid { break-inside: avoid; page-break-inside: avoid; }
       `;
 
@@ -410,9 +480,9 @@ const ProjectTaskModal = () => {
         <div class="hdr">
           <div class="title">${title}</div>
           <div class="chips">
-            <span class="chip">${responsable}</span>
-            <span class="chip">${fecha}</span>
-            <span class="chip estado ${estado.toLowerCase().replace(/\s+/g,'-')}">${estado}</span>
+            <span class="chip">${responsableTop}</span>
+            <span class="chip">${fechaTop}</span>
+            <span class="chip estado ${estadoTop.toLowerCase().replace(/\s+/g,'-')}">${estadoTop}</span>
           </div>
         </div>
         <hr class="sep"/>
@@ -420,7 +490,7 @@ const ProjectTaskModal = () => {
         <div class="grid4 avoid">
           <div class="kv"><span class="k">Prioridad</span><span class="v">${prioridad}</span></div>
           <div class="kv"><span class="k">Etapa</span><span class="v">${etapa}</span></div>
-          <div class="kv"><span class="k">Entregable</span><span class="v">${entregable}</span></div>
+          <div class="kv"><span class="k">Entregable</span><span class="v">${entr}</span></div>
           <div class="kv"><span class="k">Progreso</span><span class="v">${progreso}</span></div>
         </div>
 
@@ -452,8 +522,9 @@ const ProjectTaskModal = () => {
       if (style.parentNode) style.parentNode.removeChild(style);
       if (container.parentNode) container.parentNode.removeChild(container);
     };
-    // ======================= FIN IMPRESIÓN NUEVA =======================
+    // ================== FIN IMPRESIÓN ==================
 
+    // Último evento
     const datesForLatest = task.dates ? JSON.parse(task.dates) : {};
     const latestLog = (datesForLatest.logs && datesForLatest.logs.length > 0)
       ? datesForLatest.logs[datesForLatest.logs.length - 1]
@@ -500,7 +571,7 @@ const ProjectTaskModal = () => {
           <div className="flex items-center gap-3 md:gap-6 mx-4 md:mx-6 text-sm text-gray-600 flex-shrink-0">
             <div className="flex items-center gap-2" title="Responsable">
               <User size={16} className="text-gray-400" />
-              <span>{staff.find(s => s.id === task.staff_id)?.name || 'Sin asignar'}</span>
+              <span>{responsible?.name || 'Sin asignar'}</span>
             </div>
             <div className="flex items-center gap-2" title="Fecha Límite">
               <Calendar size={16} className="text-gray-400" />
@@ -538,7 +609,11 @@ const ProjectTaskModal = () => {
 
         {isExpanded && (
           <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true" data-print-fields="true">
+            <div
+              className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4"
+              data-print-block="true"
+              data-print-fields="true"
+            >
               <div className="print-row">
                 <label className="font-medium text-gray-500">Prioridad</label>
                 <EditableCell rowId={task.id} field="Priority" value={task.Priority} type="priority-select" options={Priorities} />
@@ -589,11 +664,7 @@ const ProjectTaskModal = () => {
                   <div className="flex-grow pt-2">
                     <div
                       className="w-full p-2 border border-gray-200 bg-gray-50 rounded-md text-sm text-gray-600 truncate min-h-[42px] flex items-center"
-                      title={
-                        (task.dates && JSON.parse(task.dates)?.logs?.length)
-                          ? `${JSON.parse(task.dates).logs.slice(-1)[0].date}: ${JSON.parse(task.dates).logs.slice(-1)[0].event}`
-                          : 'No hay eventos.'
-                      }
+                      title={latestLog ? `${latestLog.date}: ${latestLog.event}` : 'No hay eventos.'}
                     >
                       {latestLog ? (
                         <>
@@ -624,6 +695,7 @@ const ProjectTaskModal = () => {
     );
   });
 
+  // --- Layout principal ---
   return (
     <div className="h-screen bg-gray-50 flex flex-col p-4 md:p-8 gap-6">
       <FormTask
