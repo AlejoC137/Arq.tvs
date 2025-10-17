@@ -14,13 +14,13 @@ import {
   deleteTask
 } from '../store/actions/actions';
 
-// --- Componentes externos ---
+// --- Componentes externos que ya tienes ---
 import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
 
-// --- Constantes y helpers ---
+// --- Constantes y Helpers de Estilo ---
 const ESTADOS = {
   PENDIENTE: 'Pendiente',
   EN_PROCESO: 'En Progreso',
@@ -71,7 +71,7 @@ const ProjectTaskModal = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'Priority', direction: 'descending' });
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --- CRUD helpers ---
+  // --- ACCIONES CRUD (helpers) ---
   const updateCell = (rowId, fieldsToUpdate) =>
     dispatch(updateTask(rowId, fieldsToUpdate))
       .then(() => setProjectTasks(p => p.map(i => i.id === rowId ? { ...i, ...fieldsToUpdate } : i)));
@@ -108,7 +108,7 @@ const ProjectTaskModal = () => {
     }))
       .then(() => { fetchData(); deselectAll(); });
 
-  // --- Carga de datos ---
+  // --- LÓGICA DE DATOS ---
   const fetchData = useCallback(async () => {
     dispatch(getAllFromTable("Proyectos"));
     const [tareasAction, staffAction, stagesAction, entregablesAction] = await Promise.all([
@@ -176,16 +176,21 @@ const ProjectTaskModal = () => {
     setIsFormOpen(false);
   };
 
-  // --- Celda editable ---
+  // --- Componente de Celda Editable ---
   const EditableCell = ({ rowId, field, value, type = 'text', options = [], onExitEditing = () => {} }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
 
-    const endEditing = () => { setIsEditing(false); onExitEditing(); };
+    const endEditing = () => {
+      setIsEditing(false);
+      onExitEditing();
+    };
 
     const handleSave = () => {
       let finalValue = editValue;
-      if (type === 'progress') finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
+      if (type === 'progress') {
+        finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
+      }
       if (finalValue !== value) {
         const fieldsToUpdate = { [field]: finalValue };
         if (field === 'Progress' && finalValue === 100) fieldsToUpdate.status = 'Completado';
@@ -204,10 +209,13 @@ const ProjectTaskModal = () => {
         case 'progress':
           return (
             <input
-              type="number" min="0" max="100"
+              type="number"
+              min="0"
+              max="100"
               value={editValue || 0}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none bg-transparent"
               autoFocus
             />
@@ -217,9 +225,12 @@ const ProjectTaskModal = () => {
         case 'priority-select':
           return (
             <select
-              value={editValue || ''} onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
-              className="w-full p-1 border rounded focus:outline-none bg-white" autoFocus
+              value={editValue || ''}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
+              className="w-full p-1 border rounded focus:outline-none bg-white"
+              autoFocus
             >
               <option value="">-- Seleccionar --</option>
               {options.map(option => (
@@ -230,9 +241,12 @@ const ProjectTaskModal = () => {
         case 'entregable-select':
           return (
             <select
-              value={editValue || ''} onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
-              className="w-full p-1 border rounded focus:outline-none" autoFocus
+              value={editValue || ''}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
+              className="w-full p-1 border rounded focus:outline-none"
+              autoFocus
             >
               <option value="">-- Seleccionar --</option>
               {options.map(option => (
@@ -243,9 +257,13 @@ const ProjectTaskModal = () => {
         default:
           return (
             <textarea
-              value={editValue || ''} onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave} onKeyDown={handleKeyPress}
-              className="w-full p-1 border rounded focus:outline-none" rows="3" autoFocus
+              value={editValue || ''}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyPress}
+              className="w-full p-1 border rounded focus:outline-none"
+              rows="3"
+              autoFocus
             />
           );
       }
@@ -292,13 +310,15 @@ const ProjectTaskModal = () => {
     );
   };
 
-  // --- Item de tarea ---
+  // --- Componente de Tarea (interno) ---
   const TaskItem = React.memo(({ task, isSelected, onSelectRow }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditingDesc, setIsEditingDesc] = useState(false);
+
+    // Ref para imprimir solo este bloque
     const taskRef = useRef(null);
 
-    // Fechas
+    // --- Fechas (DatesManager integrado) ---
     const initialDates = useMemo(
       () => task.dates ? JSON.parse(task.dates) : { assignDate: '', dueDate: '' },
       [task.dates]
@@ -320,9 +340,21 @@ const ProjectTaskModal = () => {
       updateCell(task.id, { dates: JSON.stringify(updatedDates) });
     };
 
+    const getPriorityClasses = (priority) => {
+      const base = 'w-1.5 h-full absolute top-0 left-0';
+      switch (priority) {
+        case 'Alta': return `${base} bg-red-500`;
+        case 'Media-Alta': return `${base} bg-orange-500`;
+        case 'Media': return `${base} bg-yellow-400`;
+        case 'Media-Baja': return `${base} bg-green-400`;
+        case 'Baja': return `${base} bg-blue-400`;
+        default: return `${base} bg-gray-300`;
+      }
+    };
+
     const responsible = staff.find(s => s.id === task.staff_id);
 
-    // --- IMPRIMIR SOLO ESTA TAREA (limpia + checks por acción + “–” antes de ejecutor) ---
+    // --- BOTÓN IMPRIMIR (imprime solo el contenido de esta tarea, versión limpia) ---
     const handlePrintInPlace = () => {
       if (!taskRef.current) return;
 
@@ -333,13 +365,12 @@ const ProjectTaskModal = () => {
         const node = taskRef.current;
         if (!node) return;
 
-        // 1) Clonar
         const clone = node.cloneNode(true);
 
-        // 2) Quitar controles
+        // Quitar controles visibles irrelevantes
         clone.querySelectorAll('button, [type="checkbox"], [data-print-hide="true"]').forEach(el => el.remove());
 
-        // 3) Sustituir inputs/textarea/select por su valor
+        // Sustituir inputs/textarea/select por valor plano
         clone.querySelectorAll('input, textarea, select').forEach((el) => {
           const span = document.createElement('span');
           let val = '';
@@ -351,43 +382,33 @@ const ProjectTaskModal = () => {
           el.parentNode.replaceChild(span, el);
         });
 
-        // 4) CHECK por CADA acción
-        const actionRows = Array.from(
-          clone.querySelectorAll('.actions-print-scope > *, .actions-print-scope li')
-        ).filter(n => (n.textContent || '').trim().length > 0);
-
-        actionRows.forEach(row => {
-          if (row.querySelector('.print-check')) return;
-          const check = document.createElement('span');
-          check.className = 'print-check';
-          row.insertBefore(check, row.firstChild);
-          row.insertBefore(document.createTextNode(' '), check.nextSibling);
+        // Ocultar "No hay eventos…" si quedó en el clon
+        clone.querySelectorAll('*').forEach(n => {
+          if (n.textContent && n.textContent.trim().startsWith('No hay eventos')) n.remove();
         });
 
-        // 5) Insertar “ – ” antes del ejecutor si detecta nombre de staff al final
-        const staffNames = staff.map(s => s?.name).filter(Boolean).sort((a, b) => b.length - a.length);
-        actionRows.forEach(row => {
-          const txt = row.textContent || '';
-          for (const name of staffNames) {
-            const i = txt.lastIndexOf(name);
-            if (i > 0 && !/[-–—]\s*$/.test(txt.slice(0, i))) {
-              row.textContent = txt.slice(0, i).replace(/\s*$/, ' ') + '– ' + txt.slice(i);
-              break;
-            }
+        // Ocultar filas vacías o con "-" en campos superiores
+        clone.querySelectorAll('[data-print-fields="true"] .print-row').forEach(row => {
+          const valueNode = row.querySelector('.print-value') || row.querySelector('*:not(label)');
+          const txt = (valueNode?.textContent || '').trim();
+          if (!txt || txt === '-' || txt === '0%' ) {
+            row.remove();
           }
         });
 
-        // 6) Contenedor temporal
+        // Contenedor temporal de impresión
         const container = document.createElement('div');
         container.className = '__task_print_container__';
         container.style.position = 'absolute';
-        container.style.inset = '0';
+        container.style.left = '0';
+        container.style.top = '0';
+        container.style.width = '100%';
         container.style.background = 'white';
         container.style.padding = '8mm';
         container.appendChild(clone);
         document.body.appendChild(container);
 
-        // 7) Estilos de impresión
+        // Estilos de impresión
         const style = document.createElement('style');
         style.setAttribute('data-print-style', 'true');
         style.innerHTML = `
@@ -397,43 +418,83 @@ const ProjectTaskModal = () => {
             body * { visibility: hidden !important; }
             .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
 
-            .__task_print_container__ { font-size: 12px !important; line-height: 1.35 !important; }
+            /* Layout compacto y de una sola columna */
+            .__task_print_container__ { position: absolute; inset: 0; font-size: 12px !important; line-height: 1.35 !important; }
             .__task_print_container__ .grid { display:block !important; }
             .__task_print_container__ .grid > * { width:100% !important; }
 
-            /* No truncar y quitar barras de progreso */
-            .__task_print_container__ * { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; }
-            .__task_print_container__ .bg-blue-600.h-2,
-            .__task_print_container__ .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
+            /* Quitar paddings/márgenes excesivos */
+            .__task_print_container__ .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
+            .__task_print_container__ .px-3, .__task_print_container__ .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+            .__task_print_container__ .pl-6 { padding-left: 10px !important; }
+            .__task_print_container__ .pr-4 { padding-right: 10px !important; }
+            .__task_print_container__ .pt-2 { padding-top: 6px !important; }
+            .__task_print_container__ .pb-4 { padding-bottom: 8px !important; }
+            .__task_print_container__ .mx-4, .__task_print_container__ .mx-6 { margin-left: 8px !important; margin-right: 8px !important; }
 
-            /* Evitar cortes en bloques clave */
+            /* Eliminar barra de prioridad decorativa */
+            .__task_print_container__ [class*="w-1.5"][class*="absolute"] { display:none !important; }
+
+            /* Sin truncamientos */
+            .__task_print_container__ * {
+              overflow: visible !important;
+              text-overflow: clip !important;
+              white-space: normal !important;
+              -webkit-line-clamp: initial !important;
+              max-height: none !important;
+            }
+            .__task_print_container__ .truncate,
+            .__task_print_container__ [class*="line-clamp"] { 
+              overflow: visible !important; 
+              display: block !important;
+            }
+
+            /* Evitar cortes de página dentro de bloques clave */
+            .__task_print_container__ .print-avoid-break,
             .__task_print_container__ [data-print-block="true"] {
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
-
-            /* ✅ Cuadro por CADA acción */
-            .__task_print_container__ .print-check{
-              display:inline-block !important;
-              width:12px !important; height:12px !important;
-              border:1.5px solid #000 !important;
-              box-sizing:border-box !important;
-              vertical-align:baseline !important;
-              position:relative !important; top:1px !important;
+            .__task_print_container__ [data-section="acciones"] * {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
             }
 
-            /* Separación entre acciones */
-            .__task_print_container__ .actions-print-scope > *,
-            .__task_print_container__ .actions-print-scope li { margin-bottom: 6px !important; }
+            /* Barras de progreso -> solo texto */
+            .__task_print_container__ .bg-blue-600.h-2,
+            .__task_print_container__ .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
+
+            /* Iconos */
+            .__task_print_container__ svg { display:none !important; }
+
+            /* ------ Dos columnas Etiqueta / Valor para los campos superiores ------ */
+            .__task_print_container__ [data-print-fields="true"] {
+              display: grid !important;
+              grid-template-columns: 150px 1fr !important;
+              column-gap: 10px !important;
+              row-gap: 4px !important;
+            }
+            .__task_print_container__ [data-print-fields="true"] .print-row { display: contents !important; }
+            .__task_print_container__ [data-print-fields="true"] label { 
+              font-weight: 600 !important; color: #374151 !important; 
+            }
+            .__task_print_container__ [data-print-fields="true"] .print-value { 
+              color: #111827 !important;
+            }
+
+            /* Fechas y Actividad: mostrar como filas simples */
+            .__task_print_container__ [data-print-dates="true"] .flex { display:block !important; }
+            .__task_print_container__ [data-print-dates="true"] .flex > div { margin-bottom: 4px !important; }
+            .__task_print_container__ [data-print-dates="true"] .w-full { width:auto !important; }
           }
         `;
         document.head.appendChild(style);
 
         const originalTitle = document.title;
         document.title = `Tarea ${task.id || ''}`;
+
         window.print();
 
-        // Limpieza
         document.title = originalTitle;
         if (style.parentNode) style.parentNode.removeChild(style);
         if (container.parentNode) container.parentNode.removeChild(container);
@@ -441,10 +502,17 @@ const ProjectTaskModal = () => {
         if (!prevExpanded) setIsExpanded(false);
       }, 0);
     };
-    // --- FIN imprimir ---
+    // --- FIN BOTÓN IMPRIMIR ---
+
+    // --- Último evento para la vista expandida ---
+    const datesForLatest = task.dates ? JSON.parse(task.dates) : {};
+    const latestLog = (datesForLatest.logs && datesForLatest.logs.length > 0)
+      ? datesForLatest.logs[datesForLatest.logs.length - 1]
+      : null;
 
     return (
       <div ref={taskRef} className={`relative ${isSelected ? 'bg-blue-50' : 'bg-white'}`} data-print-block="true">
+        <div className={getPriorityClasses(task.Priority)} title={`Prioridad: ${task.Priority}`}></div>
         <div className="flex items-center w-full pl-6 pr-4 py-2">
           <div className="flex items-center">
             <button
@@ -452,15 +520,22 @@ const ProjectTaskModal = () => {
               className="p-1 rounded-full hover:bg-gray-200 mr-2"
               data-print-hide="true"
             >
-              {isExpanded ? <ChevronDown size={20} className="text-gray-600" /> : <ChevronRight size={20} className="text-gray-500" />}
+              {isExpanded ? (
+                <ChevronDown size={20} className="text-gray-600" />
+              ) : (
+                <ChevronRight size={20} className="text-gray-500" />
+              )}
             </button>
             <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-5 h-5" data-print-hide="true" />
           </div>
 
-          {/* Descripción */}
+          {/* Descripción: clic aquí EXPANDE/CONTRAE; NO edita.
+              Edición SOLO con botón de engranaje */}
           <div
             className="flex-grow font-medium text-gray-800 ml-4 print-avoid-break"
-            onClick={() => { if (!isEditingDesc) setIsExpanded(!isExpanded); }}
+            onClick={() => {
+              if (!isEditingDesc) setIsExpanded(!isExpanded);
+            }}
           >
             {isEditingDesc ? (
               <EditableCell
@@ -496,6 +571,7 @@ const ProjectTaskModal = () => {
               />
             </div>
 
+            {/* Botón engranaje para editar SOLO la descripción */}
             <button
               onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
@@ -505,6 +581,7 @@ const ProjectTaskModal = () => {
               <Settings size={16} />
             </button>
 
+            {/* Botón de imprimir (solo esta tarea en el DOM actual) */}
             <button
               data-print-btn="true"
               onClick={(e) => { e.stopPropagation(); handlePrintInPlace(); }}
@@ -548,8 +625,10 @@ const ProjectTaskModal = () => {
                   <div>
                     <label htmlFor={`assign-date-${task.id}`} className="block text-xs text-gray-500 mb-1">Asignación</label>
                     <input
-                      id={`assign-date-${task.id}`} type="date"
-                      value={assignDate || ''} onChange={(e) => setAssignDate(e.target.value)}
+                      id={`assign-date-${task.id}`}
+                      type="date"
+                      value={assignDate || ''}
+                      onChange={(e) => setAssignDate(e.target.value)}
                       onBlur={(e) => handleDateChange('assignDate', e.target.value)}
                       className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                     />
@@ -557,14 +636,31 @@ const ProjectTaskModal = () => {
                   <div>
                     <label htmlFor={`due-date-${task.id}`} className="block text-xs text-gray-500 mb-1">Límite</label>
                     <input
-                      id={`due-date-${task.id}`} type="date"
-                      value={dueDate || ''} onChange={(e) => setDueDate(e.target.value)}
+                      id={`due-date-${task.id}`}
+                      type="date"
+                      value={dueDate || ''}
+                      onChange={(e) => setDueDate(e.target.value)}
                       onBlur={(e) => handleDateChange('dueDate', e.target.value)}
                       className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <div className="pt-2" data-print-hide="true">
                     <TaskLog task={task} onSave={updateCell} />
+                  </div>
+                  <div className="flex-grow pt-2">
+                    <div
+                      className="w-full p-2 border border-gray-200 bg-gray-50 rounded-md text-sm text-gray-600 truncate min-h-[42px] flex items-center"
+                      title={latestLog ? `${latestLog.date}: ${latestLog.event}` : 'No hay eventos.'}
+                    >
+                      {latestLog ? (
+                        <>
+                          <span className="font-semibold mr-2">{latestLog.date}:</span>
+                          <span>{latestLog.event}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">No hay eventos registrados.</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -574,12 +670,9 @@ const ProjectTaskModal = () => {
                 <EditableCell rowId={task.id} field="notes" value={task.notes} type="textarea" />
               </div>
 
-              {/* Acciones y Actividad: wrapper para checks y “–” en impresión */}
               <div data-print-block="true" data-section="acciones">
                 <label className="font-medium text-gray-500">Acciones y Actividad</label>
-                <div className="actions-print-scope">
-                  <InlineActionsTask task={task} />
-                </div>
+                <InlineActionsTask task={task} />
               </div>
             </div>
           </div>
