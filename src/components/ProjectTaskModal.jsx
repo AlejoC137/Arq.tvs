@@ -358,23 +358,19 @@ const ProjectTaskModal = () => {
     const handlePrintInPlace = () => {
       if (!taskRef.current) return;
 
-      // 1) Garantizar que la sección esté expandida para impresión
       const prevExpanded = isExpanded;
       if (!prevExpanded) setIsExpanded(true);
 
-      // Ejecutar después del re-render
       setTimeout(() => {
         const node = taskRef.current;
         if (!node) return;
 
-        // 2) Clonar
         const clone = node.cloneNode(true);
 
-        // 3) Limpiar controles y anular clases que limitan texto
-        //    – elimina botones/checkbox/íconos que no aportan al print
+        // Quitar controles visibles irrelevantes
         clone.querySelectorAll('button, [type="checkbox"], [data-print-hide="true"]').forEach(el => el.remove());
 
-        // 4) Sustituir inputs/textarea/select por su valor visible
+        // Sustituir inputs/textarea/select por valor plano
         clone.querySelectorAll('input, textarea, select').forEach((el) => {
           const span = document.createElement('span');
           let val = '';
@@ -386,7 +382,21 @@ const ProjectTaskModal = () => {
           el.parentNode.replaceChild(span, el);
         });
 
-        // 5) Preparar contenedor temporal
+        // Ocultar "No hay eventos…" si quedó en el clon
+        clone.querySelectorAll('*').forEach(n => {
+          if (n.textContent && n.textContent.trim().startsWith('No hay eventos')) n.remove();
+        });
+
+        // Ocultar filas vacías o con "-" en campos superiores
+        clone.querySelectorAll('[data-print-fields="true"] .print-row').forEach(row => {
+          const valueNode = row.querySelector('.print-value') || row.querySelector('*:not(label)');
+          const txt = (valueNode?.textContent || '').trim();
+          if (!txt || txt === '-' || txt === '0%' ) {
+            row.remove();
+          }
+        });
+
+        // Contenedor temporal de impresión
         const container = document.createElement('div');
         container.className = '__task_print_container__';
         container.style.position = 'absolute';
@@ -398,7 +408,7 @@ const ProjectTaskModal = () => {
         container.appendChild(clone);
         document.body.appendChild(container);
 
-        // 6) Estilos de impresión (limpios, sin recortes, mejor uso del espacio)
+        // Estilos de impresión
         const style = document.createElement('style');
         style.setAttribute('data-print-style', 'true');
         style.innerHTML = `
@@ -409,30 +419,23 @@ const ProjectTaskModal = () => {
             .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
 
             /* Layout compacto y de una sola columna */
-            .__task_print_container__ { position: absolute; inset: 0; }
+            .__task_print_container__ { position: absolute; inset: 0; font-size: 12px !important; line-height: 1.35 !important; }
             .__task_print_container__ .grid { display:block !important; }
             .__task_print_container__ .grid > * { width:100% !important; }
 
-            /* Tipografía y densidad */
-            .__task_print_container__ { font-size: 12px !important; line-height: 1.35 !important; }
-            .__task_print_container__ .text-sm { font-size: 12px !important; }
-            .__task_print_container__ .text-xs { font-size: 11px !important; }
-
-            /* Quitar paddings/márgenes excesivos del header de la tarjeta */
+            /* Quitar paddings/márgenes excesivos */
             .__task_print_container__ .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
-            .__task_print_container__ .px-3, 
-            .__task_print_container__ .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+            .__task_print_container__ .px-3, .__task_print_container__ .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
             .__task_print_container__ .pl-6 { padding-left: 10px !important; }
             .__task_print_container__ .pr-4 { padding-right: 10px !important; }
             .__task_print_container__ .pt-2 { padding-top: 6px !important; }
             .__task_print_container__ .pb-4 { padding-bottom: 8px !important; }
-            .__task_print_container__ .mx-4, 
-            .__task_print_container__ .mx-6 { margin-left: 8px !important; margin-right: 8px !important; }
+            .__task_print_container__ .mx-4, .__task_print_container__ .mx-6 { margin-left: 8px !important; margin-right: 8px !important; }
 
-            /* Eliminar barras/colores decorativos para ganar espacio */
+            /* Eliminar barra de prioridad decorativa */
             .__task_print_container__ [class*="w-1.5"][class*="absolute"] { display:none !important; }
 
-            /* Evitar truncamiento/ellipses y permitir saltos de línea */
+            /* Sin truncamientos */
             .__task_print_container__ * {
               overflow: visible !important;
               text-overflow: clip !important;
@@ -446,28 +449,43 @@ const ProjectTaskModal = () => {
               display: block !important;
             }
 
-            /* Evitar cortes dentro de bloques clave */
+            /* Evitar cortes de página dentro de bloques clave */
             .__task_print_container__ .print-avoid-break,
             .__task_print_container__ [data-print-block="true"] {
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
-
-            /* Acciones: forzar bloque completo antes del salto de página */
             .__task_print_container__ [data-section="acciones"] * {
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
 
-            /* Ocultar chips/etiquetas de estado si ocupan de más */
-            .__task_print_container__ .rounded-full { border-radius: 4px !important; padding: 2px 6px !important; }
-
-            /* Barras de progreso -> mostrar solo porcentaje */
-            .__task_print_container__ .bg-blue-600.h-2 { display:none !important; }
+            /* Barras de progreso -> solo texto */
+            .__task_print_container__ .bg-blue-600.h-2,
             .__task_print_container__ .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
 
-            /* Iconos irrelevantes */
+            /* Iconos */
             .__task_print_container__ svg { display:none !important; }
+
+            /* ------ Dos columnas Etiqueta / Valor para los campos superiores ------ */
+            .__task_print_container__ [data-print-fields="true"] {
+              display: grid !important;
+              grid-template-columns: 150px 1fr !important;
+              column-gap: 10px !important;
+              row-gap: 4px !important;
+            }
+            .__task_print_container__ [data-print-fields="true"] .print-row { display: contents !important; }
+            .__task_print_container__ [data-print-fields="true"] label { 
+              font-weight: 600 !important; color: #374151 !important; 
+            }
+            .__task_print_container__ [data-print-fields="true"] .print-value { 
+              color: #111827 !important;
+            }
+
+            /* Fechas y Actividad: mostrar como filas simples */
+            .__task_print_container__ [data-print-dates="true"] .flex { display:block !important; }
+            .__task_print_container__ [data-print-dates="true"] .flex > div { margin-bottom: 4px !important; }
+            .__task_print_container__ [data-print-dates="true"] .w-full { width:auto !important; }
           }
         `;
         document.head.appendChild(style);
@@ -475,15 +493,12 @@ const ProjectTaskModal = () => {
         const originalTitle = document.title;
         document.title = `Tarea ${task.id || ''}`;
 
-        // 7) Imprimir
         window.print();
 
-        // 8) Limpieza
         document.title = originalTitle;
         if (style.parentNode) style.parentNode.removeChild(style);
         if (container.parentNode) container.parentNode.removeChild(container);
 
-        // restaurar expandido
         if (!prevExpanded) setIsExpanded(false);
       }, 0);
     };
@@ -580,27 +595,31 @@ const ProjectTaskModal = () => {
 
         {isExpanded && (
           <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true">
-              <div>
+            <div
+              className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4"
+              data-print-block="true"
+              data-print-fields="true"
+            >
+              <div className="print-row">
                 <label className="font-medium text-gray-500">Prioridad</label>
                 <EditableCell rowId={task.id} field="Priority" value={task.Priority} type="priority-select" options={Priorities} />
               </div>
-              <div>
+              <div className="print-row">
                 <label className="font-medium text-gray-500">Etapa</label>
                 <EditableCell rowId={task.id} field="stage_id" value={task.stage_id} type="select" options={stages} />
               </div>
-              <div>
+              <div className="print-row">
                 <label className="font-medium text-gray-500">Entregable</label>
                 <EditableCell rowId={task.id} field="entregable_id" value={task.entregable_id} type="entregable-select" options={entregables} />
               </div>
-              <div>
+              <div className="print-row">
                 <label className="font-medium text-gray-500">Progreso</label>
                 <EditableCell rowId={task.id} field="Progress" value={task.Progress} type="progress" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-y-4 text-sm">
-              <div data-print-block="true">
+              <div data-print-block="true" data-print-dates="true">
                 <label className="font-medium text-gray-500">Fechas y Actividad</label>
                 <div className="flex items-end gap-x-4 gap-y-2 p-1 flex-wrap">
                   <div>
