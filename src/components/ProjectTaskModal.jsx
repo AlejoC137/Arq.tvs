@@ -6,7 +6,6 @@ import {
   ChevronDown, ChevronRight, Settings
 } from 'lucide-react';
 
-// --- Acciones de Redux ---
 import {
   getAllFromTable,
   updateTask,
@@ -14,13 +13,11 @@ import {
   deleteTask
 } from '../store/actions/actions';
 
-// --- Componentes externos que ya tienes ---
 import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
 
-// --- Constantes y Helpers de Estilo ---
 const ESTADOS = {
   PENDIENTE: 'Pendiente',
   EN_PROCESO: 'En Progreso',
@@ -53,7 +50,6 @@ const ProjectTaskModal = () => {
   const dispatch = useDispatch();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  // --- ESTADOS ---
   const [data, setData] = useState([]);
   const { projects, loading, error } = useSelector((state) => state.projects);
   const [projectTasks, setProjectTasks] = useState([]);
@@ -71,7 +67,6 @@ const ProjectTaskModal = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'Priority', direction: 'descending' });
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --- ACCIONES CRUD (helpers) ---
   const updateCell = (rowId, fieldsToUpdate) =>
     dispatch(updateTask(rowId, fieldsToUpdate))
       .then(() => setProjectTasks(p => p.map(i => i.id === rowId ? { ...i, ...fieldsToUpdate } : i)));
@@ -108,7 +103,6 @@ const ProjectTaskModal = () => {
     }))
       .then(() => { fetchData(); deselectAll(); });
 
-  // --- LÓGICA DE DATOS ---
   const fetchData = useCallback(async () => {
     dispatch(getAllFromTable("Proyectos"));
     const [tareasAction, staffAction, stagesAction, entregablesAction] = await Promise.all([
@@ -176,7 +170,6 @@ const ProjectTaskModal = () => {
     setIsFormOpen(false);
   };
 
-  // --- Componente de Celda Editable ---
   const EditableCell = ({ rowId, field, value, type = 'text', options = [], onExitEditing = () => {} }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
@@ -188,9 +181,7 @@ const ProjectTaskModal = () => {
 
     const handleSave = () => {
       let finalValue = editValue;
-      if (type === 'progress') {
-        finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
-      }
+      if (type === 'progress') finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
       if (finalValue !== value) {
         const fieldsToUpdate = { [field]: finalValue };
         if (field === 'Progress' && finalValue === 100) fieldsToUpdate.status = 'Completado';
@@ -209,13 +200,10 @@ const ProjectTaskModal = () => {
         case 'progress':
           return (
             <input
-              type="number"
-              min="0"
-              max="100"
+              type="number" min="0" max="100"
               value={editValue || 0}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none bg-transparent"
               autoFocus
             />
@@ -227,8 +215,7 @@ const ProjectTaskModal = () => {
             <select
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none bg-white"
               autoFocus
             >
@@ -243,8 +230,7 @@ const ProjectTaskModal = () => {
             <select
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none"
               autoFocus
             >
@@ -259,11 +245,9 @@ const ProjectTaskModal = () => {
             <textarea
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none"
-              rows="3"
-              autoFocus
+              rows="3" autoFocus
             />
           );
       }
@@ -310,15 +294,11 @@ const ProjectTaskModal = () => {
     );
   };
 
-  // --- Componente de Tarea (interno) ---
   const TaskItem = React.memo(({ task, isSelected, onSelectRow }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditingDesc, setIsEditingDesc] = useState(false);
-
-    // Ref para imprimir solo este bloque
     const taskRef = useRef(null);
 
-    // --- Fechas (DatesManager integrado) ---
     const initialDates = useMemo(
       () => task.dates ? JSON.parse(task.dates) : { assignDate: '', dueDate: '' },
       [task.dates]
@@ -354,187 +334,126 @@ const ProjectTaskModal = () => {
 
     const responsible = staff.find(s => s.id === task.staff_id);
 
-    // --- BOTÓN IMPRIMIR (solo esta tarea, estilo hoja A4 como la imagen) ---
-    const handlePrintInPlace = () => {
-      if (!taskRef.current) return;
+    // ========================= IMPRESIÓN NUEVA =========================
+    const printTask = () => {
+      const title = task.task_description || '-';
+      const responsable = responsible?.name || 'Sin asignar';
+      const fecha = dueDate || 'Sin fecha';
+      const estado = task.status || 'Pendiente';
+      const prioridad = task.Priority || '-';
+      const etapa = stages.find(s => s.id === task.stage_id)?.name || '-';
+      const entregable = entregables.find(e => e.id === task.entregable_id)?.entregable_nombre || '-';
+      const progreso = `${Math.max(0, Math.min(100, Number(task.Progress) || 0))}%`;
+      const notas = (task.notes && String(task.notes).trim()) ? task.notes : '-';
+      const asignacion = assignDate || '-';
+      const limite = dueDate || '-';
 
-      const prevExpanded = isExpanded;
-      if (!prevExpanded) setIsExpanded(true);
+      // Tomamos el bloque de acciones ya renderizado
+      const accionesNode = taskRef.current?.querySelector('[data-section="acciones"]');
+      const accionesHTML = accionesNode ? accionesNode.innerHTML : '<div>-</div>';
 
-      setTimeout(() => {
-        const node = taskRef.current;
-        if (!node) return;
+      const container = document.createElement('div');
+      container.className = '__print_root__';
+      document.body.appendChild(container);
 
-        // Clon del bloque expandido
-        const expanded = node.querySelector('[data-print-block="true"]')?.parentElement?.cloneNode(true) || node.cloneNode(true);
+      const css = `
+        @page { size: A4; margin: 12mm; }
+        @media print {
+          html, body { padding:0; margin:0; }
+          body * { visibility: hidden; }
+          .__print_root__, .__print_root__ * { visibility: visible; }
+        }
+        .__print_root__{
+          position: absolute; inset: 0;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+          font-size: 12.5px; line-height: 1.35; color:#0f172a; background:#fff; padding: 0 2mm;
+        }
+        .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+        .title { font-size:16px; font-weight:700; color:#111827; }
+        .chips { display:flex; gap:8px; flex-wrap:wrap; }
+        .chip { padding:3px 8px; border-radius:9999px; border:1px solid #e5e7eb; background:#f8fafc; font-weight:600; font-size:11px; }
+        .chip.estado.pendiente { background:#fef3c7; border-color:#fde68a; color:#92400e; }
+        .sep { border:0; border-top:1px solid #e5e7eb; margin:8px 0 10px; }
 
-        // Remueve controles
-        expanded.querySelectorAll('button,[type="checkbox"][data-print-hide],[data-print-hide="true"]').forEach(el => el.remove());
+        .grid4 { 
+          display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); 
+          gap:14px; margin-top:6px; 
+        }
+        .blk h4 { font-size:12px; font-weight:700; color:#111827; margin:12px 0 6px; }
+        .kv { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .kv .k { color:#6b7280; min-width:110px; }
+        .kv .v { color:#111827; font-weight:600; }
 
-        // Sustituye inputs/textarea/select por texto plano (excepto checkboxes de acciones)
-        expanded.querySelectorAll('input, textarea, select').forEach((el) => {
-          if (el.type === 'checkbox') return; // dejamos los de acciones
-          const span = document.createElement('span');
-          let val = '';
-          if (el.tagName === 'INPUT') val = el.value || el.getAttribute('value') || '';
-          if (el.tagName === 'TEXTAREA') val = el.value || el.textContent || '';
-          if (el.tagName === 'SELECT') val = el.options[el.selectedIndex]?.text || '';
-          span.textContent = val || '-';
-          span.className = 'print-value';
-          el.parentNode.replaceChild(span, el);
-        });
+        .subgrid2 { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; }
+        .box { border:1px solid #e5e7eb; border-radius:8px; padding:8px; background:#fafafa; }
+        .muted { color:#6b7280; }
 
-        // Quita “No hay eventos…”
-        expanded.querySelectorAll('*').forEach(n => {
-          if (n.textContent && n.textContent.trim().startsWith('No hay eventos')) n.remove();
-        });
+        /* Lista de acciones (dejamos los checkboxes cuadrados) */
+        .acciones input[type="checkbox"]{
+          appearance:none; -webkit-appearance:none; width:14px; height:14px;
+          border:1.5px solid #9ca3af; border-radius:3px; margin-right:8px; vertical-align:middle; position:relative; top:-1px; background:#fff;
+        }
+        .acciones input[type="checkbox"]:checked::after{
+          content:""; position:absolute; left:3px; top:0px; width:5px; height:9px; border: solid #2563eb;
+          border-width:0 2px 2px 0; transform:rotate(45deg);
+        }
 
-        // Construye encabezado (como en la imagen)
-        const header = document.createElement('div');
-        header.className = 'print-header';
-        header.innerHTML = `
-          <div class="print-header-row">
-            <div class="print-title">${task.task_description || '-'}</div>
-            <div class="print-chip-row">
-              <span class="chip">${responsible?.name || 'Alejandro'}</span>
-              <span class="chip">${(dueDate && dueDate !== '') ? dueDate : 'Sin fecha'}</span>
-              <span class="chip ${task.status ? 'chip-' + (task.status || '').toLowerCase().replace(/\\s+/g,'-') : ''}">
-                ${task.status || 'Pendiente'}
-              </span>
-            </div>
+        /* Evitar cortes feos */
+        .avoid { break-inside: avoid; page-break-inside: avoid; }
+      `;
+
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+
+      container.innerHTML = `
+        <div class="hdr">
+          <div class="title">${title}</div>
+          <div class="chips">
+            <span class="chip">${responsable}</span>
+            <span class="chip">${fecha}</span>
+            <span class="chip estado ${estado.toLowerCase().replace(/\s+/g,'-')}">${estado}</span>
           </div>
-          <hr class="separator"/>
-        `;
+        </div>
+        <hr class="sep"/>
 
-        // Contenedor temporal
-        const container = document.createElement('div');
-        container.className = '__task_print_container__';
-        container.appendChild(header);
+        <div class="grid4 avoid">
+          <div class="kv"><span class="k">Prioridad</span><span class="v">${prioridad}</span></div>
+          <div class="kv"><span class="k">Etapa</span><span class="v">${etapa}</span></div>
+          <div class="kv"><span class="k">Entregable</span><span class="v">${entregable}</span></div>
+          <div class="kv"><span class="k">Progreso</span><span class="v">${progreso}</span></div>
+        </div>
 
-        // Evita duplicar cabecera original
-        expanded.querySelectorAll('.relative > .flex').forEach(el => el.remove());
-        container.appendChild(expanded);
+        <div class="blk avoid">
+          <h4>Fechas y Actividad</h4>
+          <div class="subgrid2">
+            <div class="kv"><span class="k">Asignación</span><span class="v">${asignacion}</span></div>
+            <div class="kv"><span class="k">Límite</span><span class="v">${limite}</span></div>
+          </div>
+        </div>
 
-        document.body.appendChild(container);
+        <div class="blk avoid">
+          <h4>Notas</h4>
+          <div class="box">${notas ? String(notas).replace(/\n/g,'<br/>') : '<span class="muted">-</span>'}</div>
+        </div>
 
-        // Estilos de impresión
-        const style = document.createElement('style');
-        style.setAttribute('data-print-style', 'true');
-        style.innerHTML = `
-          @page { size: A4; margin: 12mm; }
-          @media print {
-            html, body { padding:0 !important; margin:0 !important; }
-            body * { visibility: hidden !important; }
-            .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
+        <div class="blk avoid acciones">
+          <h4>Acciones y Actividad</h4>
+          ${accionesHTML}
+        </div>
+      `;
 
-            .__task_print_container__ {
-              position: absolute; inset: 0;
-              font-size: 12.5px !important; line-height: 1.35 !important;
-              font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
-              color: #0f172a;
-            }
+      const originalTitle = document.title;
+      document.title = title.slice(0, 120);
+      window.print();
 
-            /* Encabezado */
-            .print-header { margin-bottom: 10px; }
-            .print-header-row {
-              display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
-            }
-            .print-title { font-size: 16px; font-weight: 700; color: #111827; }
-            .print-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
-            .chip {
-              padding: 3px 8px; border-radius: 9999px;
-              background: #f1f5f9; color: #0f172a;
-              font-size: 11px; font-weight: 600; border: 1px solid #e5e7eb;
-            }
-            .chip-pendiente { background:#fef3c7; color:#92400e; border-color:#fde68a; }
-            .separator { border: 0; border-top: 1px solid #e5e7eb; margin-top: 8px; }
-
-            /* Estructura en una columna, limpia */
-            .__task_print_container__ .grid { display:block !important; }
-            .__task_print_container__ .bg-gray-50\\/50 { background: transparent !important; }
-            .__task_print_container__ .pl-16 { padding-left: 0 !important; }
-            .__task_print_container__ .pr-8 { padding-right: 0 !important; }
-            .__task_print_container__ .pt-2 { padding-top: 0 !important; }
-            .__task_print_container__ .pb-4 { padding-bottom: 0 !important; }
-
-            /* Bloque superior tipo 3 columnas */
-            [data-print-fields="true"] {
-              display: grid !important;
-              grid-template-columns: 1fr 1fr 2fr !important;
-              column-gap: 16px !important; row-gap: 6px !important;
-              margin-top: 6px;
-              padding-bottom: 10px;
-              border-bottom: 1px solid #e5e7eb;
-            }
-            [data-print-fields="true"] .print-row { display:block !important; }
-
-            /* Títulos de sección */
-            label.font-medium {
-              display:block; margin: 14px 0 6px 0;
-              color:#111827 !important; font-weight:700 !important;
-            }
-
-            /* Progreso no se imprime */
-            .__task_print_container__ .bg-blue-600.h-2,
-            .__task_print_container__ .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
-
-            /* Texto plano de inputs */
-            .print-value { color:#111827 !important; }
-
-            /* Sin truncamientos */
-            .__task_print_container__ * {
-              overflow: visible !important;
-              text-overflow: clip !important;
-              white-space: normal !important;
-              -webkit-line-clamp: initial !important;
-              max-height: none !important;
-            }
-
-            /* Checkboxes cuadrados visibles en Acciones */
-            input[type="checkbox"] {
-              appearance: none !important;
-              -webkit-appearance: none !important;
-              width: 14px; height: 14px;
-              border: 1.5px solid #9ca3af;
-              border-radius: 3px; margin-right: 8px; vertical-align: middle;
-              position: relative; top: -1px; background:#fff;
-            }
-            input[type="checkbox"]:checked::after {
-              content: ""; position: absolute; left: 3px; top: 0px;
-              width: 5px; height: 9px; border: solid #2563eb;
-              border-width: 0 2px 2px 0; transform: rotate(45deg);
-            }
-
-            /* Evitar cortes feos */
-            .print-avoid-break,
-            [data-print-block="true"],
-            [data-section="acciones"] {
-              break-inside: avoid !important; page-break-inside: avoid !important;
-            }
-
-            /* Compactación suave */
-            .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
-            .px-3, .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
-            .mx-4, .mx-6 { margin-left: 8px !important; margin-right: 8px !important; }
-          }
-        `;
-        document.head.appendChild(style);
-
-        const originalTitle = document.title;
-        document.title = (task.task_description || 'Tarea').slice(0, 120);
-
-        window.print();
-
-        // Limpieza
-        document.title = originalTitle;
-        if (style.parentNode) style.parentNode.removeChild(style);
-        if (container.parentNode) container.parentNode.removeChild(container);
-        if (!prevExpanded) setIsExpanded(false);
-      }, 0);
+      // Limpieza
+      document.title = originalTitle;
+      if (style.parentNode) style.parentNode.removeChild(style);
+      if (container.parentNode) container.parentNode.removeChild(container);
     };
-    // --- FIN BOTÓN IMPRIMIR ---
+    // ======================= FIN IMPRESIÓN NUEVA =======================
 
-    // --- Último evento para la vista expandida ---
     const datesForLatest = task.dates ? JSON.parse(task.dates) : {};
     const latestLog = (datesForLatest.logs && datesForLatest.logs.length > 0)
       ? datesForLatest.logs[datesForLatest.logs.length - 1]
@@ -559,12 +478,9 @@ const ProjectTaskModal = () => {
             <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-5 h-5" data-print-hide="true" />
           </div>
 
-          {/* Descripción: clic aquí EXPANDE/CONTRAE; NO edita. */}
           <div
             className="flex-grow font-medium text-gray-800 ml-4 print-avoid-break"
-            onClick={() => {
-              if (!isEditingDesc) setIsExpanded(!isExpanded);
-            }}
+            onClick={() => { if (!isEditingDesc) setIsExpanded(!isExpanded); }}
           >
             {isEditingDesc ? (
               <EditableCell
@@ -584,7 +500,7 @@ const ProjectTaskModal = () => {
           <div className="flex items-center gap-3 md:gap-6 mx-4 md:mx-6 text-sm text-gray-600 flex-shrink-0">
             <div className="flex items-center gap-2" title="Responsable">
               <User size={16} className="text-gray-400" />
-              <span>{responsible?.name || 'Sin asignar'}</span>
+              <span>{staff.find(s => s.id === task.staff_id)?.name || 'Sin asignar'}</span>
             </div>
             <div className="flex items-center gap-2" title="Fecha Límite">
               <Calendar size={16} className="text-gray-400" />
@@ -600,7 +516,6 @@ const ProjectTaskModal = () => {
               />
             </div>
 
-            {/* Botón engranaje para editar SOLO la descripción */}
             <button
               onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
@@ -610,10 +525,9 @@ const ProjectTaskModal = () => {
               <Settings size={16} />
             </button>
 
-            {/* Botón de imprimir (solo esta tarea) */}
             <button
               data-print-btn="true"
-              onClick={(e) => { e.stopPropagation(); handlePrintInPlace(); }}
+              onClick={(e) => { e.stopPropagation(); printTask(); }}
               className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 font-medium"
               title="Imprimir esta tarea"
             >
@@ -624,11 +538,7 @@ const ProjectTaskModal = () => {
 
         {isExpanded && (
           <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
-            <div
-              className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4"
-              data-print-block="true"
-              data-print-fields="true"
-            >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true" data-print-fields="true">
               <div className="print-row">
                 <label className="font-medium text-gray-500">Prioridad</label>
                 <EditableCell rowId={task.id} field="Priority" value={task.Priority} type="priority-select" options={Priorities} />
@@ -679,7 +589,11 @@ const ProjectTaskModal = () => {
                   <div className="flex-grow pt-2">
                     <div
                       className="w-full p-2 border border-gray-200 bg-gray-50 rounded-md text-sm text-gray-600 truncate min-h-[42px] flex items-center"
-                      title={latestLog ? `${latestLog.date}: ${latestLog.event}` : 'No hay eventos.'}
+                      title={
+                        (task.dates && JSON.parse(task.dates)?.logs?.length)
+                          ? `${JSON.parse(task.dates).logs.slice(-1)[0].date}: ${JSON.parse(task.dates).logs.slice(-1)[0].event}`
+                          : 'No hay eventos.'
+                      }
                     >
                       {latestLog ? (
                         <>
