@@ -334,187 +334,125 @@ const ProjectTaskModal = () => {
 
     const responsible = staff.find(s => s.id === task.staff_id);
 
-  // ========================= IMPRESIÓN NUEVA (corregida) =========================
-const printTask = () => {
-  const title = task.task_description || '-';
-  const responsable = (staff.find(s => s.id === task.staff_id)?.name) || 'Sin asignar';
-  const fecha = (dueDate && dueDate !== '') ? dueDate : 'Sin fecha';
-  const estado = task.status || 'Pendiente';
-  const prioridad = task.Priority || '-';
-  const etapa = stages.find(s => s.id === task.stage_id)?.name || '-';
-  const entregable = entregables.find(e => e.id === task.entregable_id)?.entregable_nombre || '-';
-  const progreso = `${Math.max(0, Math.min(100, Number(task.Progress) || 0))}%`;
-  const notas = (task.notes && String(task.notes).trim()) ? task.notes : '-';
-  const asignacion = (task.dates && JSON.parse(task.dates)?.assignDate) || '-';
-  const limite = (task.dates && JSON.parse(task.dates)?.dueDate) || '-';
+    // ========================= IMPRESIÓN NUEVA =========================
+    const printTask = () => {
+      const title = task.task_description || '-';
+      const responsable = responsible?.name || 'Sin asignar';
+      const fecha = dueDate || 'Sin fecha';
+      const estado = task.status || 'Pendiente';
+      const prioridad = task.Priority || '-';
+      const etapa = stages.find(s => s.id === task.stage_id)?.name || '-';
+      const entregable = entregables.find(e => e.id === task.entregable_id)?.entregable_nombre || '-';
+      const progreso = `${Math.max(0, Math.min(100, Number(task.Progress) || 0))}%`;
+      const notas = (task.notes && String(task.notes).trim()) ? task.notes : '-';
+      const asignacion = assignDate || '-';
+      const limite = dueDate || '-';
 
-  // --- SANITIZAR "Acciones y Actividad" para impresión ---
-  const accionesNode = taskRef.current?.querySelector('[data-section="acciones"]');
-  let accionesHTML = '<div>-</div>';
+      // Tomamos el bloque de acciones ya renderizado
+      const accionesNode = taskRef.current?.querySelector('[data-section="acciones"]');
+      const accionesHTML = accionesNode ? accionesNode.innerHTML : '<div>-</div>';
 
-  if (accionesNode) {
-    const clone = accionesNode.cloneNode(true);
+      const container = document.createElement('div');
+      container.className = '__print_root__';
+      document.body.appendChild(container);
 
-    // 1) Quitar botones de eliminar y cualquier icono trash
-    clone.querySelectorAll('button,a').forEach((el) => {
-      const t = (el.textContent || '').toLowerCase();
-      const title = (el.title || '').toLowerCase();
-      const aria = (el.getAttribute('aria-label') || '').toLowerCase();
-      const hasTrashIcon = /trash|lucide-trash|bi-trash|fa-trash/i.test(el.innerHTML);
-      const isDelete =
-        hasTrashIcon ||
-        t.includes('eliminar') || title.includes('eliminar') || aria.includes('eliminar') ||
-        t.includes('borrar') || title.includes('borrar') || aria.includes('borrar');
-      if (isDelete) el.remove();
-    });
-    // Por si queda algún <svg> de basura suelto
-    clone.querySelectorAll('svg').forEach(svg => {
-      if (/trash|delete/i.test(svg.outerHTML)) svg.remove();
-    });
+      const css = `
+        @page { size: A4; margin: 12mm; }
+        @media print {
+          html, body { padding:0; margin:0; }
+          body * { visibility: hidden; }
+          .__print_root__, .__print_root__ * { visibility: visible; }
+        }
+        .__print_root__{
+          position: absolute; inset: 0;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+          font-size: 12.5px; line-height: 1.35; color:#0f172a; background:#fff; padding: 0 2mm;
+        }
+        .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+        .title { font-size:16px; font-weight:700; color:#111827; }
+        .chips { display:flex; gap:8px; flex-wrap:wrap; }
+        .chip { padding:3px 8px; border-radius:9999px; border:1px solid #e5e7eb; background:#f8fafc; font-weight:600; font-size:11px; }
+        .chip.estado.pendiente { background:#fef3c7; border-color:#fde68a; color:#92400e; }
+        .sep { border:0; border-top:1px solid #e5e7eb; margin:8px 0 10px; }
 
-    // 2) Convertir selects/inputs/textarea a texto (conserva checkboxes)
-    // selects -> span con label seleccionado
-    clone.querySelectorAll('select').forEach(sel => {
-      const span = document.createElement('span');
-      span.textContent = sel.options[sel.selectedIndex]?.text || sel.value || '-';
-      span.className = 'print-value';
-      sel.parentNode.replaceChild(span, sel);
-    });
-    // inputs text & textarea -> span
-    clone.querySelectorAll('textarea, input[type="text"], input:not([type])').forEach(inp => {
-      const span = document.createElement('span');
-      span.textContent = inp.value || inp.textContent || inp.placeholder || '-';
-      span.className = 'print-value';
-      inp.parentNode.replaceChild(span, inp);
-    });
-    // quitar la fila de "Nueva acción..." si existe
-    clone.querySelectorAll('input[placeholder]').forEach(inp => {
-      const ph = (inp.getAttribute('placeholder') || '').toLowerCase();
-      if (ph.includes('nueva acción') || ph.includes('nueva accion')) {
-        const row = inp.closest('div,li,tr') || inp;
-        row.remove();
-      }
-    });
+        .grid4 { 
+          display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); 
+          gap:14px; margin-top:6px; 
+        }
+        .blk h4 { font-size:12px; font-weight:700; color:#111827; margin:12px 0 6px; }
+        .kv { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .kv .k { color:#6b7280; min-width:110px; }
+        .kv .v { color:#111827; font-weight:600; }
 
-    // 3) Quitar controles residuales de UI (botones +, menús, etc.)
-    clone.querySelectorAll('[data-print-hide="true"], .cursor-pointer button').forEach(n => n.remove());
+        .subgrid2 { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; }
+        .box { border:1px solid #e5e7eb; border-radius:8px; padding:8px; background:#fafafa; }
+        .muted { color:#6b7280; }
 
-    accionesHTML = clone.innerHTML;
-  }
+        /* Lista de acciones (dejamos los checkboxes cuadrados) */
+        .acciones input[type="checkbox"]{
+          appearance:none; -webkit-appearance:none; width:14px; height:14px;
+          border:1.5px solid #9ca3af; border-radius:3px; margin-right:8px; vertical-align:middle; position:relative; top:-1px; background:#fff;
+        }
+        .acciones input[type="checkbox"]:checked::after{
+          content:""; position:absolute; left:3px; top:0px; width:5px; height:9px; border: solid #2563eb;
+          border-width:0 2px 2px 0; transform:rotate(45deg);
+        }
 
-  // --- Contenedor y estilos de impresión ---
-  const container = document.createElement('div');
-  container.className = '__print_root__';
-  document.body.appendChild(container);
+        /* Evitar cortes feos */
+        .avoid { break-inside: avoid; page-break-inside: avoid; }
+      `;
 
-  const css = `
-    @page { size: A4; margin: 12mm; }
-    @media print {
-      html, body { padding:0; margin:0; }
-      body * { visibility: hidden; }
-      .__print_root__, .__print_root__ * { visibility: visible; }
-    }
-    .__print_root__{
-      position: absolute; inset: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-      font-size: 12.5px; line-height: 1.35; color:#0f172a; background:#fff; padding: 0 2mm;
-    }
-    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
-    .title { font-size:16px; font-weight:700; color:#111827; }
-    .chips { display:flex; gap:8px; flex-wrap:wrap; }
-    .chip { padding:3px 8px; border-radius:9999px; border:1px solid #e5e7eb; background:#f8fafc; font-weight:600; font-size:11px; }
-    .chip.estado.pendiente { background:#fef3c7; border-color:#fde68a; color:#92400e; }
-    .sep { border:0; border-top:1px solid #e5e7eb; margin:8px 0 10px; }
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
 
-    .grid4 { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:14px; margin-top:6px; }
-    .blk h4 { font-size:12px; font-weight:700; color:#111827; margin:12px 0 6px; }
-    .kv { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .kv .k { color:#6b7280; min-width:110px; }
-    .kv .v { color:#111827; font-weight:600; }
+      container.innerHTML = `
+        <div class="hdr">
+          <div class="title">${title}</div>
+          <div class="chips">
+            <span class="chip">${responsable}</span>
+            <span class="chip">${fecha}</span>
+            <span class="chip estado ${estado.toLowerCase().replace(/\s+/g,'-')}">${estado}</span>
+          </div>
+        </div>
+        <hr class="sep"/>
 
-    .subgrid2 { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; }
-    .box { border:1px solid #e5e7eb; border-radius:8px; padding:8px; background:#fafafa; }
-    .muted { color:#6b7280; }
+        <div class="grid4 avoid">
+          <div class="kv"><span class="k">Prioridad</span><span class="v">${prioridad}</span></div>
+          <div class="kv"><span class="k">Etapa</span><span class="v">${etapa}</span></div>
+          <div class="kv"><span class="k">Entregable</span><span class="v">${entregable}</span></div>
+          <div class="kv"><span class="k">Progreso</span><span class="v">${progreso}</span></div>
+        </div>
 
-    /* Acciones: NO cortar texto + evitar saltos dentro de la fila */
-    .acciones, .acciones * {
-      white-space: normal !important;
-      overflow: visible !important;
-      text-overflow: initial !important;
-      -webkit-line-clamp: initial !important;
-      display: initial !important; /* por si hay line-clamp que impone display:-webkit-box */
-    }
-    .acciones .row, .acciones li, .acciones > div, .acciones .flex {
-      break-inside: avoid; page-break-inside: avoid;
-    }
-    /* Quitar truncates heredados */
-    .truncate, [class*="line-clamp"] { white-space: normal !important; display:block !important; max-height:none !important; }
+        <div class="blk avoid">
+          <h4>Fechas y Actividad</h4>
+          <div class="subgrid2">
+            <div class="kv"><span class="k">Asignación</span><span class="v">${asignacion}</span></div>
+            <div class="kv"><span class="k">Límite</span><span class="v">${limite}</span></div>
+          </div>
+        </div>
 
-    /* Checkboxes cuadrados */
-    .acciones input[type="checkbox"]{
-      appearance:none; -webkit-appearance:none; width:14px; height:14px;
-      border:1.5px solid #9ca3af; border-radius:3px; margin-right:8px; vertical-align:middle; position:relative; top:-1px; background:#fff;
-    }
-    .acciones input[type="checkbox"]:checked::after{
-      content:""; position:absolute; left:3px; top:0px; width:5px; height:9px; border: solid #2563eb;
-      border-width:0 2px 2px 0; transform:rotate(45deg);
-    }
+        <div class="blk avoid">
+          <h4>Notas</h4>
+          <div class="box">${notas ? String(notas).replace(/\n/g,'<br/>') : '<span class="muted">-</span>'}</div>
+        </div>
 
-    /* Evitar cortes feos en bloques */
-    .avoid { break-inside: avoid; page-break-inside: avoid; }
-  `;
+        <div class="blk avoid acciones">
+          <h4>Acciones y Actividad</h4>
+          ${accionesHTML}
+        </div>
+      `;
 
-  const style = document.createElement('style');
-  style.textContent = css;
-  document.head.appendChild(style);
+      const originalTitle = document.title;
+      document.title = title.slice(0, 120);
+      window.print();
 
-  container.innerHTML = `
-    <div class="hdr">
-      <div class="title">${title}</div>
-      <div class="chips">
-        <span class="chip">${responsable}</span>
-        <span class="chip">${fecha}</span>
-        <span class="chip estado ${estado.toLowerCase().replace(/\s+/g,'-')}">${estado}</span>
-      </div>
-    </div>
-    <hr class="sep"/>
-
-    <div class="grid4 avoid">
-      <div class="kv"><span class="k">Prioridad</span><span class="v">${prioridad}</span></div>
-      <div class="kv"><span class="k">Etapa</span><span class="v">${etapa}</span></div>
-      <div class="kv"><span class="k">Entregable</span><span class="v">${entregable}</span></div>
-      <div class="kv"><span class="k">Progreso</span><span class="v">${progreso}</span></div>
-    </div>
-
-    <div class="blk avoid">
-      <h4>Fechas y Actividad</h4>
-      <div class="subgrid2">
-        <div class="kv"><span class="k">Asignación</span><span class="v">${asignacion}</span></div>
-        <div class="kv"><span class="k">Límite</span><span class="v">${limite}</span></div>
-      </div>
-    </div>
-
-    <div class="blk avoid">
-      <h4>Notas</h4>
-      <div class="box">${notas ? String(notas).replace(/\\n/g,'<br/>') : '<span class="muted">-</span>'}</div>
-    </div>
-
-    <div class="blk avoid acciones">
-      <h4>Acciones y Actividad</h4>
-      ${accionesHTML}
-    </div>
-  `;
-
-  const originalTitle = document.title;
-  document.title = title.slice(0, 120);
-  window.print();
-
-  // Limpieza
-  document.title = originalTitle;
-  if (style.parentNode) style.parentNode.removeChild(style);
-  if (container.parentNode) container.parentNode.removeChild(container);
-};
-// ======================= FIN IMPRESIÓN NUEVA (corregida) =======================
+      // Limpieza
+      document.title = originalTitle;
+      if (style.parentNode) style.parentNode.removeChild(style);
+      if (container.parentNode) container.parentNode.removeChild(container);
+    };
+    // ======================= FIN IMPRESIÓN NUEVA =======================
 
     const datesForLatest = task.dates ? JSON.parse(task.dates) : {};
     const latestLog = (datesForLatest.logs && datesForLatest.logs.length > 0)
