@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from "react-router-dom";
 import {
   User, Calendar, Tag, Plus, Search, ArrowUp, ArrowDown,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, Settings
 } from 'lucide-react';
 
 // --- Acciones de Redux ---
@@ -177,9 +177,14 @@ const ProjectTaskModal = () => {
   };
 
   // --- Componente de Celda Editable ---
-  const EditableCell = ({ rowId, field, value, type = 'text', options = [] }) => {
+  const EditableCell = ({ rowId, field, value, type = 'text', options = [], onExitEditing = () => {} }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
+
+    const endEditing = () => {
+      setIsEditing(false);
+      onExitEditing();
+    };
 
     const handleSave = () => {
       let finalValue = editValue;
@@ -191,12 +196,12 @@ const ProjectTaskModal = () => {
         if (field === 'Progress' && finalValue === 100) fieldsToUpdate.status = 'Completado';
         updateCell(rowId, fieldsToUpdate);
       }
-      setIsEditing(false);
+      endEditing();
     };
 
     const handleKeyPress = (e) => {
       if (e.key === 'Enter' && type !== 'textarea') handleSave();
-      else if (e.key === 'Escape') { setEditValue(value); setIsEditing(false); }
+      else if (e.key === 'Escape') { setEditValue(value); endEditing(); }
     };
 
     if (isEditing) {
@@ -308,6 +313,7 @@ const ProjectTaskModal = () => {
   // --- Componente de Tarea (interno) ---
   const TaskItem = React.memo(({ task, isSelected, onSelectRow }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isEditingDesc, setIsEditingDesc] = useState(false);
 
     // Ref para imprimir solo este bloque
     const taskRef = useRef(null);
@@ -435,8 +441,27 @@ const ProjectTaskModal = () => {
             <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-5 h-5" />
           </div>
 
-          <div className="flex-grow font-medium text-gray-800 ml-4">
-            <EditableCell rowId={task.id} field="task_description" value={task.task_description} type="textarea" />
+          {/* Descripción: clic aquí EXPANDE/CONTRAE; NO edita.
+              Edición SOLO con botón de engranaje */}
+          <div
+            className="flex-grow font-medium text-gray-800 ml-4"
+            onClick={() => {
+              if (!isEditingDesc) setIsExpanded(!isExpanded);
+            }}
+          >
+            {isEditingDesc ? (
+              <EditableCell
+                rowId={task.id}
+                field="task_description"
+                value={task.task_description}
+                type="textarea"
+                onExitEditing={() => setIsEditingDesc(false)}
+              />
+            ) : (
+              <div className="p-1 min-h-[28px] cursor-pointer select-text">
+                {task.task_description || '-'}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 md:gap-6 mx-4 md:mx-6 text-sm text-gray-600 flex-shrink-0">
@@ -457,10 +482,20 @@ const ProjectTaskModal = () => {
                 options={Object.keys(ESTADOS).map(k => ({ id: ESTADOS[k], name: ESTADOS[k] }))}
               />
             </div>
-            {/* --- Botón de imprimir (solo esta tarea en el DOM actual) --- */}
+
+            {/* Botón engranaje para editar SOLO la descripción */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
+              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
+              title="Editar descripción"
+            >
+              <Settings size={16} />
+            </button>
+
+            {/* Botón de imprimir (solo esta tarea en el DOM actual) */}
             <button
               data-print-btn="true"
-              onClick={handlePrintInPlace}
+              onClick={(e) => { e.stopPropagation(); handlePrintInPlace(); }}
               className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 font-medium"
               title="Imprimir esta tarea"
             >
