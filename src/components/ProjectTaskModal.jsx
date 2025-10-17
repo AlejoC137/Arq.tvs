@@ -6,7 +6,6 @@ import {
   ChevronDown, ChevronRight, Settings
 } from 'lucide-react';
 
-// --- Redux actions ---
 import {
   getAllFromTable,
   updateTask,
@@ -14,13 +13,11 @@ import {
   deleteTask
 } from '../store/actions/actions';
 
-// --- Componentes externos ---
 import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
 
-// --- Estados / Helpers ---
 const ESTADOS = {
   PENDIENTE: 'Pendiente',
   EN_PROCESO: 'En Progreso',
@@ -70,7 +67,6 @@ const ProjectTaskModal = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'Priority', direction: 'descending' });
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --- CRUD helpers ---
   const updateCell = (rowId, fieldsToUpdate) =>
     dispatch(updateTask(rowId, fieldsToUpdate))
       .then(() => setProjectTasks(p => p.map(i => i.id === rowId ? { ...i, ...fieldsToUpdate } : i)));
@@ -107,7 +103,6 @@ const ProjectTaskModal = () => {
     }))
       .then(() => { fetchData(); deselectAll(); });
 
-  // --- Data ---
   const fetchData = useCallback(async () => {
     dispatch(getAllFromTable("Proyectos"));
     const [tareasAction, staffAction, stagesAction, entregablesAction] = await Promise.all([
@@ -175,7 +170,6 @@ const ProjectTaskModal = () => {
     setIsFormOpen(false);
   };
 
-  // --- Celda editable ---
   const EditableCell = ({ rowId, field, value, type = 'text', options = [], onExitEditing = () => {} }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
@@ -187,9 +181,7 @@ const ProjectTaskModal = () => {
 
     const handleSave = () => {
       let finalValue = editValue;
-      if (type === 'progress') {
-        finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
-      }
+      if (type === 'progress') finalValue = Math.max(0, Math.min(100, Number(finalValue) || 0));
       if (finalValue !== value) {
         const fieldsToUpdate = { [field]: finalValue };
         if (field === 'Progress' && finalValue === 100) fieldsToUpdate.status = 'Completado';
@@ -208,13 +200,10 @@ const ProjectTaskModal = () => {
         case 'progress':
           return (
             <input
-              type="number"
-              min="0"
-              max="100"
+              type="number" min="0" max="100"
               value={editValue || 0}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none bg-transparent"
               autoFocus
             />
@@ -226,8 +215,7 @@ const ProjectTaskModal = () => {
             <select
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none bg-white"
               autoFocus
             >
@@ -242,8 +230,7 @@ const ProjectTaskModal = () => {
             <select
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none"
               autoFocus
             >
@@ -258,11 +245,9 @@ const ProjectTaskModal = () => {
             <textarea
               value={editValue || ''}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
               className="w-full p-1 border rounded focus:outline-none"
-              rows="3"
-              autoFocus
+              rows="3" autoFocus
             />
           );
       }
@@ -309,15 +294,11 @@ const ProjectTaskModal = () => {
     );
   };
 
-  // --- Tarea / fila ---
   const TaskItem = React.memo(({ task, isSelected, onSelectRow }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditingDesc, setIsEditingDesc] = useState(false);
-
-    // Para imprimir
     const taskRef = useRef(null);
 
-    // Fechas
     const initialDates = useMemo(
       () => task.dates ? JSON.parse(task.dates) : { assignDate: '', dueDate: '' },
       [task.dates]
@@ -353,165 +334,126 @@ const ProjectTaskModal = () => {
 
     const responsible = staff.find(s => s.id === task.staff_id);
 
-    // ======================= IMPRESIÓN CON CLONADO LIMPIO =======================
-    const handlePrintInPlace = () => {
-      if (!taskRef.current) return;
+    // ========================= IMPRESIÓN NUEVA =========================
+    const printTask = () => {
+      const title = task.task_description || '-';
+      const responsable = responsible?.name || 'Sin asignar';
+      const fecha = dueDate || 'Sin fecha';
+      const estado = task.status || 'Pendiente';
+      const prioridad = task.Priority || '-';
+      const etapa = stages.find(s => s.id === task.stage_id)?.name || '-';
+      const entregable = entregables.find(e => e.id === task.entregable_id)?.entregable_nombre || '-';
+      const progreso = `${Math.max(0, Math.min(100, Number(task.Progress) || 0))}%`;
+      const notas = (task.notes && String(task.notes).trim()) ? task.notes : '-';
+      const asignacion = assignDate || '-';
+      const limite = dueDate || '-';
 
-      const prevExpanded = isExpanded;
-      if (!prevExpanded) setIsExpanded(true);
+      // Tomamos el bloque de acciones ya renderizado
+      const accionesNode = taskRef.current?.querySelector('[data-section="acciones"]');
+      const accionesHTML = accionesNode ? accionesNode.innerHTML : '<div>-</div>';
 
-      setTimeout(() => {
-        const node = taskRef.current;
-        const expandedPanel = node.querySelector('.bg-gray-50\\/50') || node; // panel expandido
+      const container = document.createElement('div');
+      container.className = '__print_root__';
+      document.body.appendChild(container);
 
-        // 1) Clonar el panel y limpiar/convertir controles a texto
-        const clone = expandedPanel.cloneNode(true);
+      const css = `
+        @page { size: A4; margin: 12mm; }
+        @media print {
+          html, body { padding:0; margin:0; }
+          body * { visibility: hidden; }
+          .__print_root__, .__print_root__ * { visibility: visible; }
+        }
+        .__print_root__{
+          position: absolute; inset: 0;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+          font-size: 12.5px; line-height: 1.35; color:#0f172a; background:#fff; padding: 0 2mm;
+        }
+        .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+        .title { font-size:16px; font-weight:700; color:#111827; }
+        .chips { display:flex; gap:8px; flex-wrap:wrap; }
+        .chip { padding:3px 8px; border-radius:9999px; border:1px solid #e5e7eb; background:#f8fafc; font-weight:600; font-size:11px; }
+        .chip.estado.pendiente { background:#fef3c7; border-color:#fde68a; color:#92400e; }
+        .sep { border:0; border-top:1px solid #e5e7eb; margin:8px 0 10px; }
 
-        // a) Quitar botones innecesarios (trash, +, engranaje, etc.)
-        clone.querySelectorAll('button,a,[data-print-hide="true"]').forEach((el) => {
-          const txt = (el.textContent || '').toLowerCase();
-          const ttl = (el.title || '').toLowerCase();
-          const aria = (el.getAttribute('aria-label') || '').toLowerCase();
-          const hasPlus = txt.trim() === '+' || /\b\+\b/.test(txt);
-          const isDelete = txt.includes('eliminar') || ttl.includes('eliminar') || aria.includes('eliminar')
-                        || txt.includes('borrar')   || ttl.includes('borrar')   || aria.includes('borrar')
-                        || /trash|delete/.test(el.innerHTML);
-          if (hasPlus || isDelete) el.remove();
-        });
-        clone.querySelectorAll('svg').forEach(svg => {
-          if (/trash|delete|\+|plus/i.test(svg.outerHTML)) svg.remove();
-        });
+        .grid4 { 
+          display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); 
+          gap:14px; margin-top:6px; 
+        }
+        .blk h4 { font-size:12px; font-weight:700; color:#111827; margin:12px 0 6px; }
+        .kv { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .kv .k { color:#6b7280; min-width:110px; }
+        .kv .v { color:#111827; font-weight:600; }
 
-        // b) Sustituir <select> por su opción seleccionada
-        clone.querySelectorAll('select').forEach(sel => {
-          const span = document.createElement('span');
-          span.textContent = sel.options[sel.selectedIndex]?.text || sel.value || '-';
-          span.className = 'print-value';
-          sel.replaceWith(span);
-        });
+        .subgrid2 { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; }
+        .box { border:1px solid #e5e7eb; border-radius:8px; padding:8px; background:#fafafa; }
+        .muted { color:#6b7280; }
 
-        // c) Sustituir inputs/textarea por su valor
-        clone.querySelectorAll('textarea, input[type="text"], input:not([type])').forEach(inp => {
-          const span = document.createElement('span');
-          span.textContent = inp.value || inp.textContent || inp.placeholder || '-';
-          span.className = 'print-value';
-          inp.replaceWith(span);
-        });
+        /* Lista de acciones (dejamos los checkboxes cuadrados) */
+        .acciones input[type="checkbox"]{
+          appearance:none; -webkit-appearance:none; width:14px; height:14px;
+          border:1.5px solid #9ca3af; border-radius:3px; margin-right:8px; vertical-align:middle; position:relative; top:-1px; background:#fff;
+        }
+        .acciones input[type="checkbox"]:checked::after{
+          content:""; position:absolute; left:3px; top:0px; width:5px; height:9px; border: solid #2563eb;
+          border-width:0 2px 2px 0; transform:rotate(45deg);
+        }
 
-        // d) Sustituir todo [contenteditable] por su texto visible
-        clone.querySelectorAll('[contenteditable="true"]').forEach(ed => {
-          const span = document.createElement('span');
-          span.textContent = ed.innerText || ed.textContent || '-';
-          span.className = 'print-value';
-          ed.replaceWith(span);
-        });
+        /* Evitar cortes feos */
+        .avoid { break-inside: avoid; page-break-inside: avoid; }
+      `;
 
-        // e) Fila "Nueva acción…" fuera
-        clone.querySelectorAll('*').forEach(n => {
-          const t = (n.getAttribute && (n.getAttribute('placeholder') || '')).toLowerCase();
-          if (t.includes('nueva acción') || t.includes('nueva accion')) {
-            const row = n.closest('div,li,tr') || n;
-            row.remove();
-          }
-        });
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
 
-        // 2) Construir cabecera arriba (título + chips)
-        const header = document.createElement('div');
-        header.className = 'print-header';
-        const due = dueDate || 'Sin fecha';
-        const estado = task.status || 'Pendiente';
-        const responsable = responsible?.name || 'Sin asignar';
-
-        header.innerHTML = `
-          <div class="hdr">
-            <div class="title">${task.task_description || '-'}</div>
-            <div class="chips">
-              <span class="chip">${responsable}</span>
-              <span class="chip">${due}</span>
-              <span class="chip estado ${estado.toLowerCase().replace(/\s+/g,'-')}">${estado}</span>
-            </div>
+      container.innerHTML = `
+        <div class="hdr">
+          <div class="title">${title}</div>
+          <div class="chips">
+            <span class="chip">${responsable}</span>
+            <span class="chip">${fecha}</span>
+            <span class="chip estado ${estado.toLowerCase().replace(/\s+/g,'-')}">${estado}</span>
           </div>
-          <hr class="sep"/>
-        `;
+        </div>
+        <hr class="sep"/>
 
-        // 3) Contenedor temporal de impresión
-        const container = document.createElement('div');
-        container.className = '__task_print_container__';
-        container.appendChild(header);
-        container.appendChild(clone);
-        document.body.appendChild(container);
+        <div class="grid4 avoid">
+          <div class="kv"><span class="k">Prioridad</span><span class="v">${prioridad}</span></div>
+          <div class="kv"><span class="k">Etapa</span><span class="v">${etapa}</span></div>
+          <div class="kv"><span class="k">Entregable</span><span class="v">${entregable}</span></div>
+          <div class="kv"><span class="k">Progreso</span><span class="v">${progreso}</span></div>
+        </div>
 
-        // 4) Estilos de impresión
-        const style = document.createElement('style');
-        style.innerHTML = `
-          @page { size: A4; margin: 12mm; }
-          @media print {
-            html, body { padding:0; margin:0; }
-            body * { visibility: hidden !important; }
-            .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
-          }
-          .__task_print_container__ {
-            position:absolute; inset:0; background:#fff;
-            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-            font-size:12.5px; line-height:1.35; color:#0f172a;
-          }
-          .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
-          .title { font-size:16px; font-weight:700; color:#111827; }
-          .chips { display:flex; gap:8px; flex-wrap:wrap; }
-          .chip { padding:3px 8px; border-radius:9999px; border:1px solid #e5e7eb; background:#f8fafc; font-weight:600; font-size:11px; }
-          .chip.estado.pendiente { background:#fef3c7; border-color:#fde68a; color:#92400e; }
-          .sep { border:0; border-top:1px solid #e5e7eb; margin:8px 0 10px; }
+        <div class="blk avoid">
+          <h4>Fechas y Actividad</h4>
+          <div class="subgrid2">
+            <div class="kv"><span class="k">Asignación</span><span class="v">${asignacion}</span></div>
+            <div class="kv"><span class="k">Límite</span><span class="v">${limite}</span></div>
+          </div>
+        </div>
 
-          /* una sola columna limpia */
-          .__task_print_container__ .grid { display:block !important; }
-          .__task_print_container__ .pl-16 { padding-left:0 !important; }
-          .__task_print_container__ .pr-8 { padding-right:0 !important; }
-          .__task_print_container__ .bg-gray-50\\/50 { background:transparent !important; }
+        <div class="blk avoid">
+          <h4>Notas</h4>
+          <div class="box">${notas ? String(notas).replace(/\n/g,'<br/>') : '<span class="muted">-</span>'}</div>
+        </div>
 
-          /* NO cortar textos */
-          .__task_print_container__ * {
-            white-space: pre-wrap !important;
-            overflow-wrap: anywhere !important;
-            word-break: break-word !important;
-            text-overflow: initial !important;
-            -webkit-line-clamp: initial !important;
-            max-height: none !important;
-          }
-          .truncate, [class*="line-clamp"] { white-space: normal !important; display:block !important; }
+        <div class="blk avoid acciones">
+          <h4>Acciones y Actividad</h4>
+          ${accionesHTML}
+        </div>
+      `;
 
-          /* Checkboxes cuadrados */
-          input[type="checkbox"]{
-            appearance:none; -webkit-appearance:none; width:14px; height:14px;
-            border:1.5px solid #9ca3af; border-radius:3px; margin-right:8px; vertical-align:middle; position:relative; top:-1px; background:#fff;
-          }
-          input[type="checkbox"]:checked::after{
-            content:""; position:absolute; left:3px; top:0px; width:5px; height:9px; border: solid #2563eb;
-            border-width:0 2px 2px 0; transform: rotate(45deg);
-          }
+      const originalTitle = document.title;
+      document.title = title.slice(0, 120);
+      window.print();
 
-          /* ocultar barras de progreso */
-          .bg-blue-600.h-2, .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
-
-          /* Evitar cortes por bloque */
-          [data-section="acciones"], [data-print-block="true"] { break-inside: avoid; page-break-inside: avoid; }
-        `;
-        document.head.appendChild(style);
-
-        const originalTitle = document.title;
-        document.title = (task.task_description || 'Tarea').slice(0,120);
-
-        window.print();
-
-        // Limpieza
-        document.title = originalTitle;
-        if (style.parentNode) style.parentNode.removeChild(style);
-        if (container.parentNode) container.parentNode.removeChild(container);
-        if (!prevExpanded) setIsExpanded(false);
-      }, 0);
+      // Limpieza
+      document.title = originalTitle;
+      if (style.parentNode) style.parentNode.removeChild(style);
+      if (container.parentNode) container.parentNode.removeChild(container);
     };
-    // ===================== FIN IMPRESIÓN =====================
+    // ======================= FIN IMPRESIÓN NUEVA =======================
 
-    // Último evento
     const datesForLatest = task.dates ? JSON.parse(task.dates) : {};
     const latestLog = (datesForLatest.logs && datesForLatest.logs.length > 0)
       ? datesForLatest.logs[datesForLatest.logs.length - 1]
@@ -558,7 +500,7 @@ const ProjectTaskModal = () => {
           <div className="flex items-center gap-3 md:gap-6 mx-4 md:mx-6 text-sm text-gray-600 flex-shrink-0">
             <div className="flex items-center gap-2" title="Responsable">
               <User size={16} className="text-gray-400" />
-              <span>{responsible?.name || 'Sin asignar'}</span>
+              <span>{staff.find(s => s.id === task.staff_id)?.name || 'Sin asignar'}</span>
             </div>
             <div className="flex items-center gap-2" title="Fecha Límite">
               <Calendar size={16} className="text-gray-400" />
@@ -585,7 +527,7 @@ const ProjectTaskModal = () => {
 
             <button
               data-print-btn="true"
-              onClick={(e) => { e.stopPropagation(); handlePrintInPlace(); }}
+              onClick={(e) => { e.stopPropagation(); printTask(); }}
               className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 font-medium"
               title="Imprimir esta tarea"
             >
@@ -596,11 +538,7 @@ const ProjectTaskModal = () => {
 
         {isExpanded && (
           <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
-            <div
-              className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4"
-              data-print-block="true"
-              data-print-fields="true"
-            >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true" data-print-fields="true">
               <div className="print-row">
                 <label className="font-medium text-gray-500">Prioridad</label>
                 <EditableCell rowId={task.id} field="Priority" value={task.Priority} type="priority-select" options={Priorities} />
@@ -657,18 +595,14 @@ const ProjectTaskModal = () => {
                           : 'No hay eventos.'
                       }
                     >
-                      {(() => {
-                        const datesForLatest = task.dates ? JSON.parse(task.dates) : {};
-                        const latestLog = (datesForLatest.logs && datesForLatest.logs.length > 0)
-                          ? datesForLatest.logs[datesForLatest.logs.length - 1]
-                          : null;
-                        return latestLog ? (
-                          <>
-                            <span className="font-semibold mr-2">{latestLog.date}:</span>
-                            <span>{latestLog.event}</span>
-                          </>
-                        ) : <span className="text-gray-400">No hay eventos registrados.</span>;
-                      })()}
+                      {latestLog ? (
+                        <>
+                          <span className="font-semibold mr-2">{latestLog.date}:</span>
+                          <span>{latestLog.event}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">No hay eventos registrados.</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -690,7 +624,6 @@ const ProjectTaskModal = () => {
     );
   });
 
-  // --- UI principal ---
   return (
     <div className="h-screen bg-gray-50 flex flex-col p-4 md:p-8 gap-6">
       <FormTask
