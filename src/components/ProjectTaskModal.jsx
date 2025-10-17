@@ -354,7 +354,7 @@ const ProjectTaskModal = () => {
 
     const responsible = staff.find(s => s.id === task.staff_id);
 
-    // --- BOTÓN IMPRIMIR (imprime solo el contenido de esta tarea, versión limpia) ---
+    // --- BOTÓN IMPRIMIR (solo esta tarea, estilo hoja A4 como la imagen) ---
     const handlePrintInPlace = () => {
       if (!taskRef.current) return;
 
@@ -365,75 +365,121 @@ const ProjectTaskModal = () => {
         const node = taskRef.current;
         if (!node) return;
 
-        const clone = node.cloneNode(true);
+        // Clon del bloque expandido
+        const expanded = node.querySelector('[data-print-block="true"]')?.parentElement?.cloneNode(true) || node.cloneNode(true);
 
-        // Quitar controles visibles irrelevantes
-        clone.querySelectorAll('button, [type="checkbox"], [data-print-hide="true"]').forEach(el => el.remove());
+        // Remueve controles
+        expanded.querySelectorAll('button,[type="checkbox"][data-print-hide],[data-print-hide="true"]').forEach(el => el.remove());
 
-        // Sustituir inputs/textarea/select por valor plano
-        clone.querySelectorAll('input, textarea, select').forEach((el) => {
+        // Sustituye inputs/textarea/select por texto plano (excepto checkboxes de acciones)
+        expanded.querySelectorAll('input, textarea, select').forEach((el) => {
+          if (el.type === 'checkbox') return; // dejamos los de acciones
           const span = document.createElement('span');
           let val = '';
           if (el.tagName === 'INPUT') val = el.value || el.getAttribute('value') || '';
           if (el.tagName === 'TEXTAREA') val = el.value || el.textContent || '';
           if (el.tagName === 'SELECT') val = el.options[el.selectedIndex]?.text || '';
-          span.textContent = val;
+          span.textContent = val || '-';
           span.className = 'print-value';
           el.parentNode.replaceChild(span, el);
         });
 
-        // Ocultar "No hay eventos…" si quedó en el clon
-        clone.querySelectorAll('*').forEach(n => {
+        // Quita “No hay eventos…”
+        expanded.querySelectorAll('*').forEach(n => {
           if (n.textContent && n.textContent.trim().startsWith('No hay eventos')) n.remove();
         });
 
-        // Ocultar filas vacías o con "-" en campos superiores
-        clone.querySelectorAll('[data-print-fields="true"] .print-row').forEach(row => {
-          const valueNode = row.querySelector('.print-value') || row.querySelector('*:not(label)');
-          const txt = (valueNode?.textContent || '').trim();
-          if (!txt || txt === '-' || txt === '0%' ) {
-            row.remove();
-          }
-        });
+        // Construye encabezado (como en la imagen)
+        const header = document.createElement('div');
+        header.className = 'print-header';
+        header.innerHTML = `
+          <div class="print-header-row">
+            <div class="print-title">${task.task_description || '-'}</div>
+            <div class="print-chip-row">
+              <span class="chip">${responsible?.name || 'Alejandro'}</span>
+              <span class="chip">${(dueDate && dueDate !== '') ? dueDate : 'Sin fecha'}</span>
+              <span class="chip ${task.status ? 'chip-' + (task.status || '').toLowerCase().replace(/\\s+/g,'-') : ''}">
+                ${task.status || 'Pendiente'}
+              </span>
+            </div>
+          </div>
+          <hr class="separator"/>
+        `;
 
-        // Contenedor temporal de impresión
+        // Contenedor temporal
         const container = document.createElement('div');
         container.className = '__task_print_container__';
-        container.style.position = 'absolute';
-        container.style.left = '0';
-        container.style.top = '0';
-        container.style.width = '100%';
-        container.style.background = 'white';
-        container.style.padding = '8mm';
-        container.appendChild(clone);
+        container.appendChild(header);
+
+        // Evita duplicar cabecera original
+        expanded.querySelectorAll('.relative > .flex').forEach(el => el.remove());
+        container.appendChild(expanded);
+
         document.body.appendChild(container);
 
         // Estilos de impresión
         const style = document.createElement('style');
         style.setAttribute('data-print-style', 'true');
         style.innerHTML = `
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: 12mm; }
           @media print {
             html, body { padding:0 !important; margin:0 !important; }
             body * { visibility: hidden !important; }
             .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
 
-            /* Layout compacto y de una sola columna */
-            .__task_print_container__ { position: absolute; inset: 0; font-size: 12px !important; line-height: 1.35 !important; }
+            .__task_print_container__ {
+              position: absolute; inset: 0;
+              font-size: 12.5px !important; line-height: 1.35 !important;
+              font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+              color: #0f172a;
+            }
+
+            /* Encabezado */
+            .print-header { margin-bottom: 10px; }
+            .print-header-row {
+              display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+            }
+            .print-title { font-size: 16px; font-weight: 700; color: #111827; }
+            .print-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+            .chip {
+              padding: 3px 8px; border-radius: 9999px;
+              background: #f1f5f9; color: #0f172a;
+              font-size: 11px; font-weight: 600; border: 1px solid #e5e7eb;
+            }
+            .chip-pendiente { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+            .separator { border: 0; border-top: 1px solid #e5e7eb; margin-top: 8px; }
+
+            /* Estructura en una columna, limpia */
             .__task_print_container__ .grid { display:block !important; }
-            .__task_print_container__ .grid > * { width:100% !important; }
+            .__task_print_container__ .bg-gray-50\\/50 { background: transparent !important; }
+            .__task_print_container__ .pl-16 { padding-left: 0 !important; }
+            .__task_print_container__ .pr-8 { padding-right: 0 !important; }
+            .__task_print_container__ .pt-2 { padding-top: 0 !important; }
+            .__task_print_container__ .pb-4 { padding-bottom: 0 !important; }
 
-            /* Quitar paddings/márgenes excesivos */
-            .__task_print_container__ .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
-            .__task_print_container__ .px-3, .__task_print_container__ .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
-            .__task_print_container__ .pl-6 { padding-left: 10px !important; }
-            .__task_print_container__ .pr-4 { padding-right: 10px !important; }
-            .__task_print_container__ .pt-2 { padding-top: 6px !important; }
-            .__task_print_container__ .pb-4 { padding-bottom: 8px !important; }
-            .__task_print_container__ .mx-4, .__task_print_container__ .mx-6 { margin-left: 8px !important; margin-right: 8px !important; }
+            /* Bloque superior tipo 3 columnas */
+            [data-print-fields="true"] {
+              display: grid !important;
+              grid-template-columns: 1fr 1fr 2fr !important;
+              column-gap: 16px !important; row-gap: 6px !important;
+              margin-top: 6px;
+              padding-bottom: 10px;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            [data-print-fields="true"] .print-row { display:block !important; }
 
-            /* Eliminar barra de prioridad decorativa */
-            .__task_print_container__ [class*="w-1.5"][class*="absolute"] { display:none !important; }
+            /* Títulos de sección */
+            label.font-medium {
+              display:block; margin: 14px 0 6px 0;
+              color:#111827 !important; font-weight:700 !important;
+            }
+
+            /* Progreso no se imprime */
+            .__task_print_container__ .bg-blue-600.h-2,
+            .__task_print_container__ .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
+
+            /* Texto plano de inputs */
+            .print-value { color:#111827 !important; }
 
             /* Sin truncamientos */
             .__task_print_container__ * {
@@ -443,62 +489,46 @@ const ProjectTaskModal = () => {
               -webkit-line-clamp: initial !important;
               max-height: none !important;
             }
-            .__task_print_container__ .truncate,
-            .__task_print_container__ [class*="line-clamp"] { 
-              overflow: visible !important; 
-              display: block !important;
+
+            /* Checkboxes cuadrados visibles en Acciones */
+            input[type="checkbox"] {
+              appearance: none !important;
+              -webkit-appearance: none !important;
+              width: 14px; height: 14px;
+              border: 1.5px solid #9ca3af;
+              border-radius: 3px; margin-right: 8px; vertical-align: middle;
+              position: relative; top: -1px; background:#fff;
+            }
+            input[type="checkbox"]:checked::after {
+              content: ""; position: absolute; left: 3px; top: 0px;
+              width: 5px; height: 9px; border: solid #2563eb;
+              border-width: 0 2px 2px 0; transform: rotate(45deg);
             }
 
-            /* Evitar cortes de página dentro de bloques clave */
-            .__task_print_container__ .print-avoid-break,
-            .__task_print_container__ [data-print-block="true"] {
-              break-inside: avoid !important;
-              page-break-inside: avoid !important;
-            }
-            .__task_print_container__ [data-section="acciones"] * {
-              break-inside: avoid !important;
-              page-break-inside: avoid !important;
+            /* Evitar cortes feos */
+            .print-avoid-break,
+            [data-print-block="true"],
+            [data-section="acciones"] {
+              break-inside: avoid !important; page-break-inside: avoid !important;
             }
 
-            /* Barras de progreso -> solo texto */
-            .__task_print_container__ .bg-blue-600.h-2,
-            .__task_print_container__ .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
-
-            /* Iconos */
-            .__task_print_container__ svg { display:none !important; }
-
-            /* ------ Dos columnas Etiqueta / Valor para los campos superiores ------ */
-            .__task_print_container__ [data-print-fields="true"] {
-              display: grid !important;
-              grid-template-columns: 150px 1fr !important;
-              column-gap: 10px !important;
-              row-gap: 4px !important;
-            }
-            .__task_print_container__ [data-print-fields="true"] .print-row { display: contents !important; }
-            .__task_print_container__ [data-print-fields="true"] label { 
-              font-weight: 600 !important; color: #374151 !important; 
-            }
-            .__task_print_container__ [data-print-fields="true"] .print-value { 
-              color: #111827 !important;
-            }
-
-            /* Fechas y Actividad: mostrar como filas simples */
-            .__task_print_container__ [data-print-dates="true"] .flex { display:block !important; }
-            .__task_print_container__ [data-print-dates="true"] .flex > div { margin-bottom: 4px !important; }
-            .__task_print_container__ [data-print-dates="true"] .w-full { width:auto !important; }
+            /* Compactación suave */
+            .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
+            .px-3, .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+            .mx-4, .mx-6 { margin-left: 8px !important; margin-right: 8px !important; }
           }
         `;
         document.head.appendChild(style);
 
         const originalTitle = document.title;
-        document.title = `Tarea ${task.id || ''}`;
+        document.title = (task.task_description || 'Tarea').slice(0, 120);
 
         window.print();
 
+        // Limpieza
         document.title = originalTitle;
         if (style.parentNode) style.parentNode.removeChild(style);
         if (container.parentNode) container.parentNode.removeChild(container);
-
         if (!prevExpanded) setIsExpanded(false);
       }, 0);
     };
@@ -529,8 +559,7 @@ const ProjectTaskModal = () => {
             <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-5 h-5" data-print-hide="true" />
           </div>
 
-          {/* Descripción: clic aquí EXPANDE/CONTRAE; NO edita.
-              Edición SOLO con botón de engranaje */}
+          {/* Descripción: clic aquí EXPANDE/CONTRAE; NO edita. */}
           <div
             className="flex-grow font-medium text-gray-800 ml-4 print-avoid-break"
             onClick={() => {
@@ -581,7 +610,7 @@ const ProjectTaskModal = () => {
               <Settings size={16} />
             </button>
 
-            {/* Botón de imprimir (solo esta tarea en el DOM actual) */}
+            {/* Botón de imprimir (solo esta tarea) */}
             <button
               data-print-btn="true"
               onClick={(e) => { e.stopPropagation(); handlePrintInPlace(); }}
