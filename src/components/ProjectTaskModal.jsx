@@ -354,66 +354,138 @@ const ProjectTaskModal = () => {
 
     const responsible = staff.find(s => s.id === task.staff_id);
 
-    // --- BOTÓN IMPRIMIR (imprime solo el contenido de esta tarea en el DOM actual) ---
+    // --- BOTÓN IMPRIMIR (imprime solo el contenido de esta tarea, versión limpia) ---
     const handlePrintInPlace = () => {
       if (!taskRef.current) return;
 
-      // Clonar el nodo a imprimir
-      const clone = taskRef.current.cloneNode(true);
+      // 1) Garantizar que la sección esté expandida para impresión
+      const prevExpanded = isExpanded;
+      if (!prevExpanded) setIsExpanded(true);
 
-      // Quitar el propio botón de imprimir del clon
-      const printBtn = clone.querySelector('[data-print-btn="true"]');
-      if (printBtn && printBtn.parentNode) {
-        printBtn.parentNode.removeChild(printBtn);
-      }
+      // Ejecutar después del re-render
+      setTimeout(() => {
+        const node = taskRef.current;
+        if (!node) return;
 
-      // Ajustar valores de formularios para que se vean en el print
-      clone.querySelectorAll('input, textarea, select').forEach((el) => {
-        if (el.tagName === 'INPUT') {
-          el.setAttribute('value', el.value);
-        } else if (el.tagName === 'TEXTAREA') {
-          el.textContent = el.value;
-        } else if (el.tagName === 'SELECT') {
-          Array.from(el.options).forEach(opt => {
-            if (opt.selected) opt.setAttribute('selected', 'selected');
-            else opt.removeAttribute('selected');
-          });
-        }
-      });
+        // 2) Clonar
+        const clone = node.cloneNode(true);
 
-      // Contenedor temporal de impresión
-      const container = document.createElement('div');
-      container.className = '__task_print_container__';
-      container.style.position = 'absolute';
-      container.style.left = '0';
-      container.style.top = '0';
-      container.style.width = '100%';
-      container.style.background = 'white';
-      container.appendChild(clone);
-      document.body.appendChild(container);
+        // 3) Limpiar controles y anular clases que limitan texto
+        //    – elimina botones/checkbox/íconos que no aportan al print
+        clone.querySelectorAll('button, [type="checkbox"], [data-print-hide="true"]').forEach(el => el.remove());
 
-      // Estilos para ocultar todo excepto el contenedor
-      const style = document.createElement('style');
-      style.setAttribute('data-print-style', 'true');
-      style.innerHTML = `
-        @media print {
-          body * { visibility: hidden !important; }
-          .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
-          .__task_print_container__ { position: absolute; left: 0; top: 0; width: 100%; }
-        }
-      `;
-      document.head.appendChild(style);
+        // 4) Sustituir inputs/textarea/select por su valor visible
+        clone.querySelectorAll('input, textarea, select').forEach((el) => {
+          const span = document.createElement('span');
+          let val = '';
+          if (el.tagName === 'INPUT') val = el.value || el.getAttribute('value') || '';
+          if (el.tagName === 'TEXTAREA') val = el.value || el.textContent || '';
+          if (el.tagName === 'SELECT') val = el.options[el.selectedIndex]?.text || '';
+          span.textContent = val;
+          span.className = 'print-value';
+          el.parentNode.replaceChild(span, el);
+        });
 
-      const originalTitle = document.title;
-      document.title = `Tarea ${task.id || ''}`;
+        // 5) Preparar contenedor temporal
+        const container = document.createElement('div');
+        container.className = '__task_print_container__';
+        container.style.position = 'absolute';
+        container.style.left = '0';
+        container.style.top = '0';
+        container.style.width = '100%';
+        container.style.background = 'white';
+        container.style.padding = '8mm';
+        container.appendChild(clone);
+        document.body.appendChild(container);
 
-      // Lanzar impresión
-      window.print();
+        // 6) Estilos de impresión (limpios, sin recortes, mejor uso del espacio)
+        const style = document.createElement('style');
+        style.setAttribute('data-print-style', 'true');
+        style.innerHTML = `
+          @page { size: A4; margin: 8mm; }
+          @media print {
+            html, body { padding:0 !important; margin:0 !important; }
+            body * { visibility: hidden !important; }
+            .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
 
-      // Limpieza
-      document.title = originalTitle;
-      if (style.parentNode) style.parentNode.removeChild(style);
-      if (container.parentNode) container.parentNode.removeChild(container);
+            /* Layout compacto y de una sola columna */
+            .__task_print_container__ { position: absolute; inset: 0; }
+            .__task_print_container__ .grid { display:block !important; }
+            .__task_print_container__ .grid > * { width:100% !important; }
+
+            /* Tipografía y densidad */
+            .__task_print_container__ { font-size: 12px !important; line-height: 1.35 !important; }
+            .__task_print_container__ .text-sm { font-size: 12px !important; }
+            .__task_print_container__ .text-xs { font-size: 11px !important; }
+
+            /* Quitar paddings/márgenes excesivos del header de la tarjeta */
+            .__task_print_container__ .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
+            .__task_print_container__ .px-3, 
+            .__task_print_container__ .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+            .__task_print_container__ .pl-6 { padding-left: 10px !important; }
+            .__task_print_container__ .pr-4 { padding-right: 10px !important; }
+            .__task_print_container__ .pt-2 { padding-top: 6px !important; }
+            .__task_print_container__ .pb-4 { padding-bottom: 8px !important; }
+            .__task_print_container__ .mx-4, 
+            .__task_print_container__ .mx-6 { margin-left: 8px !important; margin-right: 8px !important; }
+
+            /* Eliminar barras/colores decorativos para ganar espacio */
+            .__task_print_container__ [class*="w-1.5"][class*="absolute"] { display:none !important; }
+
+            /* Evitar truncamiento/ellipses y permitir saltos de línea */
+            .__task_print_container__ * {
+              overflow: visible !important;
+              text-overflow: clip !important;
+              white-space: normal !important;
+              -webkit-line-clamp: initial !important;
+              max-height: none !important;
+            }
+            .__task_print_container__ .truncate,
+            .__task_print_container__ [class*="line-clamp"] { 
+              overflow: visible !important; 
+              display: block !important;
+            }
+
+            /* Evitar cortes dentro de bloques clave */
+            .__task_print_container__ .print-avoid-break,
+            .__task_print_container__ [data-print-block="true"] {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+
+            /* Acciones: forzar bloque completo antes del salto de página */
+            .__task_print_container__ [data-section="acciones"] * {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+
+            /* Ocultar chips/etiquetas de estado si ocupan de más */
+            .__task_print_container__ .rounded-full { border-radius: 4px !important; padding: 2px 6px !important; }
+
+            /* Barras de progreso -> mostrar solo porcentaje */
+            .__task_print_container__ .bg-blue-600.h-2 { display:none !important; }
+            .__task_print_container__ .w-full.bg-gray-200.rounded-full.h-2 { display:none !important; }
+
+            /* Iconos irrelevantes */
+            .__task_print_container__ svg { display:none !important; }
+          }
+        `;
+        document.head.appendChild(style);
+
+        const originalTitle = document.title;
+        document.title = `Tarea ${task.id || ''}`;
+
+        // 7) Imprimir
+        window.print();
+
+        // 8) Limpieza
+        document.title = originalTitle;
+        if (style.parentNode) style.parentNode.removeChild(style);
+        if (container.parentNode) container.parentNode.removeChild(container);
+
+        // restaurar expandido
+        if (!prevExpanded) setIsExpanded(false);
+      }, 0);
     };
     // --- FIN BOTÓN IMPRIMIR ---
 
@@ -424,13 +496,14 @@ const ProjectTaskModal = () => {
       : null;
 
     return (
-      <div ref={taskRef} className={`relative ${isSelected ? 'bg-blue-50' : 'bg-white'}`}>
+      <div ref={taskRef} className={`relative ${isSelected ? 'bg-blue-50' : 'bg-white'}`} data-print-block="true">
         <div className={getPriorityClasses(task.Priority)} title={`Prioridad: ${task.Priority}`}></div>
         <div className="flex items-center w-full pl-6 pr-4 py-2">
           <div className="flex items-center">
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="p-1 rounded-full hover:bg-gray-200 mr-2"
+              data-print-hide="true"
             >
               {isExpanded ? (
                 <ChevronDown size={20} className="text-gray-600" />
@@ -438,13 +511,13 @@ const ProjectTaskModal = () => {
                 <ChevronRight size={20} className="text-gray-500" />
               )}
             </button>
-            <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-5 h-5" />
+            <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-5 h-5" data-print-hide="true" />
           </div>
 
           {/* Descripción: clic aquí EXPANDE/CONTRAE; NO edita.
               Edición SOLO con botón de engranaje */}
           <div
-            className="flex-grow font-medium text-gray-800 ml-4"
+            className="flex-grow font-medium text-gray-800 ml-4 print-avoid-break"
             onClick={() => {
               if (!isEditingDesc) setIsExpanded(!isExpanded);
             }}
@@ -488,6 +561,7 @@ const ProjectTaskModal = () => {
               onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
               title="Editar descripción"
+              data-print-hide="true"
             >
               <Settings size={16} />
             </button>
@@ -506,7 +580,7 @@ const ProjectTaskModal = () => {
 
         {isExpanded && (
           <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true">
               <div>
                 <label className="font-medium text-gray-500">Prioridad</label>
                 <EditableCell rowId={task.id} field="Priority" value={task.Priority} type="priority-select" options={Priorities} />
@@ -526,7 +600,7 @@ const ProjectTaskModal = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-y-4 text-sm">
-              <div>
+              <div data-print-block="true">
                 <label className="font-medium text-gray-500">Fechas y Actividad</label>
                 <div className="flex items-end gap-x-4 gap-y-2 p-1 flex-wrap">
                   <div>
@@ -551,7 +625,7 @@ const ProjectTaskModal = () => {
                       className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                  <div className="pt-2">
+                  <div className="pt-2" data-print-hide="true">
                     <TaskLog task={task} onSave={updateCell} />
                   </div>
                   <div className="flex-grow pt-2">
@@ -572,12 +646,12 @@ const ProjectTaskModal = () => {
                 </div>
               </div>
 
-              <div>
+              <div data-print-block="true">
                 <label className="font-medium text-gray-500">Notas</label>
                 <EditableCell rowId={task.id} field="notes" value={task.notes} type="textarea" />
               </div>
 
-              <div>
+              <div data-print-block="true" data-section="acciones">
                 <label className="font-medium text-gray-500">Acciones y Actividad</label>
                 <InlineActionsTask task={task} />
               </div>
