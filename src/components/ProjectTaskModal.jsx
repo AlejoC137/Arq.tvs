@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from "react-router-dom";
 import {
@@ -309,6 +309,9 @@ const ProjectTaskModal = () => {
   const TaskItem = React.memo(({ task, isSelected, onSelectRow }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
+    // Ref para imprimir solo este bloque
+    const taskRef = useRef(null);
+
     // --- Fechas (DatesManager integrado) ---
     const initialDates = useMemo(
       () => task.dates ? JSON.parse(task.dates) : { assignDate: '', dueDate: '' },
@@ -345,115 +348,66 @@ const ProjectTaskModal = () => {
 
     const responsible = staff.find(s => s.id === task.staff_id);
 
-    // --- BOTÓN IMPRIMIR (solo esta tarea) ---
-    const handlePrint = () => {
-      const stageName = stages.find(s => s.id === task.stage_id)?.name || '—';
-      const entregableName = entregables.find(e => e.id === task.entregable_id)?.entregable_nombre || '—';
-      const datesData = task.dates ? JSON.parse(task.dates) : {};
-      const logs = Array.isArray(datesData.logs) ? datesData.logs : [];
-      const progressPct = Math.max(0, Math.min(100, Number(task.Progress) || 0));
+    // --- BOTÓN IMPRIMIR (imprime solo el contenido de esta tarea en el DOM actual) ---
+    const handlePrintInPlace = () => {
+      if (!taskRef.current) return;
 
-      const logsHtml = logs.length
-        ? `<ul style="margin:8px 0 0 18px;padding:0;list-style:disc;">
-             ${logs.map(l => `<li><strong>${l.date || ''}:</strong> ${l.event || ''}</li>`).join('')}
-           </ul>`
-        : '<p style="margin:8px 0 0 0;color:#6b7280;">No hay eventos registrados.</p>';
+      // Clonar el nodo a imprimir
+      const clone = taskRef.current.cloneNode(true);
 
-      const html = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8" />
-<title>Tarea ${task.id || ''}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; color:#111827; padding:24px; }
-  .title { font-size:20px; font-weight:700; margin:0 0 8px; }
-  .muted { color:#6b7280; }
-  .row { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; }
-  .card { border:1px solid #e5e7eb; border-radius:12px; padding:16px; margin-top:12px; }
-  .label { font-size:12px; color:#6b7280; margin-bottom:4px; display:block; }
-  .badge { display:inline-block; padding:4px 8px; border-radius:9999px; font-size:12px; font-weight:600; background:#eff6ff; color:#1d4ed8; }
-  .progress { width:100%; height:10px; background:#e5e7eb; border-radius:9999px; overflow:hidden; }
-  .progress > div { height:10px; width:${progressPct}%; background:#2563eb; }
-  @media print { .no-print { display:none; } }
-  table { width:100%; border-collapse: collapse; }
-  td { border:1px solid #e5e7eb; padding:8px; vertical-align: top; }
-</style>
-</head>
-<body>
-  <div class="no-print" style="text-align:right;margin-bottom:12px;">
-    <button onclick="window.print()" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;background:white;cursor:pointer;">Imprimir</button>
-  </div>
+      // Quitar el propio botón de imprimir del clon
+      const printBtn = clone.querySelector('[data-print-btn="true"]');
+      if (printBtn && printBtn.parentNode) {
+        printBtn.parentNode.removeChild(printBtn);
+      }
 
-  <h1 class="title">Tarea</h1>
-  <p class="muted" style="margin:0 0 12px;">ID: ${task.id || '—'}</p>
+      // Ajustar valores de formularios para que se vean en el print
+      clone.querySelectorAll('input, textarea, select').forEach((el) => {
+        if (el.tagName === 'INPUT') {
+          el.setAttribute('value', el.value);
+        } else if (el.tagName === 'TEXTAREA') {
+          el.textContent = el.value;
+        } else if (el.tagName === 'SELECT') {
+          Array.from(el.options).forEach(opt => {
+            if (opt.selected) opt.setAttribute('selected', 'selected');
+            else opt.removeAttribute('selected');
+          });
+        }
+      });
 
-  <div class="card">
-    <span class="label">Descripción</span>
-    <div>${(task.task_description || '').replace(/\n/g, '<br/>')}</div>
-  </div>
+      // Contenedor temporal de impresión
+      const container = document.createElement('div');
+      container.className = '__task_print_container__';
+      container.style.position = 'absolute';
+      container.style.left = '0';
+      container.style.top = '0';
+      container.style.width = '100%';
+      container.style.background = 'white';
+      container.appendChild(clone);
+      document.body.appendChild(container);
 
-  <div class="row">
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Responsable</span>
-      <div>${responsible?.name || 'Sin asignar'}</div>
-    </div>
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Estado</span>
-      <div><span class="badge">${task.status || '—'}</span></div>
-    </div>
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Prioridad</span>
-      <div>${task.Priority || '—'}</div>
-    </div>
-  </div>
+      // Estilos para ocultar todo excepto el contenedor
+      const style = document.createElement('style');
+      style.setAttribute('data-print-style', 'true');
+      style.innerHTML = `
+        @media print {
+          body * { visibility: hidden !important; }
+          .__task_print_container__, .__task_print_container__ * { visibility: visible !important; }
+          .__task_print_container__ { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+      `;
+      document.head.appendChild(style);
 
-  <div class="row">
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Etapa</span>
-      <div>${stageName}</div>
-    </div>
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Entregable</span>
-      <div>${entregableName}</div>
-    </div>
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Progreso</span>
-      <div class="progress"><div></div></div>
-      <div class="muted" style="margin-top:6px;">${progressPct}%</div>
-    </div>
-  </div>
+      const originalTitle = document.title;
+      document.title = `Tarea ${task.id || ''}`;
 
-  <div class="row">
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Fecha de asignación</span>
-      <div>${(datesData.assignDate) || '—'}</div>
-    </div>
-    <div style="flex:1 1 240px;" class="card">
-      <span class="label">Fecha límite</span>
-      <div>${(datesData.dueDate) || '—'}</div>
-    </div>
-  </div>
+      // Lanzar impresión
+      window.print();
 
-  <div class="card">
-    <span class="label">Notas</span>
-    <div>${(task.notes || '—').toString().replace(/\n/g, '<br/>')}</div>
-  </div>
-
-  <div class="card">
-    <span class="label">Bitácora</span>
-    ${logsHtml}
-  </div>
-</body>
-</html>
-`;
-      const w = window.open('', '_blank', 'noopener,noreferrer');
-      if (!w) return;
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-      w.focus();
+      // Limpieza
+      document.title = originalTitle;
+      if (style.parentNode) style.parentNode.removeChild(style);
+      if (container.parentNode) container.parentNode.removeChild(container);
     };
     // --- FIN BOTÓN IMPRIMIR ---
 
@@ -464,7 +418,7 @@ const ProjectTaskModal = () => {
       : null;
 
     return (
-      <div className={`relative ${isSelected ? 'bg-blue-50' : 'bg-white'}`}>
+      <div ref={taskRef} className={`relative ${isSelected ? 'bg-blue-50' : 'bg-white'}`}>
         <div className={getPriorityClasses(task.Priority)} title={`Prioridad: ${task.Priority}`}></div>
         <div className="flex items-center w-full pl-6 pr-4 py-2">
           <div className="flex items-center">
@@ -503,9 +457,10 @@ const ProjectTaskModal = () => {
                 options={Object.keys(ESTADOS).map(k => ({ id: ESTADOS[k], name: ESTADOS[k] }))}
               />
             </div>
-            {/* --- Botón de imprimir (solo esta tarea) --- */}
+            {/* --- Botón de imprimir (solo esta tarea en el DOM actual) --- */}
             <button
-              onClick={handlePrint}
+              data-print-btn="true"
+              onClick={handlePrintInPlace}
               className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 font-medium"
               title="Imprimir esta tarea"
             >
