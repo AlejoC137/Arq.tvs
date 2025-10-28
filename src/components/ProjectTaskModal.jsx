@@ -44,6 +44,7 @@ const getEstadoColor = (estado) => {
     'Completado': 'bg-green-100 text-green-800',
     'Cancelado': 'bg-red-100 text-red-800',
     'En Revisión': 'bg-purple-100 text-purple-800',
+    'BLOQUEADO': 'bg-gray-400 text-white',
     'Bloqueado': 'bg-gray-400 text-white',
     'Aprobación Requerida': 'bg-orange-100 text-orange-800',
     'En Diseño': 'bg-pink-100 text-pink-800',
@@ -141,20 +142,14 @@ const ProjectTaskModal = () => {
   const filteredAndSortedTasks = useMemo(() => {
     let items = [...projectTasks];
     
-    // Filtrar por término de búsqueda
     if (searchTerm)
       items = items.filter(task =>
         task.task_description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     
-    // Filtrar por espacio seleccionado: consideramos tanto el campo directo `task.espacio`
-    // como las `acciones` (que históricamente almacenaban el espacio por acción).
     if (selectedRoom) {
       items = items.filter(task => {
-        // Si la tarea tiene el campo 'espacio' y coincide, incluirla
         if (task.espacio === selectedRoom) return true;
-
-        // Si no, intentar buscar dentro de task.acciones (stringified o array)
         if (!task.acciones) return false;
         try {
           const acciones = typeof task.acciones === 'string' ? JSON.parse(task.acciones) : task.acciones;
@@ -396,7 +391,6 @@ const ProjectTaskModal = () => {
       const asignacion = assignDate || '-';
       const limite = dueDate || '-';
 
-      // Tomamos el bloque de acciones ya renderizado
       const accionesNode = taskRef.current?.querySelector('[data-section="acciones"]');
       const accionesHTML = accionesNode ? accionesNode.innerHTML : '<div>-</div>';
 
@@ -436,7 +430,6 @@ const ProjectTaskModal = () => {
         .box { border:1px solid #e5e7eb; border-radius:8px; padding:8px; background:#fafafa; }
         .muted { color:#6b7280; }
 
-        /* Lista de acciones (dejamos los checkboxes cuadrados) */
         .acciones input[type="checkbox"]{
           appearance:none; -webkit-appearance:none; width:14px; height:14px;
           border:1.5px solid #9ca3af; border-radius:3px; margin-right:8px; vertical-align:middle; position:relative; top:-1px; background:#fff;
@@ -446,7 +439,6 @@ const ProjectTaskModal = () => {
           border-width:0 2px 2px 0; transform:rotate(45deg);
         }
 
-        /* Evitar cortes feos */
         .avoid { break-inside: avoid; page-break-inside: avoid; }
       `;
 
@@ -495,7 +487,6 @@ const ProjectTaskModal = () => {
       document.title = title.slice(0, 120);
       window.print();
 
-      // Limpieza
       document.title = originalTitle;
       if (style.parentNode) style.parentNode.removeChild(style);
       if (container.parentNode) container.parentNode.removeChild(container);
@@ -564,19 +555,19 @@ const ProjectTaskModal = () => {
               />
             </div>
 
-              {/* Selector de Espacio visible en la fila principal */}
-              <div className="flex items-center gap-2" title="Espacio">
-                <select
-                  value={task.espacio || ''}
-                  onChange={(e) => updateCell(task.id, { espacio: e.target.value || null })}
-                  className="border border-gray-300 rounded-lg py-1 px-2 text-sm bg-white"
-                >
-                  <option value="">-- Sin Asignar --</option>
-                  {ESPACIOS_HABITACIONES.map(e => (
-                    <option key={e} value={e}>{e}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Selector de Espacio visible en la fila principal */}
+            <div className="flex items-center gap-2" title="Espacio">
+              <select
+                value={task.espacio || ''}
+                onChange={(e) => updateCell(task.id, { espacio: e.target.value || null })}
+                className="border border-gray-300 rounded-lg py-1 px-2 text-sm bg-white"
+              >
+                <option value="">-- Sin Asignar --</option>
+                {ESPACIOS_HABITACIONES.map(e => (
+                  <option key={e} value={e}>{e}</option>
+                ))}
+              </select>
+            </div>
 
             <button
               onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
@@ -714,226 +705,234 @@ const ProjectTaskModal = () => {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex p-4 md:p-8 gap-6">
-      {/* Panel izquierdo: Vista de planos */}
-      {showPlanView && (
-        <div className="w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-            <h2 className="text-xl font-bold text-gray-800">Planos - Casa 2</h2>
-            <button
-              onClick={() => {
-                setShowPlanView(false);
-                setSelectedRoom(null);
-              }}
-              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-            >
-              Cerrar
-            </button>
-          </div>
-          
-          <div className="p-4 border-b border-gray-200 flex gap-2 flex-shrink-0">
-            <button
-              onClick={() => setSelectedPlan('p1')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                selectedPlan === 'p1'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Planta P1
-            </button>
-            <button
-              onClick={() => setSelectedPlan('p2')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                selectedPlan === 'p2'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Planta P2
-            </button>
-            <button
-              onClick={() => setSelectedPlan('s1')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                selectedPlan === 's1'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Sección S1
-            </button>
-            <button
-              onClick={() => setSelectedPlan('t1')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                selectedPlan === 't1'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-              }`}
-            >
-              Técnico T1
-            </button>
-          </div>
-          
-          {selectedRoom && (
-            <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
-              <span className="text-sm font-medium text-blue-800">Filtrando por: {selectedRoom}</span>
+    <div className="h-screen bg-gray-50 p-4 md:p-8">
+      {/* GRID principal: 2/3 (planos) + 1/3 (tareas) en md+ */}
+      <div className={`grid gap-6 h-full ${showPlanView ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1'}`}>
+        {/* Panel izquierdo: Vista de planos => 2/3 */}
+        {showPlanView && (
+          <div className="md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden min-h-0">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-800">Planos - Casa 2</h2>
               <button
-                onClick={() => setSelectedRoom(null)}
-                className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                onClick={() => {
+                  setShowPlanView(false);
+                  setSelectedRoom(null);
+                }}
+                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               >
-                Limpiar filtro
+                Cerrar
               </button>
             </div>
-          )}
-          
-          <div className="flex-grow overflow-auto">
-            {renderPlanView()}
-          </div>
-        </div>
-      )}
-
-      {/* Panel derecho: Lista de tareas */}
-      <div className="flex-1 flex flex-col gap-6">
-      <FormTask
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleAddTask}
-        proyecto={id}
-        staff={staff}
-        stages={stages}
-        entregables={entregables}
-        estados={ESTADOS}
-      />
-
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex-shrink-0">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">{selectedProject.name}</h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-          <div className="flex items-start gap-3">
-            <User className="w-5 h-5 text-gray-400 mt-0.5" />
-            <div>
-              <p className="font-semibold text-gray-600">Cliente</p>
-              <p className="text-gray-800">{selectedProject.client_name || 'No especificado'}</p>
+            
+            <div className="p-4 border-b border-gray-200 flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => setSelectedPlan('p1')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedPlan === 'p1'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Planta P1
+              </button>
+              <button
+                onClick={() => setSelectedPlan('p2')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedPlan === 'p2'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Planta P2
+              </button>
+              <button
+                onClick={() => setSelectedPlan('s1')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedPlan === 's1'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Sección S1
+              </button>
+              <button
+                onClick={() => setSelectedPlan('t1')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedPlan === 't1'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Técnico T1
+              </button>
+            </div>
+            
+            {selectedRoom && (
+              <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+                <span className="text-sm font-medium text-blue-800">Filtrando por: {selectedRoom}</span>
+                <button
+                  onClick={() => setSelectedRoom(null)}
+                  className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                >
+                  Limpiar filtro
+                </button>
+              </div>
+            )}
+            
+            <div className="flex-grow overflow-auto">
+              {renderPlanView()}
             </div>
           </div>
-          <div className="flex items-start gap-3">
-            <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-            <div>
-              <p className="font-semibold text-gray-600">Fechas</p>
-              <p className="text-gray-800">{`Inicio: ${selectedProject.start_date || 'N/A'} | Fin: ${selectedProject.end_date || 'N/A'}`}</p>
+        )}
+
+        {/* Panel derecho: Lista de tareas => 1/3 */}
+        <div className={`${showPlanView ? 'md:col-span-1' : 'col-span-1'} flex flex-col min-h-0`}>
+          <FormTask
+            isOpen={isFormOpen}
+            onClose={() => setIsFormOpen(false)}
+            onSubmit={handleAddTask}
+            proyecto={id}
+            staff={staff}
+            stages={stages}
+            entregables={entregables}
+            estados={ESTADOS}
+          />
+
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex-shrink-0">
+            <h1 className="text-3xl font-bold text-gray-800 mb-4">{selectedProject.name}</h1>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+              <div className="flex items-start gap-3">
+                <User className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-600">Cliente</p>
+                  <p className="text-gray-800">{selectedProject.client_name || 'No especificado'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-600">Fechas</p>
+                  <p className="text-gray-800">{`Inicio: ${selectedProject.start_date || 'N/A'} | Fin: ${selectedProject.end_date || 'N/A'}`}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-600">Estado Actual</p>
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                    {selectedProject.status || 'No definido'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium text-gray-600">Progreso General</span>
+                <span className="text-sm font-bold text-blue-600">{projectProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${projectProgress}%` }}></div>
+              </div>
             </div>
           </div>
-          <div className="flex items-start gap-3">
-            <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
-            <div>
-              <p className="font-semibold text-gray-600">Estado Actual</p>
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                {selectedProject.status || 'No definido'}
-              </span>
+
+          {/* Área scroll con lista de tareas + acciones abajo */}
+          <div className="flex-1 grid grid-rows-[1fr_auto] gap-6 min-h-0">
+            {/* Lista de tareas */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col min-h-0">
+              <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar tareas..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="sort-select" className="text-sm font-medium text-gray-600">Ordenar por:</label>
+                    <select
+                      id="sort-select"
+                      value={sortConfig.key}
+                      onChange={(e) => setSortConfig({ ...sortConfig, key: e.target.value })}
+                      className="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Priority">Prioridad</option>
+                      <option value="task_description">Nombre Tarea</option>
+                      <option value="status">Estado</option>
+                    </select>
+                    <button
+                      onClick={() =>
+                        setSortConfig({
+                          ...sortConfig,
+                          direction: sortConfig.direction === 'ascending' ? 'descending' : 'ascending'
+                        })
+                      }
+                      className="p-2 border rounded-lg hover:bg-gray-100"
+                    >
+                      {sortConfig.direction === 'ascending' ? <ArrowUp className="w-5 h-5" /> : <ArrowDown className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowPlanView(!showPlanView)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold ${
+                      showPlanView
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {showPlanView ? '✓ Planos' : 'Ver Planos'}
+                  </button>
+                  <button
+                    onClick={() => setIsFormOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                  >
+                    <Plus size={18} /> Nueva Tarea
+                  </button>
+                </div>
+              </div>
+
+              <div className="divide-y divide-gray-200 overflow-y-auto">
+                {filteredAndSortedTasks.map(task => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    isSelected={selectedRows.has(task.id)}
+                    onSelectRow={() => handleSelectRow(task.id)}
+                  />
+                ))}
+                {filteredAndSortedTasks.length === 0 && (
+                  <div className="p-12 text-center text-gray-500">
+                    <p className="font-semibold">No se encontraron tareas</p>
+                    <p className="text-sm mt-1">
+                      {searchTerm ? "Intenta con otra búsqueda." : "Crea una nueva tarea para empezar."}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="mt-6">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm font-medium text-gray-600">Progreso General</span>
-            <span className="text-sm font-bold text-blue-600">{projectProgress}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${projectProgress}%` }}></div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-grow min-h-0">
-        <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar tareas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            {/* Acciones para selección (abajo) */}
+            <div className="flex-shrink-0">
+              <TaskActions
+                selectedRows={selectedRows}
+                data={projectTasks}
+                staff={staff}
+                updateMultipleTasks={updateMultipleTasks}
+                handleBulkDelete={handleBulkDelete}
+                handleDuplicateTasks={handleDuplicateTasks}
+                deselectAll={deselectAll}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="sort-select" className="text-sm font-medium text-gray-600">Ordenar por:</label>
-              <select
-                id="sort-select"
-                value={sortConfig.key}
-                onChange={(e) => setSortConfig({ ...sortConfig, key: e.target.value })}
-                className="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Priority">Prioridad</option>
-                <option value="task_description">Nombre Tarea</option>
-                <option value="status">Estado</option>
-              </select>
-              <button
-                onClick={() =>
-                  setSortConfig({
-                    ...sortConfig,
-                    direction: sortConfig.direction === 'ascending' ? 'descending' : 'ascending'
-                  })
-                }
-                className="p-2 border rounded-lg hover:bg-gray-100"
-              >
-                {sortConfig.direction === 'ascending' ? <ArrowUp className="w-5 h-5" /> : <ArrowDown className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowPlanView(!showPlanView)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold ${
-                showPlanView
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {showPlanView ? '✓ Planos' : 'Ver Planos'}
-            </button>
-            <button
-              onClick={() => setIsFormOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
-            >
-              <Plus size={18} /> Nueva Tarea
-            </button>
           </div>
         </div>
-
-        <div className="divide-y divide-gray-200 overflow-y-auto">
-          {filteredAndSortedTasks.map(task => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              isSelected={selectedRows.has(task.id)}
-              onSelectRow={() => handleSelectRow(task.id)}
-            />
-          ))}
-          {filteredAndSortedTasks.length === 0 && (
-            <div className="p-12 text-center text-gray-500">
-              <p className="font-semibold">No se encontraron tareas</p>
-              <p className="text-sm mt-1">
-                {searchTerm ? "Intenta con otra búsqueda." : "Crea una nueva tarea para empezar."}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-shrink-0">
-        <TaskActions
-          selectedRows={selectedRows}
-          data={projectTasks}
-          staff={staff}
-          updateMultipleTasks={updateMultipleTasks}
-          handleBulkDelete={handleBulkDelete}
-          handleDuplicateTasks={handleDuplicateTasks}
-          deselectAll={deselectAll}
-        />
-      </div>
       </div>
     </div>
   );
