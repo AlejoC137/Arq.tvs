@@ -1,18 +1,12 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { 
-  Bell,
-  Save,
-  Upload,
-  Home as HomeIcon,
-  Boxes
-} from 'lucide-react';
+import { Bell, Save, Upload, Home as HomeIcon } from 'lucide-react';
 import './index.css';
 
 import ProjectTaskModal from './components/ProjectTaskModal';
 import StaffTaskModal from './components/StaffTaskModal';
 import Test from './components/Test.jsx';
-import Materiales from './components/Materiales.jsx'; // ✅ NUEVO
+import Materiales from './components/Materiales.jsx'; // <— nuevo
 
 import { getEnabledTabs, getDefaultRoute } from './config/navigationConfig';
 
@@ -71,7 +65,6 @@ function App() {
   }, [data]);
 
   const navigationItems = getEnabledTabs();
-  const hasMateriales = navigationItems.some(i => i.path === '/Materiales'); // ✅ evita duplicado
 
   const saveToFile = () => {
     const dataStr = JSON.stringify(data, null, 2);
@@ -120,20 +113,11 @@ function App() {
         {/* Navegación */}
         <nav className="flex-1 p-4">
           <div className="space-y-2">
-            {!hasMateriales && (
-              <NavLink
-                item={{
-                  id: 'materiales',
-                  path: '/Materiales',
-                  label: 'Materiales',
-                  description: 'Catálogo y edición tipo Excel',
-                  icon: Boxes
-                }}
-              />
-            )}
             {navigationItems.map((item) => (
               <NavLink key={item.id} item={item} />
             ))}
+            {/* Enlace directo a Materiales si no viene de config */}
+            <NavLink item={{ id: 'materiales', path: '/materiales', label: 'Materiales', icon: HomeIcon }} />
           </div>
         </nav>
 
@@ -179,12 +163,7 @@ function App() {
             >
               <Upload size={16} />
               <span className="text-xs">Cargar</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={loadFromFile}
-                className="hidden"
-              />
+              <input type="file" accept=".json" onChange={loadFromFile} className="hidden" />
             </label>
           </div>
         </div>
@@ -204,8 +183,9 @@ function App() {
             <Route path="/ProjectTaskModal/:id" element={<ProjectTaskModal />} />
             <Route path="/StaffTaskModal/:staffId" element={<StaffTaskModal />} />
             <Route path="/Test" element={<Test />} />
-            {/* ✅ Ruta directa a Materiales */}
-            <Route path="/Materiales" element={<Materiales />} />
+
+            {/* Materiales */}
+            <Route path="/materiales" element={<Materiales />} />
 
             {/* Rutas dinámicas desde configuración */}
             {navigationItems.map((item) => (
@@ -215,6 +195,9 @@ function App() {
                 element={<item.component data={data} setData={setData} />}
               />
             ))}
+
+            {/* Fallback 404 simple */}
+            <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
           </Routes>
         </Suspense>
       </div>
