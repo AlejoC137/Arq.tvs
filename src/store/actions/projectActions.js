@@ -1,5 +1,4 @@
 import { createCrudActions, transformers, relationships } from './crudActions.js';
-import { PROJECTS_ACTIONS } from '../actionTypes.js';
 import supabase from '../../config/supabaseClient.js';
 
 // ========================================
@@ -195,8 +194,8 @@ export const duplicateProject = (projectId, newData = {}) => {
   };
 };
 
-// Export action types for use in reducers
-export { PROJECTS_ACTIONS } from '../actionTypes.js';
+// Note: action type constants for generic tables live in `actionTypes.js`.
+// This file exports its own `projectActionTypes` (from the factory) where needed.
 
 // Legacy exports for backward compatibility
 export const fetchProjectsRequest = projectActions.fetchRequest;

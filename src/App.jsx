@@ -1,22 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
-  Table, 
-  FileText, 
   Bell,
   Save,
   Upload,
-  Download,
   Home as HomeIcon
 } from 'lucide-react';
-import ProjectExcelView from './components/ProjectExcelView';
-import ProjectKanbanView from './components/ProjectKanbanView';
-import ProjectDashboard from './components/ProjectDashboard';
-import PlanosView from './components/PlanosView';
 import './index.css';
 import ProjectTaskModal from './components/ProjectTaskModal';
-import PreModalProjects from './components/PreModalProjects';
+import StaffTaskModal from './components/StaffTaskModal';
+import Test from './components/Test.jsx';
+import { getEnabledTabs, getDefaultRoute } from './config/navigationConfig';
 
 function App() {
   const [data, setData] = useState([]);
@@ -72,43 +66,7 @@ function App() {
     setNotifications(newNotifications);
   }, [data]);
 
-  const navigationItems = [
-    // { 
-    //   id: 'ProjectKanbanView', 
-    //   path: '/ProjectKanbanView',
-    //   label: 'ProjectKanbanView', 
-    //   icon: LayoutDashboard, 
-    //   description: 'Gráficos y estadísticas ejecutivas' 
-    // },
-//    { 
-//      id: 'dashboard', 
-//      path: '/dashboard',
-//      label: 'Dashboard', 
-//      icon: LayoutDashboard, 
-//      description: 'Gráficos y estadísticas ejecutivas' 
-//    },
-    // { 
-    //   id: 'gestion', 
-    //   path: '/gestion',
-    //   label: 'Gestión de Tareas', 
-    //   icon: Table, 
-    //   description: 'Vista Excel interactiva de tareas' 
-    // },
-    { 
-      id: 'PreModalProjects', 
-      path: '/Proyectos',
-      label: 'Proyectos', 
-      icon: Table, 
-    //   description: 'Vista Excel interactiva de tareas' 
-    },
-    { 
-      id: 'planos', 
-      path: '/planos',
-      label: 'Plantillas de Entregables', 
-      icon: FileText, 
-      description: 'Gestión de planos por etapas' 
-    }
-  ];
+  const navigationItems = getEnabledTabs();
 
   const saveToFile = () => {
     const dataStr = JSON.stringify(data, null, 2);
@@ -218,16 +176,27 @@ function App() {
 
         {/* Contenido principal */}
         <div className="flex-1 overflow-hidden">
-          <Routes>
-            <Route path="/" element={<Navigate to="/Proyectos" replace />} />
-            {/* <Route path="/dashboard" element={<ProjectDashboard data={data} />} /> */}
-            <Route path="/gestion" element={<ProjectExcelView data={data} setData={setData} />} />
-            <Route path="/ProjectTaskModal/:id" element={<ProjectTaskModal />} />
-            <Route path="/Proyectos" element={<PreModalProjects />} />
-
-            <Route path="/ProjectKanbanView" element={<ProjectKanbanView data={data} setData={setData} />} />
-            <Route path="/planos" element={<PlanosView />} />
-          </Routes>
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full">
+              <div className="text-gray-500">Cargando...</div>
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+              <Route path="/ProjectTaskModal/:id" element={<ProjectTaskModal />} />
+              <Route path="/StaffTaskModal/:staffId" element={<StaffTaskModal />} />
+              <Route path="/Test" element={<Test />} />
+              
+              {/* Rutas dinámicas desde configuración */}
+              {navigationItems.map((item) => (
+                <Route 
+                  key={item.id}
+                  path={item.path} 
+                  element={<item.component data={data} setData={setData} />} 
+                />
+              ))}
+            </Routes>
+          </Suspense>
         </div>
       </div>
     // </Router>
@@ -249,9 +218,11 @@ const NavLink = ({ item }) => {
       }`}
     >
       <item.icon size={20} />
-      <div>
+      <div className="flex-1">
         <div className="font-medium">{item.label}</div>
-        <div className="text-xs text-gray-500">{item.description}</div>
+        {item.description && (
+          <div className="text-xs text-gray-500">{item.description}</div>
+        )}
       </div>
     </Link>
   );

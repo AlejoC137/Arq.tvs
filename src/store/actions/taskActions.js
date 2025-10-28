@@ -69,8 +69,8 @@ const isTaskOverdue = (dueDate) => {
 const taskActions = createCrudActions('tasks', null, {
   selectFields: '*',
   relationships: relationships.tasks,
-  orderBy: 'created_at',
-  orderDirection: 'desc',
+  orderBy: 'id',
+  orderDirection: 'asc',
   transformData: taskTransformer,
 });
 

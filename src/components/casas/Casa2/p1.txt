@@ -1,0 +1,18 @@
+Planta Piso 1 - Casa 2
+Espacios:
+- HabitacionPrincipal
+- Cocina
+- BalconOficina
+- Oficina
+- ClosetHabitacionPrincipal
+- Piscina
+- Servicios
+- BañoOficina
+- BañoHabitacionPrincipal
+- Escalera
+- EtudioPiso1
+- Sala
+- Comedor
+- JardinInterior
+- Acceso
+- Deck

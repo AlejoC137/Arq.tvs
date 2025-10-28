@@ -1,14 +1,11 @@
-entregable_nombre,tipo,vistaTipo,escala_tipica,software_utilizado,id,Stage_id,vistaSubTipo
-Diagrama Conceptual,2D/3D,Diagrama,Sin escala,Adobe Suite,0bb66b79-899a-4945-acfb-78d8f25bb327,,
-Sección Constructiva General,2D,Sección,1:50 - 1:75,Revit/AutoCAD,14defac1-fc8e-4d77-a35f-3f18b83d7c1f,,
-Planta Arquitectónica General,2D,Planta,1:75 - 1:100,Revit/AutoCAD,2fae1fdc-c8eb-4763-9a62-1cec66692eba,,
-Detalle Constructivo Específico,2D,Sección/Alzado Detallado,1:5 - 1:20,Revit/AutoCAD,47f2f684-cde9-4ba8-9f44-c522671e1eea,,
-Alzado / Fachada,2D,Alzado,1:50 - 1:100,Revit/AutoCAD,7c378c8f-2fb0-4624-8b5e-1d41856ae2a4,,
-Plano de Localización y Emplazamiento,2D,Planta,1:200 - 1:500,AutoCAD/Revit,8d7134fc-0b68-4ebb-b19b-030249f892e4,,
-Modelo BIM Arquitectónico,3D,Perspectiva/Axonométrica,N/A,Revit,8e7095c5-4655-4e5f-aca7-56019ed20315,,
-Planta Arquitectónica Detallada,2D,Planta,1:50,Revit,8fcd17b3-81f7-4f4f-b70c-0060a3e3de3e,,
-Render Interior,3D,Perspectiva,N/A,Lumion/VRay,ac6c05bf-6c9e-40ae-a83b-d1c68a7f2fe3,,
-Render Exterior,3D,Perspectiva,N/A,Lumion/VRay,d42e80ab-f9df-4d2c-b21a-7ec77221da94,,
-Perspectiva Seccionada,3D,Perspectiva,N/A,SketchUp/Revit,e39a6c58-c870-454f-9eb3-ecdfd1156a7c,,
-Plano de Análisis Urbano,2D,Plano Urbano,1:1000+,AutoCAD/GIS,f15805d6-0a7b-40fd-af11-a9c619f97ee2,,
-Modelo BIM de Coordinación Técnica (MEP),3D,Isométrica,N/A,Revit,f9ad5550-fda0-4c9a-b1b4-432b0f6c41b2,,
+entregable_nombre,Categoria,vistaTipo,escala_tipica,software_utilizado,id,Stage_id,vistaSubTipo
+Plano de Implantación,2D,Planta,1:1000,AutoCAD,0a5cab31-0668-4926-9157-b0ac2e5ba8aa,,
+Planta Arquitectonica,2D,Planta,1:50 - 1:100,AutoCAD,31631857-bb32-4b40-8044-68fe52a6626b,,Arquitectura
+Cuadro de áreas,Documento,Diagrama,NA,Office Suite,632dee84-8823-4bec-8639-e3767b49dc3a,,
+Planta de detalles,2D,Planta,1:10 - 1:50,AutoCAD,87c4a921-0d57-44a6-a44c-bf1d33a5af43,,Detalles
+Modelo Sketch Up,3D,Modelo 3D,NA,SketchUp,97669a59-f880-4c7c-98ee-17b8a9b04ba0,,Modelo
+Render,3D,Perspectiva,NA,SketchUp,9de157ff-c00c-4f71-8783-b570cc915d88,,Exterior
+Sección de detalle,2D,Sección,1:10 - 1:50,AutoCAD,b2252f02-5ea6-4b40-8d65-a15467e884f3,,Detalles
+Presentación,2D/3D,Perspectiva,1:50 - 1:100,,e94cfe78-66c7-490b-b8ed-d5657b996518,,
+Sección Arquitectonica,2D,Planta,1:50 - 1:100,AutoCAD,f4828154-e2bb-478d-b582-47350f09d8ab,,Arquitectura
+Análisis de Material,Documento,Diagrama,NA,Office Suite,f57fe117-3777-481a-9dc2-7ed804055401,,

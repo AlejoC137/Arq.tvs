@@ -34,7 +34,7 @@ const stageTransformer = (data) => {
 const stageActions = createCrudActions('stages', null, {
   selectFields: '*',
   relationships: relationships.stages,
-  orderBy: 'order_index',
+  orderBy: 'name',
   orderDirection: 'asc',
   transformData: stageTransformer,
 });

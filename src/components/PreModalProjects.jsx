@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { Folder } from 'lucide-react';
+import { Folder, Settings } from 'lucide-react';
 import { getAllFromTable } from '../store/actions/actions';
+// CORRECCIÓN AQUÍ: Añade la extensión del archivo .jsx
+import PreModalProjectsConfig from './PreModalProjectsConfig.jsx';
 
 const PreModalProjects = () => {
     const dispatch = useDispatch();
     const [proyectos, setProyectos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // NUEVO ESTADO: Guarda el proyecto que se está configurando.
+    // Si es 'null', el modal está cerrado.
+    const [configuringProject, setConfiguringProject] = useState(null);
 
     useEffect(() => {
         setIsLoading(true);
@@ -28,6 +34,27 @@ const PreModalProjects = () => {
                 setIsLoading(false);
             });
     }, [dispatch]);
+
+    /**
+     * Callback para actualizar el estado local cuando se edita un proyecto
+     * en el modal de configuración.
+     */
+    const handleProjectUpdate = (updatedProject) => {
+        setProyectos(prevProyectos => 
+            prevProyectos.map(p => 
+                p.id === updatedProject.id ? updatedProject : p
+            )
+        );
+        // Importante: Cerramos el modal después de actualizar
+        setConfiguringProject(null);
+    };
+
+    // Función simple para cerrar el modal desde el hijo
+    const handleCloseModal = () => {
+        setConfiguringProject(null);
+    };
+
+    // --- RENDERIZADO ---
 
     if (isLoading) {
         return (
@@ -66,18 +93,36 @@ const PreModalProjects = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {proyectos.map((proyecto) => (
-                        <a
+                        <div
                             key={proyecto.id}
-                            href={`/ProjectTaskModal/${proyecto.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group flex items-center gap-4 bg-white p-5 rounded-xl shadow-md border border-gray-200 transition-all duration-300 hover:shadow-lg hover:border-blue-400 hover:-translate-y-1 cursor-pointer"
+                            className="group flex items-center justify-between gap-4 bg-white p-5 rounded-xl shadow-md border border-gray-200 transition-all duration-300 hover:shadow-lg hover:border-blue-400 hover:-translate-y-1"
                         >
-                            <Folder className="w-8 h-8 text-blue-500 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                            <span className="font-semibold text-lg text-gray-800 truncate">
-                                {proyecto.name}
-                            </span>
-                        </a>
+                            {/* 1. El Enlace: rodea solo el ícono y el nombre */}
+                            <a
+                                href={`/ProjectTaskModal/${proyecto.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-4 flex-grow truncate cursor-pointer"
+                                title={`Abrir ${proyecto.name}`}
+                            >
+                                <Folder className="w-8 h-8 text-blue-500 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                                
+                                <span className="font-semibold text-lg text-gray-800 truncate">
+                                    {proyecto.name}
+                                </span>
+                            </a>
+
+                            {/* 2. Las Acciones: Ahora es un BOTÓN simple */}
+                            <div className="flex-shrink-0">
+                                <button
+                                    onClick={() => setConfiguringProject(proyecto)}
+                                    className="p-2 text-gray-400 rounded-full transition-colors duration-200 hover:bg-gray-200 hover:text-gray-700"
+                                    title={`Configurar ${proyecto.name}`}
+                                >
+                                    <Settings className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
                     ))}
                 </div>
 
@@ -87,6 +132,19 @@ const PreModalProjects = () => {
                     </div>
                 )}
             </div>
+
+            {/*
+              EL MODAL AHORA VIVE AQUÍ
+              Está fuera del 'grid' y del 'map'.
+              Solo se renderiza si 'configuringProject' tiene datos.
+            */}
+            {configuringProject && (
+                <PreModalProjectsConfig 
+                    proyecto={configuringProject}
+                    onClose={handleCloseModal}
+                    onProjectUpdated={handleProjectUpdate}
+                />
+            )}
         </div>
     );
 };

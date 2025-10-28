@@ -1,0 +1,14 @@
+Planta Piso 2 - Casa 2
+Espacios:
+- HabitacionAuxiliar1
+- VestierHabitacionAuxiliar1
+- EstudioPiso2
+- HallPiso2
+- HabitacionPrincipalPiso2
+- ClosetHabitacionPrincipalPiso2
+- HabitacionAuxiliar2
+- TerrazaHabitacionPrincipalPiso2
+- BañoHabitacionAuxiliar
+- ClostHabitacionAuxiliar
+- BañoHabitacionPrincipalPiso2
+- BañoHabitacionAuxiliar1

@@ -1,5 +1,5 @@
 import supabase from '../../config/supabaseClient.js';
-// import { createCrudActionTypes } from '../actionTypes.js';
+import { createCrudActionTypes } from '../actionTypes.js';
 import { getTableName } from '../../config/tableNames.js';
 
 // ========================================
@@ -498,16 +498,17 @@ export const transformers = {
 };
 
 // Standard relationships configurations
+// IMPORTANTE: Usar nombres reales de tablas en Supabase
 export const relationships = {
   projects: [
-    { table: 'staff', fields: 'id,name' },
-    { table: 'stages', fields: 'id,name' }
+    // Proyectos no tiene relaciones por defecto
   ],
   tasks: [
-    { table: 'projects', fields: 'id,name' },
-    { table: 'staff', fields: 'id,name' },
-    { table: 'stages', fields: 'id,name' }
+    // Tareas relacionadas con otras tablas
+    // NOTA: Las relaciones deben configurarse en Supabase primero
+    // Por ahora, no usar relaciones automáticas para evitar errores
   ],
   staff: [],
   stages: [],
+  entregables: [],
 };

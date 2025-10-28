@@ -5,7 +5,6 @@ import {
   User, Calendar, Tag, Plus, Search, ArrowUp, ArrowDown,
   ChevronDown, ChevronRight, Settings
 } from 'lucide-react';
-
 import {
   getAllFromTable,
   updateTask,
@@ -17,6 +16,13 @@ import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
+import Test from './Test';
+
+// Importar componentes de plantas de Casa 2
+import P1Casa2 from './casas/Casa2/p1';
+import P2Casa2 from './casas/Casa2/p2';
+import S1Casa2 from './casas/Casa2/s1';
+import T1Casa2 from './casas/Casa2/t1';
 
 const ESTADOS = {
   PENDIENTE: 'Pendiente',
@@ -49,6 +55,11 @@ const ProjectTaskModal = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  
+  // Estados para plano y filtro de espacio
+  const [selectedPlan, setSelectedPlan] = useState('p2'); // p1, p2, s1, t1
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [showPlanView, setShowPlanView] = useState(true);
 
   const [data, setData] = useState([]);
   const { projects, loading, error } = useSelector((state) => state.projects);
@@ -128,10 +139,26 @@ const ProjectTaskModal = () => {
 
   const filteredAndSortedTasks = useMemo(() => {
     let items = [...projectTasks];
+    
+    // Filtrar por término de búsqueda
     if (searchTerm)
       items = items.filter(task =>
         task.task_description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
+    
+    // Filtrar por espacio seleccionado
+    if (selectedRoom) {
+      items = items.filter(task => {
+        if (!task.acciones) return false;
+        try {
+          const acciones = typeof task.acciones === 'string' ? JSON.parse(task.acciones) : task.acciones;
+          if (!Array.isArray(acciones)) return false;
+          return acciones.some(accion => accion.espacio === selectedRoom);
+        } catch (e) {
+          return false;
+        }
+      });
+    }
 
     const priorityOrder = { 'Alta': 5, 'Media-Alta': 4, 'Media': 3, 'Media-Baja': 2, 'Baja': 1, 'undefined': 0 };
     items.sort((a, b) => {
@@ -148,7 +175,7 @@ const ProjectTaskModal = () => {
       return 0;
     });
     return items;
-  }, [projectTasks, sortConfig, searchTerm]);
+  }, [projectTasks, sortConfig, searchTerm, selectedRoom]);
 
   const selectedProject = projects.find(p => p.id === id);
 
@@ -624,8 +651,110 @@ const ProjectTaskModal = () => {
     );
   });
 
+  const renderPlanView = () => {
+    const planProps = {
+      onRoomSelect: (room) => {
+        setSelectedRoom(room);
+        console.log('Espacio seleccionado:', room);
+      },
+      selectedRoom
+    };
+
+    switch (selectedPlan) {
+      case 'p1':
+        return <P1Casa2 {...planProps} />;
+      case 'p2':
+        return <P2Casa2 {...planProps} />;
+      case 's1':
+        return <S1Casa2 {...planProps} />;
+      case 't1':
+        return <T1Casa2 {...planProps} />;
+      default:
+        return <P2Casa2 {...planProps} />;
+    }
+  };
+
   return (
-    <div className="h-screen bg-gray-50 flex flex-col p-4 md:p-8 gap-6">
+    <div className="h-screen bg-gray-50 flex p-4 md:p-8 gap-6">
+      {/* Panel izquierdo: Vista de planos */}
+      {showPlanView && (
+        <div className="w-1/2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <h2 className="text-xl font-bold text-gray-800">Planos - Casa 2</h2>
+            <button
+              onClick={() => {
+                setShowPlanView(false);
+                setSelectedRoom(null);
+              }}
+              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              Cerrar
+            </button>
+          </div>
+          
+          <div className="p-4 border-b border-gray-200 flex gap-2 flex-shrink-0">
+            <button
+              onClick={() => setSelectedPlan('p1')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                selectedPlan === 'p1'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
+            >
+              Planta P1
+            </button>
+            <button
+              onClick={() => setSelectedPlan('p2')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                selectedPlan === 'p2'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
+            >
+              Planta P2
+            </button>
+            <button
+              onClick={() => setSelectedPlan('s1')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                selectedPlan === 's1'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
+            >
+              Sección S1
+            </button>
+            <button
+              onClick={() => setSelectedPlan('t1')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                selectedPlan === 't1'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
+            >
+              Técnico T1
+            </button>
+          </div>
+          
+          {selectedRoom && (
+            <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-800">Filtrando por: {selectedRoom}</span>
+              <button
+                onClick={() => setSelectedRoom(null)}
+                className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+              >
+                Limpiar filtro
+              </button>
+            </div>
+          )}
+          
+          <div className="flex-grow overflow-auto">
+            {renderPlanView()}
+          </div>
+        </div>
+      )}
+
+      {/* Panel derecho: Lista de tareas */}
+      <div className="flex-1 flex flex-col gap-6">
       <FormTask
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
@@ -715,12 +844,24 @@ const ProjectTaskModal = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => setIsFormOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
-          >
-            <Plus size={18} /> Nueva Tarea
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowPlanView(!showPlanView)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold ${
+                showPlanView
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {showPlanView ? '✓ Planos' : 'Ver Planos'}
+            </button>
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+            >
+              <Plus size={18} /> Nueva Tarea
+            </button>
+          </div>
         </div>
 
         <div className="divide-y divide-gray-200 overflow-y-auto">
@@ -753,6 +894,7 @@ const ProjectTaskModal = () => {
           handleDuplicateTasks={handleDuplicateTasks}
           deselectAll={deselectAll}
         />
+      </div>
       </div>
     </div>
   );
