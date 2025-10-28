@@ -6,7 +6,7 @@ import './index.css';
 import ProjectTaskModal from './components/ProjectTaskModal';
 import StaffTaskModal from './components/StaffTaskModal';
 import Test from './components/Test.jsx';
-import Materiales from './components/Materiales.jsx'; // <— nuevo
+import Materiales from './components/Materiales.jsx'; // <- incluida la vista de Materiales
 
 import { getEnabledTabs, getDefaultRoute } from './config/navigationConfig';
 
@@ -116,8 +116,6 @@ function App() {
             {navigationItems.map((item) => (
               <NavLink key={item.id} item={item} />
             ))}
-            {/* Enlace directo a Materiales si no viene de config */}
-            <NavLink item={{ id: 'materiales', path: '/materiales', label: 'Materiales', icon: HomeIcon }} />
           </div>
         </nav>
 
@@ -163,7 +161,12 @@ function App() {
             >
               <Upload size={16} />
               <span className="text-xs">Cargar</span>
-              <input type="file" accept=".json" onChange={loadFromFile} className="hidden" />
+              <input
+                type="file"
+                accept=".json"
+                onChange={loadFromFile}
+                className="hidden"
+              />
             </label>
           </div>
         </div>
@@ -183,9 +186,8 @@ function App() {
             <Route path="/ProjectTaskModal/:id" element={<ProjectTaskModal />} />
             <Route path="/StaffTaskModal/:staffId" element={<StaffTaskModal />} />
             <Route path="/Test" element={<Test />} />
-
-            {/* Materiales */}
-            <Route path="/materiales" element={<Materiales />} />
+            {/* Ruta directa para Materiales */}
+            <Route path="/Materiales" element={<Materiales />} />
 
             {/* Rutas dinámicas desde configuración */}
             {navigationItems.map((item) => (
@@ -195,9 +197,6 @@ function App() {
                 element={<item.component data={data} setData={setData} />}
               />
             ))}
-
-            {/* Fallback 404 simple */}
-            <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
           </Routes>
         </Suspense>
       </div>
