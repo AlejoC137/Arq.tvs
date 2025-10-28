@@ -17,6 +17,7 @@ import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
+import { ESPACIOS_HABITACIONES } from '../constants/espacios';
 
 const ESTADOS = {
   PENDIENTE: 'Pendiente',
@@ -250,6 +251,21 @@ const StaffTaskModal = () => {
               <option value="">-- Seleccionar --</option>
               {options.map(option => (
                 <option key={option.id} value={option.id}>{option.entregable_nombre}</option>
+              ))}
+            </select>
+          );
+        case 'espacio-select':
+          return (
+            <select
+              value={editValue || ''}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
+              className="w-full p-1 border rounded focus:outline-none"
+              autoFocus
+            >
+              <option value="">-- Sin Asignar --</option>
+              {options.map(option => (
+                <option key={option.id} value={option.id}>{option.name}</option>
               ))}
             </select>
           );
@@ -552,7 +568,7 @@ const StaffTaskModal = () => {
 
         {isExpanded && (
           <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true" data-print-fields="true">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true" data-print-fields="true">
               <div className="print-row">
                 <label className="font-medium text-gray-500">Proyecto</label>
                 <EditableCell rowId={task.id} field="project_id" value={task.project_id} type="select" options={projects} />
@@ -572,6 +588,10 @@ const StaffTaskModal = () => {
               <div className="print-row">
                 <label className="font-medium text-gray-500">Progreso</label>
                 <EditableCell rowId={task.id} field="Progress" value={task.Progress} type="progress" />
+              </div>
+              <div className="print-row">
+                <label className="font-medium text-gray-500">Espacio</label>
+                <EditableCell rowId={task.id} field="espacio" value={task.espacio} type="espacio-select" options={ESPACIOS_HABITACIONES.map(e => ({id: e, name: e}))} />
               </div>
             </div>
 

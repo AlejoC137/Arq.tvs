@@ -4,38 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useDispatch } from 'react-redux';
 import { Plus, Trash2 } from 'lucide-react';
 import { updateTask } from '../store/actions/actions';
-
-// Lista de espacios predefinida
-const ESPACIOS_HABITACIONES = [
-  'HabitacionPrincipal',
-  'Cocina',
-  'BalconOficina',
-  'Oficina',
-  'ClosetHabitacionPrincipal',
-  'Piscina',
-  'Servicios',
-  'BañoOficina',
-  'BañoHabitacionPrincipal',
-  'Escalera',
-  'EtudioPiso1',
-  'Sala',
-  'Comedor',
-  'JardinInterior',
-  'Acceso',
-  'Deck',
-  'HabitacionAuxiliar1',
-  'VestierHabitacionAuxiliar1',
-  'EstudioPiso2',
-  'HallPiso2',
-  'HabitacionPrincipalPiso2',
-  'ClosetHabitacionPrincipalPiso2',
-  'HabitacionAuxiliar2',
-  'TerrazaHabitacionPrincipalPiso2',
-  'BañoHabitacionAuxiliar',
-  'ClostHabitacionAuxiliar',
-  'BañoHabitacionPrincipalPiso2',
-  'BañoHabitacionAuxiliar1'
-];
+import { ESPACIOS_HABITACIONES } from '../constants/espacios';
 
 // Debounce para no llamar a la API en cada tecleo
 const debounce = (func, delay) => {

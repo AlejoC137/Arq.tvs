@@ -4,9 +4,12 @@ import { FloorPlan1 } from '../../FloorPlan1';
 
 const P1Casa2 = ({ onRoomSelect, selectedRoom }) => {
   const handleRoomClick = (roomId) => {
-    console.log(`Casa 2 - Piso 1, Habitación seleccionada: ${roomId}`);
+    console.log('[P1Casa2] Habitación clickeada:', roomId);
+    console.log('[P1Casa2] onRoomSelect exists?', !!onRoomSelect);
     if (onRoomSelect) {
       onRoomSelect(roomId);
+    } else {
+      console.warn('[P1Casa2] onRoomSelect no está definido!');
     }
   };
 

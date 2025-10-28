@@ -89,6 +89,13 @@ const TaskItem = ({ task, staff, stages, entregables, onUpdateCell, isSelected, 
                             <label className="font-medium text-gray-500">Entregable</label>
                             <EditableCell rowId={task.id} field="entregable_id" value={task.entregable_id} type="entregable-select" options={entregables} />
                         </div>
+                        <div>
+                            <label className="font-medium text-gray-500">Espacio</label>
+                            <div className="p-1 min-h-[28px] flex items-center gap-2">
+                                <Tag size={14} className="text-gray-400" />
+                                <span className="text-gray-700">{task.espacio || 'Sin asignar'}</span>
+                            </div>
+                        </div>
                          <div className="md:col-span-2 lg:col-span-3">
                             <label className="font-medium text-gray-500">Fechas</label>
                             {/* <DatesManager task={task} onSave={(rowId, data) => onUpdateCell(rowId, { dates: JSON.stringify(data) })} /> */}

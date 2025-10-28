@@ -17,6 +17,7 @@ import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
 import Test from './Test';
+import { ESPACIOS_HABITACIONES } from '../constants/espacios';
 
 // Importar componentes de plantas de Casa 2
 import P1Casa2 from './casas/Casa2/p1';
@@ -146,9 +147,14 @@ const ProjectTaskModal = () => {
         task.task_description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     
-    // Filtrar por espacio seleccionado
+    // Filtrar por espacio seleccionado: consideramos tanto el campo directo `task.espacio`
+    // como las `acciones` (que históricamente almacenaban el espacio por acción).
     if (selectedRoom) {
       items = items.filter(task => {
+        // Si la tarea tiene el campo 'espacio' y coincide, incluirla
+        if (task.espacio === selectedRoom) return true;
+
+        // Si no, intentar buscar dentro de task.acciones (stringified o array)
         if (!task.acciones) return false;
         try {
           const acciones = typeof task.acciones === 'string' ? JSON.parse(task.acciones) : task.acciones;
@@ -264,6 +270,21 @@ const ProjectTaskModal = () => {
               <option value="">-- Seleccionar --</option>
               {options.map(option => (
                 <option key={option.id} value={option.id}>{option.entregable_nombre}</option>
+              ))}
+            </select>
+          );
+        case 'espacio-select':
+          return (
+            <select
+              value={editValue || ''}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave} onKeyDown={handleKeyPress}
+              className="w-full p-1 border rounded focus:outline-none"
+              autoFocus
+            >
+              <option value="">-- Sin Asignar --</option>
+              {options.map(option => (
+                <option key={option.id} value={option.id}>{option.name}</option>
               ))}
             </select>
           );
@@ -543,6 +564,20 @@ const ProjectTaskModal = () => {
               />
             </div>
 
+              {/* Selector de Espacio visible en la fila principal */}
+              <div className="flex items-center gap-2" title="Espacio">
+                <select
+                  value={task.espacio || ''}
+                  onChange={(e) => updateCell(task.id, { espacio: e.target.value || null })}
+                  className="border border-gray-300 rounded-lg py-1 px-2 text-sm bg-white"
+                >
+                  <option value="">-- Sin Asignar --</option>
+                  {ESPACIOS_HABITACIONES.map(e => (
+                    <option key={e} value={e}>{e}</option>
+                  ))}
+                </select>
+              </div>
+
             <button
               onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
@@ -581,6 +616,10 @@ const ProjectTaskModal = () => {
               <div className="print-row">
                 <label className="font-medium text-gray-500">Progreso</label>
                 <EditableCell rowId={task.id} field="Progress" value={task.Progress} type="progress" />
+              </div>
+              <div className="print-row">
+                <label className="font-medium text-gray-500">Espacio</label>
+                <EditableCell rowId={task.id} field="espacio" value={task.espacio} type="espacio-select" options={ESPACIOS_HABITACIONES.map(e => ({id: e, name: e}))} />
               </div>
             </div>
 

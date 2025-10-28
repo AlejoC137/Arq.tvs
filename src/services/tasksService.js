@@ -91,7 +91,8 @@ export const tasksService = {
           notes: taskData.notes || '',
           project_id: taskData.project_id || null,
           staff_id: taskData.staff_id || null,
-          stage_id: taskData.stage_id || null
+          stage_id: taskData.stage_id || null,
+          espacio: taskData.espacio || null
         }])
         .select(`
           *,
@@ -129,7 +130,8 @@ export const tasksService = {
           notes: taskData.notes,
           project_id: taskData.project_id,
           staff_id: taskData.staff_id,
-          stage_id: taskData.stage_id
+          stage_id: taskData.stage_id,
+          espacio: taskData.espacio
         })
         .eq('id', id)
         .select(`

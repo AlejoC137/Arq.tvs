@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Save, X } from 'lucide-react';
+import { ESPACIOS_HABITACIONES } from '../constants/espacios';
 
 // Estado inicial del formulario
 const initialState = {
@@ -11,6 +12,7 @@ const initialState = {
     stage_id: '',
     entregable_id: '',
     Progress: 0,
+    espacio: '',
     // Se inicializa con una estructura de fecha válida
     dates: JSON.stringify({
         assignDate: '',
@@ -129,6 +131,14 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
                             <select id="stage_id" name="stage_id" value={formData.stage_id} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none">
                                 {/* CAMBIO: Se añade optional chaining para evitar el error */}
                                 {stages?.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label htmlFor="espacio" className="block text-sm font-medium text-gray-700 mb-1">Espacio</label>
+                            <select id="espacio" name="espacio" value={formData.espacio} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none">
+                                <option value="">-- Sin Asignar --</option>
+                                {ESPACIOS_HABITACIONES.map(espacio => (<option key={espacio} value={espacio}>{espacio}</option>))}
                             </select>
                         </div>
                   
