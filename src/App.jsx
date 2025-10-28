@@ -11,6 +11,7 @@ import ProjectTaskModal from './components/ProjectTaskModal';
 import StaffTaskModal from './components/StaffTaskModal';
 import Test from './components/Test.jsx';
 import { getEnabledTabs, getDefaultRoute } from './config/navigationConfig';
+import Materiales from './components/Materiales.jsx'; // <- incluida la vista de Materiales
 
 function App() {
   const [data, setData] = useState([]);
@@ -185,7 +186,7 @@ function App() {
               <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
               <Route path="/ProjectTaskModal/:id" element={<ProjectTaskModal />} />
               <Route path="/StaffTaskModal/:staffId" element={<StaffTaskModal />} />
-              <Route path="/Test" element={<Test />} />
+              <Route path="/Materiales" element={<Materiales />} />
               
               {/* Rutas dinámicas desde configuración */}
               {navigationItems.map((item) => (
