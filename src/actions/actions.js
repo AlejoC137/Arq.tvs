@@ -50,7 +50,7 @@ export const getAllFromTable = (tableName) => async (dispatch) => {
 export const updateMaterial = (id, updates) => async (dispatch) => {
   try {
     const { data, error } = await supabase
-      .from('Material')
+      .from('Materiales')
       .update(updates)
       .eq('id', id)
       .select()
