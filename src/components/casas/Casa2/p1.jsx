@@ -2,7 +2,7 @@
 import React from 'react';
 import { FloorPlan1 } from '../../FloorPlan1';
 
-const P1Casa2 = ({ onRoomSelect, selectedRoom }) => {
+const P1Casa2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
   const handleRoomClick = (roomId) => {
     console.log('[P1Casa2] Habitación clickeada:', roomId);
     console.log('[P1Casa2] onRoomSelect exists?', !!onRoomSelect);
@@ -20,6 +20,7 @@ const P1Casa2 = ({ onRoomSelect, selectedRoom }) => {
         <FloorPlan1
           selectedRoom={selectedRoom}
           onRoomClick={handleRoomClick}
+          tasks={tasks}
         />
       </div>
     </div>

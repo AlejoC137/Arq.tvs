@@ -136,6 +136,13 @@ export function createInTable(tableName, data) {
 }
 
 /**
+ * Generic function to create a row in any table (alias for createInTable)
+ */
+export function createRow(tableName, data) {
+  return createInTable(tableName, data);
+}
+
+/**
  * Generic function to update in any table
  */
 export function updateInTable(tableName, id, updates) {

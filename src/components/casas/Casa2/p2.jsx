@@ -1,8 +1,8 @@
 // ARCHIVO: p2.jsx - Planta Piso 2 para Casa 2
 import React from 'react';
-import { FloorPlan2 } from '../../FloorPlan2';
+import { FloorPlan2 } from '../../FloorPlan2Enhanced';
 
-const P2Casa2 = ({ onRoomSelect, selectedRoom }) => {
+const P2Casa2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
   const handleRoomClick = (roomId) => {
     console.log('[P2Casa2] Habitación clickeada:', roomId);
     console.log('[P2Casa2] onRoomSelect exists?', !!onRoomSelect);
@@ -20,6 +20,7 @@ const P2Casa2 = ({ onRoomSelect, selectedRoom }) => {
         <FloorPlan2
           selectedRoom={selectedRoom}
           onRoomClick={handleRoomClick}
+          tasks={tasks}
         />
       </div>
     </div>

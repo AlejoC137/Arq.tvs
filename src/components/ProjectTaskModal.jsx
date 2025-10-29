@@ -16,14 +16,9 @@ import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
-import Test from './Test';
 import { ESPACIOS_HABITACIONES } from '../constants/espacios';
-
-// Importar componentes de plantas de Casa 2
-import P1Casa2 from './casas/Casa2/p1';
-import P2Casa2 from './casas/Casa2/p2';
-import S1Casa2 from './casas/Casa2/s1';
-import T1Casa2 from './casas/Casa2/t1';
+import { PlansViewer, ProjectHeader, TasksToolbar } from './ProjectPlans';
+import { hasProjectPlans } from '../config/projectPlansConfig';
 
 const ESTADOS = {
   PENDIENTE: 'Pendiente',
@@ -59,9 +54,8 @@ const ProjectTaskModal = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   // Estados para plano y filtro de espacio
-  const [selectedPlan, setSelectedPlan] = useState('p2'); // p1, p2, s1, t1
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [showPlanView, setShowPlanView] = useState(true);
+  const [showPlanView, setShowPlanView] = useState(false); // Iniciar cerrado por defecto
 
   const [data, setData] = useState([]);
   const { projects, loading, error } = useSelector((state) => state.projects);
@@ -179,6 +173,13 @@ const ProjectTaskModal = () => {
   }, [projectTasks, sortConfig, searchTerm, selectedRoom]);
 
   const selectedProject = projects.find(p => p.id === id);
+  
+  // Auto-abrir vista de planos si el proyecto tiene planos configurados
+  useEffect(() => {
+    if (selectedProject && hasProjectPlans(selectedProject)) {
+      setShowPlanView(true);
+    }
+  }, [selectedProject]);
 
   if (loading && !selectedProject) return <div className="p-8 text-center">Cargando...</div>;
   if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
@@ -681,112 +682,27 @@ const ProjectTaskModal = () => {
     );
   });
 
-  const renderPlanView = () => {
-    const planProps = {
-      onRoomSelect: (room) => {
-        setSelectedRoom(room);
-        console.log('Espacio seleccionado:', room);
-      },
-      selectedRoom
-    };
-
-    switch (selectedPlan) {
-      case 'p1':
-        return <P1Casa2 {...planProps} />;
-      case 'p2':
-        return <P2Casa2 {...planProps} />;
-      case 's1':
-        return <S1Casa2 {...planProps} />;
-      case 't1':
-        return <T1Casa2 {...planProps} />;
-      default:
-        return <P2Casa2 {...planProps} />;
-    }
-  };
 
   return (
     <div className="h-screen bg-gray-50 p-4 md:p-8">
-      {/* GRID principal: 2/3 (planos) + 1/3 (tareas) en md+ */}
       <div className={`grid gap-6 h-full ${showPlanView ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1'}`}>
         {/* Panel izquierdo: Vista de planos => 2/3 */}
         {showPlanView && (
-          <div className="md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden min-h-0">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-xl font-bold text-gray-800">Planos - Casa 2</h2>
-              <button
-                onClick={() => {
-                  setShowPlanView(false);
-                  setSelectedRoom(null);
-                }}
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-              >
-                Cerrar
-              </button>
-            </div>
-            
-            <div className="p-4 border-b border-gray-200 flex gap-2 flex-shrink-0">
-              <button
-                onClick={() => setSelectedPlan('p1')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedPlan === 'p1'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                Planta P1
-              </button>
-              <button
-                onClick={() => setSelectedPlan('p2')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedPlan === 'p2'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                Planta P2
-              </button>
-              <button
-                onClick={() => setSelectedPlan('s1')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedPlan === 's1'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                Sección S1
-              </button>
-              <button
-                onClick={() => setSelectedPlan('t1')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  selectedPlan === 't1'
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                Técnico T1
-              </button>
-            </div>
-            
-            {selectedRoom && (
-              <div className="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
-                <span className="text-sm font-medium text-blue-800">Filtrando por: {selectedRoom}</span>
-                <button
-                  onClick={() => setSelectedRoom(null)}
-                  className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                >
-                  Limpiar filtro
-                </button>
-              </div>
-            )}
-            
-            <div className="flex-grow overflow-auto">
-              {renderPlanView()}
-            </div>
+          <div className="md:col-span-2 flex flex-col overflow-hidden min-h-0">
+            <PlansViewer
+              project={selectedProject}
+              selectedRoom={selectedRoom}
+              onRoomSelect={setSelectedRoom}
+              onClose={() => {
+                setShowPlanView(false);
+                setSelectedRoom(null);
+              }}
+            />
           </div>
         )}
 
         {/* Panel derecho: Lista de tareas => 1/3 */}
-        <div className={`${showPlanView ? 'md:col-span-1' : 'col-span-1'} flex flex-col min-h-0`}>
+        <div className={`${showPlanView ? 'md:col-span-1' : 'col-span-1'} flex flex-col gap-6 min-h-0`}>
           <FormTask
             isOpen={isFormOpen}
             onClose={() => setIsFormOpen(false)}
@@ -798,106 +714,26 @@ const ProjectTaskModal = () => {
             estados={ESTADOS}
           />
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex-shrink-0">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">{selectedProject.name}</h1>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-600">Cliente</p>
-                  <p className="text-gray-800">{selectedProject.client_name || 'No especificado'}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-600">Fechas</p>
-                  <p className="text-gray-800">{`Inicio: ${selectedProject.start_date || 'N/A'} | Fin: ${selectedProject.end_date || 'N/A'}`}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-gray-600">Estado Actual</p>
-                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                    {selectedProject.status || 'No definido'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium text-gray-600">Progreso General</span>
-                <span className="text-sm font-bold text-blue-600">{projectProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${projectProgress}%` }}></div>
-              </div>
-            </div>
-          </div>
+          <ProjectHeader project={selectedProject} projectProgress={projectProgress} />
 
           {/* Área scroll con lista de tareas + acciones abajo */}
           <div className="flex-1 grid grid-rows-[1fr_auto] gap-6 min-h-0">
             {/* Lista de tareas */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col min-h-0">
-              <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-4 flex-shrink-0">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar tareas..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="sort-select" className="text-sm font-medium text-gray-600">Ordenar por:</label>
-                    <select
-                      id="sort-select"
-                      value={sortConfig.key}
-                      onChange={(e) => setSortConfig({ ...sortConfig, key: e.target.value })}
-                      className="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Priority">Prioridad</option>
-                      <option value="task_description">Nombre Tarea</option>
-                      <option value="status">Estado</option>
-                    </select>
-                    <button
-                      onClick={() =>
-                        setSortConfig({
-                          ...sortConfig,
-                          direction: sortConfig.direction === 'ascending' ? 'descending' : 'ascending'
-                        })
-                      }
-                      className="p-2 border rounded-lg hover:bg-gray-100"
-                    >
-                      {sortConfig.direction === 'ascending' ? <ArrowUp className="w-5 h-5" /> : <ArrowDown className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowPlanView(!showPlanView)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold ${
-                      showPlanView
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {showPlanView ? '✓ Planos' : 'Ver Planos'}
-                  </button>
-                  <button
-                    onClick={() => setIsFormOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
-                  >
-                    <Plus size={18} /> Nueva Tarea
-                  </button>
-                </div>
-              </div>
+              <TasksToolbar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                sortConfig={sortConfig}
+                onSortChange={(key) => setSortConfig({ ...sortConfig, key })}
+                onToggleDirection={() => setSortConfig({
+                  ...sortConfig,
+                  direction: sortConfig.direction === 'ascending' ? 'descending' : 'ascending'
+                })}
+                onNewTask={() => setIsFormOpen(true)}
+                project={selectedProject}
+                showPlanView={showPlanView}
+                onTogglePlanView={() => setShowPlanView(!showPlanView)}
+              />
 
               <div className="divide-y divide-gray-200 overflow-y-auto">
                 {filteredAndSortedTasks.map(task => (

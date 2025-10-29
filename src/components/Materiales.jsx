@@ -7,8 +7,11 @@ import { updateMaterial } from "../actions/actions";
 
 import {
   Search, Columns, Save, Pencil, Check, X, RefreshCcw,
-  ArrowUp, ArrowDown, Eye, EyeOff, Undo2
+  ArrowUp, ArrowDown, Eye, EyeOff, Undo2, Plus // <-- Se añadió 'Plus'
 } from 'lucide-react';
+
+// Importa el nuevo componente
+import MaterialCreador from './MaterialCreador'; 
 
 const INTERNAL_KEYS = new Set([
   'id', 'created_at', 'updated_at', 'createdAt', 'updatedAt', '_id'
@@ -16,6 +19,58 @@ const INTERNAL_KEYS = new Set([
 
 const isNumberish = (v) => v !== null && v !== '' && !isNaN(Number(v));
 const isBoolean = (v) => typeof v === 'boolean';
+
+// --- FUNCIÓN DE FORMATO (sin cambios) ---
+const formatDisplayValue = (value, key) => {
+  const lowerKey = key.toLowerCase();
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-gray-400">N/A</span>;
+  }
+  if (isBoolean(value)) {
+    return value ? 'Sí' : 'No';
+  }
+  if (lowerKey === 'imagen_url' && typeof value === 'string' && value.startsWith('http')) {
+    return <img src={value} alt="imagen" className="w-16 h-10 object-cover rounded" />;
+  }
+  if (isNumberish(value)) {
+    const num = Number(value);
+    const currencyKeys = ['costo', 'precio', 'valor', 'total', 'subtotal'];
+    if (currencyKeys.some(k => lowerKey.includes(k))) {
+      return num.toLocaleString('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      });
+    }
+    if (lowerKey.includes('_mm') || ['espesor', 'grosor'].includes(lowerKey)) {
+      return `${num.toLocaleString('es-CO')} mm`;
+    }
+    if (lowerKey.includes('_m2') || ['area', 'superficie'].includes(lowerKey)) {
+      return `${num.toLocaleString('es-CO')} m²`;
+    }
+    if (lowerKey.includes('_m') || ['ancho', 'largo', 'alto', 'profundidad', 'longitud'].includes(lowerKey)) {
+      return `${num.toLocaleString('es-CO')} m`;
+    }
+    if (lowerKey.includes('_kg') || ['peso'].includes(lowerKey)) {
+      return `${num.toLocaleString('es-CO')} kg`;
+    }
+    if (lowerKey.includes('_und') || ['unidad', 'unidades'].includes(lowerKey)) {
+      return `${num.toLocaleString('es-CO')} und`;
+    }
+    const plainNumberKeys = ['stock', 'cantidad'];
+    if (plainNumberKeys.some(k => lowerKey.includes(k))) {
+      return num.toLocaleString('es-CO', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2, 
+      });
+    }
+    return num.toLocaleString('es-CO');
+  }
+  return String(value);
+};
+// --- FIN DE LA FUNCIÓN DE FORMATO ---
+
 
 const Materiales = () => {
   const dispatch = useDispatch();
@@ -28,12 +83,15 @@ const Materiales = () => {
   const [debounced, setDebounced] = useState('');
 
   const [editMode, setEditMode] = useState(false);
-  const [edits, setEdits] = useState({});      // { [rowId]: { campo: valor, ... } }
-  const [dirty, setDirty] = useState(new Set()); // ids con cambios locales
+  const [edits, setEdits] = useState({});      
+  const [dirty, setDirty] = useState(new Set()); 
 
   const [sort, setSort] = useState({ key: 'nombre', dir: 'asc' });
   const [colPickerOpen, setColPickerOpen] = useState(false);
-  const [visibleCols, setVisibleCols] = useState({}); // { key: true/false }
+  const [visibleCols, setVisibleCols] = useState({});
+  
+  // --- NUEVO ESTADO para el modal creador ---
+  const [isCreatorOpen, setIsCreatorOpen] = useState(false);
 
   // Cargar datos
   const fetchData = useCallback(async () => {
@@ -45,14 +103,13 @@ const Materiales = () => {
       const arr = Array.isArray(payload) ? payload : [];
       setRows(arr);
 
-      // Inicializar columnas visibles: todas menos internas
+      // (Lógica de inicialización de columnas - sin cambios)
       const allKeys = new Set();
       arr.forEach(r => Object.keys(r || {}).forEach(k => allKeys.add(k)));
       const initial = {};
       Array.from(allKeys).forEach(k => {
         initial[k] = !INTERNAL_KEYS.has(k);
       });
-      // Si no tiene 'nombre', intenta usar la primera no-interna
       if (!('nombre' in initial) && allKeys.size > 0) {
         const first = Array.from(allKeys).find(k => !INTERNAL_KEYS.has(k));
         if (first) initial[first] = true;
@@ -68,19 +125,16 @@ const Materiales = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Debounce búsqueda
+  // (Hooks de debounce, columns, activeCols, filtered, sorted, toggleSort - sin cambios)
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim().toLowerCase()), 200);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Columnas disponibles (orden estable con heurística)
   const columns = useMemo(() => {
     const keySet = new Set();
     rows.forEach(r => Object.keys(r || {}).forEach(k => keySet.add(k)));
     const keys = Array.from(keySet);
-
-    // Heurística para ordenar: nombre, categoria, unidad, costo, precio, stock, proveedor, codigo, notas
     const pref = ['nombre', 'categoria', 'unidad', 'costo', 'precio', 'stock', 'proveedor', 'codigo', 'notas', 'imagen_url'];
     const byPref = (a, b) => {
       const ia = pref.indexOf(a); const ib = pref.indexOf(b);
@@ -89,7 +143,6 @@ const Materiales = () => {
       if (ib === -1) return -1;
       return ia - ib;
     };
-
     return keys.sort(byPref);
   }, [rows]);
 
@@ -98,19 +151,17 @@ const Materiales = () => {
     [columns, visibleCols]
   );
 
-  // Buscar
   const filtered = useMemo(() => {
     if (!debounced) return rows;
     return rows.filter(r => {
       return columns.some(k => {
-        if (!visibleCols[k]) return false; // buscar solo entre columnas activas
+        if (!visibleCols[k]) return false;
         const val = r?.[k];
         return String(val ?? '').toLowerCase().includes(debounced);
       });
     });
   }, [rows, columns, debounced, visibleCols]);
 
-  // Ordenar
   const sorted = useMemo(() => {
     const arr = [...filtered];
     const { key, dir } = sort;
@@ -136,21 +187,17 @@ const Materiales = () => {
       return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
     });
   };
-
-  // Edición (Inputs controlados)
+  
+  // (Lógica de edición: onCellChange, revertRow, saveAll - sin cambios)
   const onCellChange = (rowId, key, newVal, isNumeric = false) => {
     let finalVal = newVal;
     if (isNumeric) {
       finalVal = newVal === '' ? null : Number(newVal);
     }
-    
     setEdits(prev => {
       const nextRow = { ...(prev[rowId] || {}) };
       nextRow[key] = finalVal;
-      return {
-        ...prev,
-        [rowId]: nextRow
-      };
+      return { ...prev, [rowId]: nextRow };
     });
     setDirty(prev => new Set(prev).add(rowId));
   };
@@ -173,33 +220,24 @@ const Materiales = () => {
     try {
       setLoading(true);
       setError(null);
-      
       const savePromises = Array.from(dirty).map(async (rowId) => {
         const changes = edits[rowId];
         if (!changes || Object.keys(changes).length === 0) return;
-
-        // Intenta updateMaterial (del import ../actions/actions)
         if (typeof updateMaterial === 'function') {
            await dispatch(updateMaterial(rowId, changes));
         }
-        // Fallback a updateRow (del import ../store/actions/actions)
         else if (typeof updateRow === 'function') {
           await dispatch(updateRow('Materiales', rowId, changes));
         } else {
-          // Si ninguna acción está disponible
           throw new Error('No se encontró una función de actualización (updateMaterial o updateRow).');
         }
       });
-
       const results = await Promise.allSettled(savePromises);
-      
       const failed = results.filter(r => r.status === 'rejected');
       if (failed.length > 0) {
         console.error('Fallaron algunas actualizaciones:', failed.map(f => f.reason));
         setError(`Error al guardar ${failed.length} fila(s). Revise la consola para más detalles.`);
-        // No limpiamos el dirty state si algo falla, para que el usuario pueda reintentar
       } else {
-        // Todo salió bien, refrescar y limpiar
         await fetchData();
         setEdits({});
         setDirty(new Set());
@@ -213,13 +251,14 @@ const Materiales = () => {
     }
   };
 
+
   // --- Render helpers ---
 
   const SortIcon = ({ col }) =>
     sort.key === col ? (sort.dir === 'asc' ? <ArrowUp className="w-4 h-4 inline" /> : <ArrowDown className="w-4 h-4 inline" />)
       : <span className="opacity-40"> </span>;
 
-  // Hook simple de "click outside"
+  // (Hook y componente ColumnPicker - sin cambios)
   const useClickOutside = (ref, callback) => {
     useEffect(() => {
       const handleClickOutside = (event) => {
@@ -295,20 +334,6 @@ const Materiales = () => {
     );
   };
 
-  // Helper para renderizar celdas (lectura)
-  const renderCellContent = (value, key) => {
-    if (value === null || value === undefined) {
-      return <span className="text-gray-400">N/A</span>;
-    }
-    if (key === 'imagen_url' && typeof value === 'string' && value.startsWith('http')) {
-      return <img src={value} alt="imagen" className="w-16 h-10 object-cover rounded" />;
-    }
-    if (isBoolean(value)) {
-      return value ? 'Sí' : 'No';
-    }
-    return String(value);
-  };
-
   return (
     <div className="h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-[1800px] mx-auto h-full flex flex-col gap-6">
@@ -319,6 +344,7 @@ const Materiales = () => {
             <p className="text-sm text-gray-500">Lista tipo Excel desde la tabla <span className="font-semibold">Materiales</span></p>
           </div>
 
+          {/* --- BARRA DE BOTONES MODIFICADA --- */}
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -332,6 +358,17 @@ const Materiales = () => {
             </div>
 
             <ColumnPicker />
+
+            {/* --- NUEVO BOTÓN PARA CREAR --- */}
+            <button
+              onClick={() => setIsCreatorOpen(true)}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+              title="Crear nuevo material"
+            >
+              <Plus className="w-4 h-4" />
+              Crear Material
+            </button>
+            {/* --- FIN NUEVO BOTÓN --- */}
 
             <button
               onClick={() => setEditMode(m => !m)}
@@ -364,7 +401,7 @@ const Materiales = () => {
           </div>
         </div>
 
-        {/* Tabla */}
+        {/* Tabla (Sin cambios) */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-auto relative">
           {loading && (
             <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-20">
@@ -442,12 +479,12 @@ const Materiales = () => {
                           <td key={k} className="px-3 py-2 align-top">
                             {isReadOnly ? (
                               <div className="min-h-[36px] flex items-center text-gray-800">
-                                {renderCellContent(value, k)}
+                                {formatDisplayValue(value, k)}
                               </div>
                             ) : isNum ? (
                               <input
                                 type="number"
-                                value={value ?? ''}
+                                value={value ?? ''} 
                                 onChange={(e) => onCellChange(rowId, k, e.target.value, true)}
                                 className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                               />
@@ -478,7 +515,7 @@ const Materiales = () => {
           
         </div>
 
-        {/* Footer info */}
+        {/* Footer info (Sin cambios) */}
         <div className="text-xs text-gray-500 flex items-center gap-3">
           <span>Total materiales visibles: <span className="font-semibold text-gray-700">{sorted.length}</span></span>
           <span>•</span>
@@ -491,6 +528,16 @@ const Materiales = () => {
           )}
         </div>
       </div>
+
+      {/* --- RENDER DEL NUEVO MODAL --- */}
+      <MaterialCreador
+        isOpen={isCreatorOpen}
+        onClose={() => setIsCreatorOpen(false)}
+        onSuccess={() => {
+          setIsCreatorOpen(false); // Cierra el modal
+          fetchData(); // Vuelve a cargar los datos
+        }}
+      />
     </div>
   );
 };

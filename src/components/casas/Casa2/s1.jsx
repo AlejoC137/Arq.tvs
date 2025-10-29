@@ -1,7 +1,7 @@
 // ARCHIVO: s1.jsx - Sección 1 para Casa 2
 import React from 'react';
 
-const S1Casa2 = ({ onRoomSelect, selectedRoom }) => {
+const S1Casa2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
   return (
     <div className="flex flex-col h-full p-4">
       <h3 className="text-lg font-semibold mb-4">Sección 1 - Casa 2</h3>
