@@ -165,6 +165,13 @@ export function updateInTable(tableName, id, updates) {
 }
 
 /**
+ * Generic function to update a row in any table (alias for updateInTable)
+ */
+export function updateRow(tableName, id, updates) {
+  return updateInTable(tableName, id, updates);
+}
+
+/**
  * Generic function to delete from any table
  */
 export function deleteFromTable(tableName, id) {

@@ -20,6 +20,7 @@ const PreModalProjects = lazy(() => import('../components/PreModalProjects'));
 const PlanosView = lazy(() => import('../components/PlanosView'));
 const TeamView = lazy(() => import('../components/TeamView'));
 const ProjectDashboard = lazy(() => import('../components/ProjectDashboard'));
+const Materiales = lazy(() => import('../components/Materiales'));
 const ProjectKanbanView = lazy(() => import('../components/ProjectKanbanView'));
 const ProjectExcelView = lazy(() => import('../components/ProjectExcelView'));
 
@@ -73,16 +74,16 @@ export const navigationTabs = [
     enabled: true,
     category: 'Documentos'
   },
-  // {
-  //   id: 'dashboard',
-  //   path: '/dashboard',
-  //   label: 'Dashboard',
-  //   icon: LayoutDashboard,
-  //   description: 'Gráficos y estadísticas ejecutivas',
-  //   component: ProjectDashboard,
-  //   enabled: false, // Deshabilitado por ahora
-  //   category: 'Análisis'
-  // },
+  {
+    id: 'Materiales',
+    path: '/Materiales',
+    label: 'Materiales',
+    icon: LayoutDashboard,
+    description: 'Gráficos y estadísticas ejecutivas',
+    component: Materiales,
+    enabled: true, // Deshabilitado por ahora
+    category: 'Análisis'
+  },
   // {
   //   id: 'kanban',
   //   path: '/kanban',

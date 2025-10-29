@@ -44,6 +44,33 @@ export const getAllFromTable = (tableName) => async (dispatch) => {
 };
 
 // ========================================
+// MATERIAL ACTIONS
+// ========================================
+
+export const updateMaterial = (id, updates) => async (dispatch) => {
+  try {
+    const { data, error } = await supabase
+      .from('Material')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    dispatch({
+      type: 'UPDATE_MATERIAL',
+      payload: data
+    });
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error updating material:', error);
+    return { success: false, error };
+  }
+};
+
+// ========================================
 // UI STATE ACTIONS
 // ========================================
 
