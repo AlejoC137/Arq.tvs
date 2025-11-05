@@ -34,16 +34,16 @@ const getRoomClassName = (roomId, selectedRoom) => {
 const ROOM_CENTERS = {
   // --- PisosEspacios --- [cite: 1, 2, 3, 4]
   'HabitacionAuxiliar1': { x: 356.5, y: 217.6, size: 'small' },
-  'VestierHabitacionAuxiliar1': { x: 356.5, y: 270.4, size: 'small' },
+  'VestierHabitacionAuxiliar1': { x: 356.5, y: 260, size: 'small' },
   'EstudioPiso2': { x: 454.6, y: 274.9, size: 'small' },
   'HallPiso2': { x: 433.9, y: 231.9 },
   'HabitacionPrincipalPiso2': { x: 515.4, y: 241.0 },
-  'ClosetHabitacionPrincipalPiso2': { x: 516.4, y: 277.2, size: 'small' },
+  'ClosetHabitacionPrincipalPiso2': { x: 516.4, y: 282.5, size: 'small' },
   'HabitacionAuxiliar2': { x: 434.2, y: 168.7 },
   'TerrazaHabitacionPrincipalPiso2': { x: 535.1, y: 201.5 },
   'BañoHabitacionAuxiliar': { x: 496.2, y: 155.4, size: 'small' },
   'ClostHabitacionAuxiliar': { x: 465.0, y: 201.6, size: 'small' },
-  'BañoHabitacionPrincipalPiso2': { x: 516.4, y: 297.5, size: 'small' },
+  'BañoHabitacionPrincipalPiso2': { x: 516.4, y: 295, size: 'small' },
   'BañoHabitacionAuxiliar1': { x: 359.0, y: 297.2, size: 'small' },
   'MuebleEstudioPiso2': { x: 427.5, y: 276.1, size: 'furniture' }, // Este ID estaba en PisosEspacios [cite: 4]
 

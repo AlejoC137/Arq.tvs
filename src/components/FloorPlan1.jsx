@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 // --- INICIO: Definiciones para RoomLabel ---
 
@@ -14,22 +14,22 @@ const ROOM_CENTERS = {
   Cocina: { x: 112.0, y: 133.8 },
   BalconOficina: { x: 502.7, y: 299.1 },
   Oficina: { x: 495.9, y: 241.7 },
-  ClosetHabitacionPrincipal: { x: 441.9, y: 188.4 },
-  Piscina: { x: 310.7, y: 100.7 },
-  Servicios: { x: 78.8, y: 184.3 },
+  ClosetHabitacionPrincipal: { x: 441.9, y: 185 },
+  Piscina: { x: 310.7, y: 70 },
+  Servicios: { x: 78.8, y: 205 },
   BañoOficina: { x: 441.0, y: 286.5, size: 'small' },
   BañoHabitacionPrincipal: { x: 468.2, y: 134.7 },
   Escalera: { x: 406.1, y: 277.2 },
   EstudioPiso1: { x: 373.3, y: 249.1 },
   Sala: { x: 170.9, y: 237.2 },
   Comedor: { x: 168.0, y: 133.8 },
-  JardinInterior: { x: 272.9, y: 223.3 },
+  JardinInterior: { x: 272.9, y: 280 },
   Acceso: { x: 191.1, y: 294.5 },
   Deck: { x: 232.0, y: 132.9 },
   BañoServicio: { x: 61, y: 224, size: 'small' },
   BañoSocial: { x: 129, y: 258, size: 'small' },
   Jacuzzi: { x: 289, y: 124, size: 'small' },
-  CartPort: { x: 50, y: 177 },
+  CartPort: { x: 50, y: 260 },
   Jardin: { x: 272.9, y: 223.3 }, // Centro duplicado de JardinInterior a propósito
 
   // --- Muebles (NUEVO) ---
@@ -42,7 +42,7 @@ const ROOM_CENTERS = {
   'MuebleBañoHabitacionPrincipal': { x: 480.9, y: 140.9, size: 'furniture' },
   'MuebleBañoSocial': { x: 121.5, y: 244.5, size: 'furniture' },
   'MuebleHabitacionPrincipal': { x: 448, y: 126, size: 'furniture' },
-  'MuebleClosetHabitacionPrincipal': { x: 423, y: 188, size: 'furniture' },
+  'MuebleClosetHabitacionPrincipal': { x: 423, y: 205, size: 'furniture' },
   'MuebleClosetHabitacionPrincipal-2': { x: 469, y: 193, size: 'furniture' },
   'CocinetaOficina': { x: 472.6, y: 202.5, size: 'furniture' },
   'MuebleEstudioPiso1': { x: 336.7, y: 240.6, size: 'furniture' },
@@ -195,9 +195,41 @@ const getRoomClassName = (roomId, selectedRoom) => {
 
 /**
  * Componente Principal del Plano (Piso 1)
- * Acepta 'roomTasks' para alimentar las etiquetas
+ * Acepta 'tasks' para calcular contadores de tareas por espacio
  */
-export function FloorPlan1({ selectedRoom, onRoomClick, roomTasks = {} }) {
+export function FloorPlan1({ selectedRoom, onRoomClick, tasks = [] }) {
+  // Contar tareas por espacio (igual que FloorPlan2)
+  const taskCountByRoom = useMemo(() => {
+    const counts = {};
+    
+    tasks.forEach(task => {
+      // Contar por campo espacio directo
+      if (task.espacio) {
+        counts[task.espacio] = (counts[task.espacio] || 0) + 1;
+      }
+      
+      // También contar por acciones que tengan espacio
+      if (task.acciones) {
+        try {
+          const acciones = typeof task.acciones === 'string' 
+            ? JSON.parse(task.acciones) 
+            : task.acciones;
+          
+          if (Array.isArray(acciones)) {
+            acciones.forEach(accion => {
+              if (accion.espacio) {
+                counts[accion.espacio] = (counts[accion.espacio] || 0) + 1;
+              }
+            });
+          }
+        } catch (e) {
+          // Ignorar errores de parsing
+        }
+      }
+    });
+    
+    return counts;
+  }, [tasks]);
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 588.05 326.07" width="100%">
       {/* Capa 2: Habitaciones (Interactivas) - Actualizado desde PisosEspacios */}
@@ -528,8 +560,8 @@ export function FloorPlan1({ selectedRoom, onRoomClick, roomTasks = {} }) {
           <RoomLabel
             key={roomId}
             roomId={roomId}
-            // Asigna el conteo desde la prop roomTasks, o 0 si no existe
-            count={roomTasks[roomId] || 0}
+            // Asigna el conteo calculado desde taskCountByRoom
+            count={taskCountByRoom[roomId] || 0}
             isSelected={selectedRoom === roomId}
           />
         ))}

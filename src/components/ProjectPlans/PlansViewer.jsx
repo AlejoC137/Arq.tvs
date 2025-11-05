@@ -7,10 +7,10 @@ import { getProjectPlanConfig } from '../../config/projectPlansConfig';
 /**
  * Componente para visualizar y navegar entre los planos de un proyecto
  */
-const PlansViewer = ({ project, selectedRoom, onRoomSelect, onClose }) => {
-  // Obtener las tareas del proyecto desde Redux
+const PlansViewer = ({ project, selectedRoom, onRoomSelect, onClose, tasks }) => {
+  // Usar las tareas pasadas como prop, o como fallback obtenerlas desde Redux
   const allTasks = useSelector(state => state.tasks?.tasks || []);
-  const projectTasks = allTasks.filter(task => task.project_id === project?.id);
+  const projectTasks = tasks || allTasks.filter(task => task.project_id === project?.id);
   const planConfig = getProjectPlanConfig(project);
   const [selectedPlan, setSelectedPlan] = useState(planConfig.defaultPlan);
 
