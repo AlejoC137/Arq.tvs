@@ -9,7 +9,7 @@ Los planos se encuentran en:
 src/components/
 ├── FloorPlan1.jsx          # Plano original Piso 1
 ├── FloorPlan2.jsx          # Plano original Piso 2
-├── FloorPlan2Enhanced.jsx  # Plano mejorado con contadores (NUEVO)
+├── FloorPlan2.jsx  # Plano mejorado con contadores (NUEVO)
 └── casas/
     ├── Casa1/
     │   ├── p1.jsx          # Wrapper Planta 1 Casa 1
@@ -25,7 +25,7 @@ src/components/
 
 ### 1. Cambiar Color de las Habitaciones
 
-En `FloorPlan2Enhanced.jsx` (líneas 16-42):
+En `FloorPlan2.jsx` (líneas 16-42):
 
 ```javascript
 const TASK_STATUS_COLORS = {
@@ -65,7 +65,7 @@ const TASK_STATUS_COLORS = {
 
 ### 2. Cambiar Color de los Muros
 
-En `FloorPlan2Enhanced.jsx` (línea 238):
+En `FloorPlan2.jsx` (línea 238):
 
 ```javascript
 <g id="Capa_3" className="fill-gray-700 pointer-events-none" fill="#636466">
@@ -81,7 +81,7 @@ En `FloorPlan2Enhanced.jsx` (línea 238):
 
 ### 3. Cambiar Color de Ventanas
 
-En `FloorPlan2Enhanced.jsx` (línea 273):
+En `FloorPlan2.jsx` (línea 273):
 
 ```javascript
 <g id="Capa_5" className="fill-none stroke-blue-400 pointer-events-none stroke-[2px]">
@@ -96,7 +96,7 @@ En `FloorPlan2Enhanced.jsx` (línea 273):
 
 ### 4. Cambiar Color de Estructura (Puntos rosas)
 
-En `FloorPlan2Enhanced.jsx` (línea 268):
+En `FloorPlan2.jsx` (línea 268):
 
 ```javascript
 <g id="Capa_4" className="pointer-events-none fill-pink-400">
@@ -120,7 +120,7 @@ Los contadores se muestran automáticamente cuando pasas el prop `tasks` al comp
 
 ### Personalizar Colores de los Contadores
 
-En `FloorPlan2Enhanced.jsx` (líneas 101-107):
+En `FloorPlan2.jsx` (líneas 101-107):
 
 ```javascript
 const badgeColors = {
@@ -134,7 +134,7 @@ const badgeColors = {
 
 ### Cambiar Umbrales de Conteo
 
-En `FloorPlan2Enhanced.jsx` (líneas 47-53):
+En `FloorPlan2.jsx` (líneas 47-53):
 
 ```javascript
 const getTaskLevel = (count) => {
@@ -148,7 +148,7 @@ const getTaskLevel = (count) => {
 
 ### Ajustar Posición de los Contadores
 
-En `FloorPlan2Enhanced.jsx` (líneas 76-89):
+En `FloorPlan2.jsx` (líneas 76-89):
 
 ```javascript
 const ROOM_CENTERS = {
@@ -167,7 +167,7 @@ const ROOM_CENTERS = {
 
 ### Cambiar Tamaño de los Badges
 
-En `FloorPlan2Enhanced.jsx` (línea 118):
+En `FloorPlan2.jsx` (línea 118):
 
 ```javascript
 <circle
@@ -188,7 +188,7 @@ style={{ fontSize: '12px', fill: 'currentColor' }}  // Cambia 12px
 
 ### Bordes de Habitaciones
 
-En `FloorPlan2Enhanced.jsx` (línea 59):
+En `FloorPlan2.jsx` (línea 59):
 
 ```javascript
 const baseClasses = "stroke-gray-900 stroke-[1.5px] cursor-pointer transition-all duration-200";
@@ -201,7 +201,7 @@ Las líneas de muros tienen un ancho fijo en el SVG. Para cambiarlos necesitas m
 
 ### Ventanas
 
-En `FloorPlan2Enhanced.jsx` (línea 273):
+En `FloorPlan2.jsx` (línea 273):
 
 ```javascript
 className="fill-none stroke-blue-400 pointer-events-none stroke-[2px]"
@@ -214,7 +214,7 @@ className="fill-none stroke-blue-400 pointer-events-none stroke-[2px]"
 
 1. Edita el SVG en tu editor favorito
 2. Exporta el nuevo `<polygon>` o `<rect>`
-3. Agrégalo en la Capa 2 del componente FloorPlan2Enhanced.jsx:
+3. Agrégalo en la Capa 2 del componente FloorPlan2.jsx:
 
 ```javascript
 <rect 
@@ -250,7 +250,7 @@ En `src/components/casas/Casa2/p2.jsx`:
 import { FloorPlan2 } from '../../FloorPlan2';
 
 // Por esta:
-import { FloorPlan2 } from '../../FloorPlan2Enhanced';
+import { FloorPlan2 } from '../../FloorPlan2';
 ```
 
 ### Opción 2: Crear un wrapper que pase las tareas
@@ -258,7 +258,7 @@ import { FloorPlan2 } from '../../FloorPlan2Enhanced';
 ```javascript
 // src/components/casas/Casa2/p2.jsx
 import React from 'react';
-import { FloorPlan2 } from '../../FloorPlan2Enhanced';
+import { FloorPlan2 } from '../../FloorPlan2';
 import { useSelector } from 'react-redux';
 
 const P2Casa2 = ({ onRoomSelect, selectedRoom }) => {
@@ -324,4 +324,4 @@ Todas las habitaciones tienen `transition-all duration-200` para animaciones sua
 
 ---
 
-¿Tienes dudas? Revisa el código en `FloorPlan2Enhanced.jsx` con los comentarios detallados. 🚀
+¿Tienes dudas? Revisa el código en `FloorPlan2.jsx` con los comentarios detallados. 🚀

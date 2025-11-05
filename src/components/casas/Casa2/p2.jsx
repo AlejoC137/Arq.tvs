@@ -1,6 +1,6 @@
 // ARCHIVO: p2.jsx - Planta Piso 2 para Casa 2
 import React from 'react';
-import { FloorPlan2 } from '../../FloorPlan2Enhanced';
+import { FloorPlan2 } from '../../FloorPlan2';
 
 const P2Casa2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
   const handleRoomClick = (roomId) => {

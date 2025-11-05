@@ -37,11 +37,11 @@ const InlineActionsTask = ({ task }) => {
   const [legacyContent, setLegacyContent] = useState('');
   
   const [newAction, setNewAction] = useState({
-    espacio: ESPACIOS_HABITACIONES[0],
+    espacio: '', // <-- CAMBIO: Valor inicial vacío
     nombreEspacio: '',
     accion: '',
     objetivo: '',
-    ejecutor: '', // <-- NUEVO CAMPO
+    ejecutor: '',
     completado: false
   });
 
@@ -123,7 +123,7 @@ const InlineActionsTask = ({ task }) => {
       setIsLegacy(true);
       setLegacyContent(isString ? data : JSON.stringify(data, null, 2));
     }
-  }, [task.acciones, dispatch, task.id]); // Quitamos saveChangesToSupabase de aquí
+  }, [task.acciones, dispatch, task.id]);
 
   const handleActionChange = (index, field, value) => {
     const updatedActions = actions.map((act, i) => 
@@ -148,11 +148,11 @@ const InlineActionsTask = ({ task }) => {
     setActions(updatedActions);
     saveChangesToSupabase(updatedActions);
     setNewAction({
-      espacio: ESPACIOS_HABITACIONES[0],
+      espacio: '', // <-- CAMBIO: Resetear a vacío
       nombreEspacio: '',
       accion: '',
       objetivo: '',
-      ejecutor: '', // <-- RESETEAR CAMPO
+      ejecutor: '',
       completado: false
     });
   };
@@ -181,11 +181,11 @@ const InlineActionsTask = ({ task }) => {
       if (Array.isArray(parsedLegacy)) {
         newActionsList = parsedLegacy.map((oldItem, index) => ({
           id: Date.now() + index,
-          espacio: ESPACIOS_HABITACIONES[0],
+          espacio: '', // <-- CAMBIO: Valor por defecto vacío
           nombreEspacio: '',
           accion: oldItem.action || '',
-          objetivo: '', // <-- AHORA VACÍO
-          ejecutor: oldItem.executer || '', // <-- MAPEAR AQUÍ
+          objetivo: '',
+          ejecutor: oldItem.executer || '',
           completado: oldItem.lista || false,
         }));
       } else {
@@ -195,11 +195,11 @@ const InlineActionsTask = ({ task }) => {
     } catch (error) {
       newActionsList = [{
         id: Date.now(),
-        espacio: ESPACIOS_HABITACIONES[0],
+        espacio: '', // <-- CAMBIO: Valor por defecto vacío
         nombreEspacio: '',
         accion: legacyContent,
         objetivo: '',
-        ejecutor: '', // <-- NUEVO CAMPO
+        ejecutor: '',
         completado: false,
       }];
     }
@@ -207,7 +207,7 @@ const InlineActionsTask = ({ task }) => {
     saveChangesToSupabase(newActionsList);
     setActions(newActionsList);
     setIsLegacy(false);
-  }, [legacyContent, saveChangesToSupabase]); // saveChangesToSupabase es estable por useMemo
+  }, [legacyContent, saveChangesToSupabase]);
 
   // ----- RENDERIZADO -----
 
@@ -231,6 +231,12 @@ const InlineActionsTask = ({ task }) => {
 
   return (
     <div className="p-2 space-y-2 bg-gray-50">
+      
+      {/* <-- CAMBIO: Definir el datalist una vez */}
+      <datalist id="espacios-list">
+        {ESPACIOS_HABITACIONES.map(e => <option key={e} value={e} />)}
+      </datalist>
+
       {/* Lista de acciones existentes */}
       {actions.length > 0 && (
         <div className="space-y-1">
@@ -240,19 +246,21 @@ const InlineActionsTask = ({ task }) => {
               className={`grid grid-cols-12 gap-x-2 items-stretch p-1 rounded ${act.completado ? 'bg-green-100 opacity-70' : ''}`}
             >
               
-              <select
-                value={act.espacio || ESPACIOS_HABITACIONES[0]}
+              {/* <-- CAMBIO: Reemplazado <select> por <input list="..."> */}
+              <input
+                type="text"
+                list="espacios-list"
+                value={act.espacio || ''}
                 onChange={(e) => handleActionChange(index, 'espacio', e.target.value)}
                 className={`col-span-2 p-1 border rounded text-xs bg-transparent h-10 ${act.completado ? 'line-through' : ''}`}
-              >
-                {ESPACIOS_HABITACIONES.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
+                placeholder="Espacio..."
+              />
 
               <AutoResizingTextarea
                 value={act.nombreEspacio || ''}
                 onChange={(e) => handleActionChange(index, 'nombreEspacio', e.target.value)}
                 className={`col-span-2 p-1 border rounded text-xs bg-transparent resize-none overflow-hidden min-h-[40px] ${act.completado ? 'line-through' : ''}`}
-                placeholder="Elemento/Especifico"
+e               placeholder="Elemento/Especifico"
                 rows="1"
               />
 
@@ -264,7 +272,6 @@ const InlineActionsTask = ({ task }) => {
                 rows="1"
               />
               
-              {/* Ajuste de layout: col-span-1 para objetivo y ejecutor */}
               <AutoResizingTextarea
                 value={act.objetivo || ''}
                 onChange={(e) => handleActionChange(index, 'objetivo', e.target.value)}
@@ -286,7 +293,7 @@ const InlineActionsTask = ({ task }) => {
                      type="checkbox"
                      checked={!!act.completado}
                      onChange={(e) => handleActionChange(index, 'completado', e.target.checked)}
-                     className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+e                     className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                    />
               </div>
 
@@ -302,17 +309,20 @@ const InlineActionsTask = ({ task }) => {
 
       {/* Formulario para agregar nueva acción */}
       <form onSubmit={handleAddAction} className="grid grid-cols-12 gap-x-2 items-stretch pt-2 border-t">
-        <select
+        
+        {/* <-- CAMBIO: Reemplazado <select> por <input list="..."> */}
+        <input
+          type="text"
+    	 list="espacios-list"
           name="espacio"
           value={newAction.espacio}
           onChange={handleNewActionChange}
           className="col-span-2 p-1 border rounded text-xs h-10"
-        >
-          {ESPACIOS_HABITACIONES.map(e => <option key={e} value={e}>{e}</option>)}
-        </select>
+          placeholder="Buscar espacio..."
+    	/>
 
         <AutoResizingTextarea
-          name="nombreEspacio"
+  	 name="nombreEspacio"
           value={newAction.nombreEspacio}
           onChange={handleNewActionChange}
           className="col-span-2 p-1 border rounded text-xs resize-none overflow-hidden min-h-[40px]"
@@ -321,16 +331,16 @@ const InlineActionsTask = ({ task }) => {
         />
 
         <AutoResizingTextarea
-          name="accion"
+  	 name="accion"
           value={newAction.accion}
           onChange={handleNewActionChange}
           className="col-span-4 p-1 border rounded text-xs resize-none overflow-hidden min-h-[40px]"
           placeholder="Nueva acción..."
           rows="1"
-        />
+  	/>
 
         <AutoResizingTextarea
-          name="objetivo"
+    	 name="objetivo"
           value={newAction.objetivo}
           onChange={handleNewActionChange}
           className="col-span-1 p-1 border rounded text-xs resize-none overflow-hidden min-h-[40px]"
@@ -339,29 +349,29 @@ const InlineActionsTask = ({ task }) => {
         />
         
         <input
-          type="text"
-          name="ejecutor"
+  	 type="text"
+  	 name="ejecutor"
           value={newAction.ejecutor}
           onChange={handleNewActionChange}
           className="col-span-1 p-1 border rounded text-xs h-10"
           placeholder="Ejecutor"
         />
 
-        <div className="col-span-1 flex items-center justify-center">
-           <input
-             type="checkbox"
-             name="completado"
-             checked={newAction.completado}
-             onChange={handleNewActionChange}
-             className="h-4 w-4"
-           />
-        </div>
+        <div className="col-span-1 flex items-center justify-center">
+           <input
+    	 type="checkbox"
+  	 name="completado"
+             checked={newAction.completado}
+             onChange={handleNewActionChange}
+             className="h-4 w-4"
+  	 />
+        </div>
 
-        <div className="col-span-1 flex items-center justify-center">
-          <button type="submit" className="text-green-600 hover:text-green-800 p-1" title="Agregar">
-            <Plus size={16} />
-          </button>
-        </div>
+        <div className="col-span-1 flex items-center justify-center">
+          <button type="submit" className="text-green-600 hover:text-green-800 p-1" title="Agregar">
+            <Plus size={16} />
+          </button>
+        </div>
       </form>
     </div>
   );

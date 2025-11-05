@@ -7,7 +7,7 @@ Los contadores de tareas ahora están completamente integrados en el sistema de 
 ## 📋 Cambios Realizados
 
 ### 1. ✅ Componente Enhanced Creado
-- `src/components/FloorPlan2Enhanced.jsx` - Plano P2 con contadores de tareas
+- `src/components/FloorPlan2.jsx` - Plano P2 con contadores de tareas
 
 ### 2. ✅ PlansViewer Actualizado
 - `src/components/ProjectPlans/PlansViewer.jsx`
@@ -19,7 +19,7 @@ Los contadores de tareas ahora están completamente integrados en el sistema de 
 Los siguientes componentes ahora aceptan y pasan el prop `tasks`:
 
 - ✅ `src/components/casas/Casa2/p1.jsx` 
-- ✅ `src/components/casas/Casa2/p2.jsx` (usa FloorPlan2Enhanced)
+- ✅ `src/components/casas/Casa2/p2.jsx` (usa FloorPlan2)
 - ✅ `src/components/casas/Casa2/s1.jsx`
 - ✅ `src/components/casas/Casa2/t1.jsx`
 
@@ -53,7 +53,7 @@ PlansViewer (obtiene tasks de Redux)
     ↓ filtra por project_id
 Componente de Plano (p1, p2, s1, t1)
     ↓ pasa tasks
-FloorPlan2Enhanced
+FloorPlan2
     ↓ cuenta tareas por espacio
 TaskCounter (renderiza badges)
 ```
@@ -94,7 +94,7 @@ Para verificar que funciona:
 Si quieres mejorar aún más:
 
 1. **Crear FloorPlan1Enhanced** con contadores para P1
-   - Copiar FloorPlan2Enhanced.jsx
+   - Copiar FloorPlan2.jsx
    - Reemplazar el SVG con el de FloorPlan1
    - Actualizar ROOM_CENTERS con las coordenadas de P1
 
@@ -139,7 +139,7 @@ Si quieres mejorar aún más:
 ```
 src/
 ├── components/
-│   ├── FloorPlan2Enhanced.jsx          ← Componente principal con contadores
+│   ├── FloorPlan2.jsx          ← Componente principal con contadores
 │   ├── ProjectPlans/
 │   │   └── PlansViewer.jsx             ← Pasa tareas a planos
 │   └── casas/Casa2/
