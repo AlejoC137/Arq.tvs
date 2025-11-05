@@ -502,24 +502,26 @@ const ProjectTaskModal = () => {
     return (
       <div ref={taskRef} className={`relative ${isSelected ? 'bg-blue-50' : 'bg-white'}`} data-print-block="true">
         <div className={getPriorityClasses(task.Priority)} title={`Prioridad: ${task.Priority}`}></div>
-        <div className="flex items-center w-full pl-6 pr-4 py-2">
-          <div className="flex items-center">
+        <div className="flex items-start w-full pl-3 pr-2 py-2 gap-2">
+          {/* Controles: expand + checkbox */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1 rounded-full hover:bg-gray-200 mr-2"
+              className="p-0.5 rounded hover:bg-gray-200"
               data-print-hide="true"
             >
               {isExpanded ? (
-                <ChevronDown size={20} className="text-gray-600" />
+                <ChevronDown size={16} className="text-gray-600" />
               ) : (
-                <ChevronRight size={20} className="text-gray-500" />
+                <ChevronRight size={16} className="text-gray-500" />
               )}
             </button>
-            <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-5 h-5" data-print-hide="true" />
+            <input type="checkbox" checked={isSelected} onChange={onSelectRow} className="w-4 h-4" data-print-hide="true" />
           </div>
 
+          {/* Descripción */}
           <div
-            className="flex-grow font-medium text-gray-800 ml-4 print-avoid-break"
+            className="flex-1 min-w-0 font-medium text-gray-800 text-sm"
             onClick={() => { if (!isEditingDesc) setIsExpanded(!isExpanded); }}
           >
             {isEditingDesc ? (
@@ -531,122 +533,111 @@ const ProjectTaskModal = () => {
                 onExitEditing={() => setIsEditingDesc(false)}
               />
             ) : (
-              <div className="p-1 min-h-[28px] cursor-pointer select-text">
+              <div className="p-1 cursor-pointer break-words line-clamp-2">
                 {task.task_description || '-'}
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-3 md:gap-6 mx-4 md:mx-6 text-sm text-gray-600 flex-shrink-0">
-            <div className="flex items-center gap-2" title="Responsable">
-              <User size={16} className="text-gray-400" />
-              <span>{staff.find(s => s.id === task.staff_id)?.name || 'Sin asignar'}</span>
+          {/* Info y acciones compactas */}
+          <div className="flex flex-col gap-1.5 flex-shrink-0 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-gray-600" title="Responsable">
+                <User size={12} className="text-gray-400" />
+                <span className="truncate max-w-[80px]">{staff.find(s => s.id === task.staff_id)?.name || 'Sin asignar'}</span>
+              </div>
+              <div className="flex items-center gap-1 text-gray-600" title="Fecha">
+                <Calendar size={12} className="text-gray-400" />
+                <span className="truncate max-w-[70px]">{dueDate || 'Sin fecha'}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2" title="Fecha Límite">
-              <Calendar size={16} className="text-gray-400" />
-              <span>{dueDate || 'Sin fecha'}</span>
-            </div>
-            <div title="Estado">
-              <EditableCell
-                rowId={task.id}
-                field="status"
-                value={task.status}
-                type="status-select"
-                options={Object.keys(ESTADOS).map(k => ({ id: ESTADOS[k], name: ESTADOS[k] }))}
-              />
-            </div>
-
-            {/* Selector de Espacio visible en la fila principal */}
-            <div className="flex items-center gap-2" title="Espacio">
-              <select
-                value={task.espacio || ''}
-                onChange={(e) => updateCell(task.id, { espacio: e.target.value || null })}
-                className="border border-gray-300 rounded-lg py-1 px-2 text-sm bg-white"
+            <div className="flex items-center gap-1">
+              <div title="Estado" className="flex-shrink-0">
+                <EditableCell
+                  rowId={task.id}
+                  field="status"
+                  value={task.status}
+                  type="status-select"
+                  options={Object.keys(ESTADOS).map(k => ({ id: ESTADOS[k], name: ESTADOS[k] }))}
+                />
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
+                className="p-1 border border-gray-300 rounded hover:bg-gray-100"
+                title="Editar"
+                data-print-hide="true"
               >
-                <option value="">-- Sin Asignar --</option>
-                {ESPACIOS_HABITACIONES.map(e => (
-                  <option key={e} value={e}>{e}</option>
-                ))}
-              </select>
+                <Settings size={12} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); printTask(); }}
+                className="px-1.5 py-0.5 border border-gray-300 rounded hover:bg-gray-100 whitespace-nowrap"
+                title="Imprimir"
+                data-print-btn="true"
+              >
+                🖨️
+              </button>
             </div>
-
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsEditingDesc(true); }}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
-              title="Editar descripción"
-              data-print-hide="true"
-            >
-              <Settings size={16} />
-            </button>
-
-            <button
-              data-print-btn="true"
-              onClick={(e) => { e.stopPropagation(); printTask(); }}
-              className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 font-medium"
-              title="Imprimir esta tarea"
-            >
-              Imprimir
-            </button>
           </div>
         </div>
 
         {isExpanded && (
-          <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4" data-print-block="true" data-print-fields="true">
+          <div className="pl-6 pr-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-200">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-xs mb-3" data-print-block="true" data-print-fields="true">
               <div className="print-row">
-                <label className="font-medium text-gray-500">Prioridad</label>
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Prioridad</label>
                 <EditableCell rowId={task.id} field="Priority" value={task.Priority} type="priority-select" options={Priorities} />
               </div>
               <div className="print-row">
-                <label className="font-medium text-gray-500">Etapa</label>
-                <EditableCell rowId={task.id} field="stage_id" value={task.stage_id} type="select" options={stages} />
-              </div>
-              <div className="print-row">
-                <label className="font-medium text-gray-500">Entregable</label>
-                <EditableCell rowId={task.id} field="entregable_id" value={task.entregable_id} type="entregable-select" options={entregables} />
-              </div>
-              <div className="print-row">
-                <label className="font-medium text-gray-500">Progreso</label>
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Progreso</label>
                 <EditableCell rowId={task.id} field="Progress" value={task.Progress} type="progress" />
               </div>
               <div className="print-row">
-                <label className="font-medium text-gray-500">Espacio</label>
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Etapa</label>
+                <EditableCell rowId={task.id} field="stage_id" value={task.stage_id} type="select" options={stages} />
+              </div>
+              <div className="print-row">
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Entregable</label>
+                <EditableCell rowId={task.id} field="entregable_id" value={task.entregable_id} type="entregable-select" options={entregables} />
+              </div>
+              <div className="print-row col-span-2">
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Espacio</label>
                 <EditableCell rowId={task.id} field="espacio" value={task.espacio} type="espacio-select" options={ESPACIOS_HABITACIONES.map(e => ({id: e, name: e}))} />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-y-4 text-sm">
+            <div className="space-y-3 text-xs">
               <div data-print-block="true" data-print-dates="true">
-                <label className="font-medium text-gray-500">Fechas y Actividad</label>
-                <div className="flex items-end gap-x-4 gap-y-2 p-1 flex-wrap">
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Fechas y Actividad</label>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label htmlFor={`assign-date-${task.id}`} className="block text-xs text-gray-500 mb-1">Asignación</label>
+                    <label htmlFor={`assign-date-${task.id}`} className="block text-[10px] text-gray-500 mb-0.5">Asignación</label>
                     <input
                       id={`assign-date-${task.id}`}
                       type="date"
                       value={assignDate || ''}
                       onChange={(e) => setAssignDate(e.target.value)}
                       onBlur={(e) => handleDateChange('assignDate', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full p-1.5 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor={`due-date-${task.id}`} className="block text-xs text-gray-500 mb-1">Límite</label>
+                    <label htmlFor={`due-date-${task.id}`} className="block text-[10px] text-gray-500 mb-0.5">Límite</label>
                     <input
                       id={`due-date-${task.id}`}
                       type="date"
                       value={dueDate || ''}
                       onChange={(e) => setDueDate(e.target.value)}
                       onBlur={(e) => handleDateChange('dueDate', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full p-1.5 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                  <div className="pt-2" data-print-hide="true">
+                  <div className="col-span-2" data-print-hide="true">
                     <TaskLog task={task} onSave={updateCell} />
                   </div>
-                  <div className="flex-grow pt-2">
+                  <div className="col-span-2">
                     <div
-                      className="w-full p-2 border border-gray-200 bg-gray-50 rounded-md text-sm text-gray-600 truncate min-h-[42px] flex items-center"
+                      className="w-full p-2 border border-gray-200 bg-gray-50 rounded text-xs text-gray-600 min-h-[36px] flex items-center"
                       title={
                         (task.dates && JSON.parse(task.dates)?.logs?.length)
                           ? `${JSON.parse(task.dates).logs.slice(-1)[0].date}: ${JSON.parse(task.dates).logs.slice(-1)[0].event}`
@@ -654,10 +645,10 @@ const ProjectTaskModal = () => {
                       }
                     >
                       {latestLog ? (
-                        <>
-                          <span className="font-semibold mr-2">{latestLog.date}:</span>
-                          <span>{latestLog.event}</span>
-                        </>
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="font-semibold whitespace-nowrap">{latestLog.date}:</span>
+                          <span className="break-words">{latestLog.event}</span>
+                        </div>
                       ) : (
                         <span className="text-gray-400">No hay eventos registrados.</span>
                       )}
@@ -667,12 +658,12 @@ const ProjectTaskModal = () => {
               </div>
 
               <div data-print-block="true">
-                <label className="font-medium text-gray-500">Notas</label>
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Notas</label>
                 <EditableCell rowId={task.id} field="notes" value={task.notes} type="textarea" />
               </div>
 
               <div data-print-block="true" data-section="acciones">
-                <label className="font-medium text-gray-500">Acciones y Actividad</label>
+                <label className="font-medium text-gray-500 text-xs mb-1 block">Acciones y Actividad</label>
                 <InlineActionsTask task={task} />
               </div>
             </div>
@@ -684,12 +675,13 @@ const ProjectTaskModal = () => {
 
 
   return (
-    <div className="h-screen bg-gray-50 p-4 md:p-8">
-      <div className={`grid gap-6 h-full ${showPlanView ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1'}`}>
-        {/* Panel izquierdo: Vista de planos => 2/3 */}
+    <div className="h-screen bg-gray-50 p-2 md:p-4">
+      <div className={`grid gap-3 h-full ${showPlanView ? 'grid-cols-1 md:grid-cols-[1.5fr_1fr]' : 'grid-cols-1'}`}>
+        {/* Panel izquierdo: Vista de planos */}
         {showPlanView && (
-          <div className="md:col-span-2 flex flex-col overflow-hidden min-h-0">
+          <div className="flex flex-col overflow-hidden min-h-0">
             <PlansViewer
+              tasks={projectTasks}
               project={selectedProject}
               selectedRoom={selectedRoom}
               onRoomSelect={setSelectedRoom}
@@ -701,8 +693,8 @@ const ProjectTaskModal = () => {
           </div>
         )}
 
-        {/* Panel derecho: Lista de tareas => 1/3 */}
-        <div className={`${showPlanView ? 'md:col-span-1' : 'col-span-1'} flex flex-col gap-6 min-h-0`}>
+        {/* Panel derecho: Lista de tareas */}
+        <div className={`${showPlanView ? '' : 'max-w-7xl mx-auto w-full'} flex flex-col gap-3 min-h-0`}>
           <FormTask
             isOpen={isFormOpen}
             onClose={() => setIsFormOpen(false)}
@@ -717,7 +709,7 @@ const ProjectTaskModal = () => {
           <ProjectHeader project={selectedProject} projectProgress={projectProgress} />
 
           {/* Área scroll con lista de tareas + acciones abajo */}
-          <div className="flex-1 grid grid-rows-[1fr_auto] gap-6 min-h-0">
+          <div className="flex-1 grid grid-rows-[1fr_auto] gap-3 min-h-0">
             {/* Lista de tareas */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col min-h-0">
               <TasksToolbar
