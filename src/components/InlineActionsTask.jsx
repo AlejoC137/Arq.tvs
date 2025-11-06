@@ -36,14 +36,15 @@ const InlineActionsTask = ({ task }) => {
   const [isLegacy, setIsLegacy] = useState(false);
   const [legacyContent, setLegacyContent] = useState('');
   
-  const [newAction, setNewAction] = useState({
-    espacio: '', // <-- CAMBIO: Valor inicial vacío
-    nombreEspacio: '',
-    accion: '',
-    objetivo: '',
-    ejecutor: '',
-    completado: false
-  });
+  const [newAction, setNewAction] = useState({
+    espacio: '', // <-- CAMBIO: Valor inicial vacío
+    nombreEspacio: '',
+    accion: '',
+    objetivo: '',
+    ejecutor: '',
+    fechaEjecucion: '',
+    completado: false
+  });
 
   // Memoizamos el debounce para que no se recree en cada render
   const saveChangesToSupabase = useMemo(
@@ -146,15 +147,16 @@ const InlineActionsTask = ({ task }) => {
     }
     const updatedActions = [...actions, { ...newAction, id: Date.now() }];
     setActions(updatedActions);
-    saveChangesToSupabase(updatedActions);
-    setNewAction({
-      espacio: '', // <-- CAMBIO: Resetear a vacío
-      nombreEspacio: '',
-      accion: '',
-      objetivo: '',
-      ejecutor: '',
-      completado: false
-    });
+    saveChangesToSupabase(updatedActions);
+    setNewAction({
+      espacio: '', // <-- CAMBIO: Resetear a vacío
+      nombreEspacio: '',
+      accion: '',
+      objetivo: '',
+      ejecutor: '',
+      fechaEjecucion: '',
+      completado: false
+    });
   };
 
   const handleDeleteAction = (indexToDelete) => {
@@ -183,11 +185,12 @@ const InlineActionsTask = ({ task }) => {
           id: Date.now() + index,
           espacio: '', // <-- CAMBIO: Valor por defecto vacío
           nombreEspacio: '',
-          accion: oldItem.action || '',
-          objetivo: '',
-          ejecutor: oldItem.executer || '',
-          completado: oldItem.lista || false,
-        }));
+          accion: oldItem.action || '',
+          objetivo: '',
+          ejecutor: oldItem.executer || '',
+          fechaEjecucion: '',
+          completado: oldItem.lista || false,
+        }));
       } else {
         throw new Error("Legacy content is JSON but not an array");
       }
@@ -197,11 +200,12 @@ const InlineActionsTask = ({ task }) => {
         id: Date.now(),
         espacio: '', // <-- CAMBIO: Valor por defecto vacío
         nombreEspacio: '',
-        accion: legacyContent,
-        objetivo: '',
-        ejecutor: '',
-        completado: false,
-      }];
+        accion: legacyContent,
+        objetivo: '',
+        ejecutor: '',
+        fechaEjecucion: '',
+        completado: false,
+      }];
     }
 
     saveChangesToSupabase(newActionsList);
@@ -240,11 +244,11 @@ const InlineActionsTask = ({ task }) => {
       {/* Lista de acciones existentes */}
       {actions.length > 0 && (
         <div className="space-y-1">
-          {actions.map((act, index) => (
-            <div 
-              key={act.id || index} 
-              className={`grid grid-cols-12 gap-x-2 items-stretch p-1 rounded ${act.completado ? 'bg-green-100 opacity-70' : ''}`}
-            >
+          {actions.map((act, index) => (
+            <div 
+              key={act.id || index} 
+              className={`grid grid-cols-[repeat(13,minmax(0,1fr))] gap-x-2 items-stretch p-1 rounded ${act.completado ? 'bg-green-100 opacity-70' : ''}`}
+            >
               
               {/* <-- CAMBIO: Reemplazado <select> por <input list="..."> */}
               <input
@@ -280,15 +284,24 @@ e               placeholder="Elemento/Especifico"
                 rows="1"
               />
 
-              <input
-                type="text"
-                value={act.ejecutor || ''}
-                onChange={(e) => handleActionChange(index, 'ejecutor', e.target.value)}
-                className={`col-span-1 p-1 border rounded text-xs bg-transparent h-10 ${act.completado ? 'line-through' : ''}`}
-                placeholder="Ejecutor"
-              />
+              <input
+                type="text"
+                value={act.ejecutor || ''}
+                onChange={(e) => handleActionChange(index, 'ejecutor', e.target.value)}
+                className={`col-span-1 p-1 border rounded text-xs bg-transparent h-10 ${act.completado ? 'line-through' : ''}`}
+                placeholder="Ejecutor"
+              />
 
-              <div className="col-span-1 flex items-center justify-center">
+              <input
+                type="date"
+                value={act.fechaEjecucion || ''}
+                onChange={(e) => handleActionChange(index, 'fechaEjecucion', e.target.value)}
+                className={`col-span-1 p-1 border rounded text-xs bg-transparent h-10 ${act.completado ? 'line-through' : ''}`}
+                placeholder="Fecha"
+                title="Fecha de Ejecución"
+              />
+
+              <div className="col-span-1 flex items-center justify-center">
                    <input
                      type="checkbox"
                      checked={!!act.completado}
@@ -307,8 +320,8 @@ e                     className="h-4 w-4 text-blue-600 border-gray-300
         </div>
       )}
 
-      {/* Formulario para agregar nueva acción */}
-      <form onSubmit={handleAddAction} className="grid grid-cols-12 gap-x-2 items-stretch pt-2 border-t">
+      {/* Formulario para agregar nueva acción */}
+      <form onSubmit={handleAddAction} className="grid grid-cols-[repeat(13,minmax(0,1fr))] gap-x-2 items-stretch pt-2 border-t">
         
         {/* <-- CAMBIO: Reemplazado <select> por <input list="..."> */}
         <input
@@ -348,16 +361,26 @@ e                     className="h-4 w-4 text-blue-600 border-gray-300
           rows="1"
         />
         
-        <input
-  	 type="text"
-  	 name="ejecutor"
-          value={newAction.ejecutor}
-          onChange={handleNewActionChange}
-          className="col-span-1 p-1 border rounded text-xs h-10"
-          placeholder="Ejecutor"
-        />
+        <input
+  	 type="text"
+  	 name="ejecutor"
+          value={newAction.ejecutor}
+          onChange={handleNewActionChange}
+          className="col-span-1 p-1 border rounded text-xs h-10"
+          placeholder="Ejecutor"
+        />
 
-        <div className="col-span-1 flex items-center justify-center">
+        <input
+          type="date"
+          name="fechaEjecucion"
+          value={newAction.fechaEjecucion}
+          onChange={handleNewActionChange}
+          className="col-span-1 p-1 border rounded text-xs h-10"
+          placeholder="Fecha"
+          title="Fecha de Ejecución"
+        />
+
+        <div className="col-span-1 flex items-center justify-center">
            <input
     	 type="checkbox"
   	 name="completado"
