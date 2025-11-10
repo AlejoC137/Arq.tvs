@@ -8,6 +8,10 @@ import T1Casa2 from '../components/casas/Casa2/t1';
 import P1Casa1 from '../components/casas/Casa1/p1';
 import P2Casa1 from '../components/casas/Casa1/p2';
 
+import P1Casa4 from '../components/casas/Casa4/p1';
+import P2Casa4 from '../components/casas/Casa4/p2';
+import S1Casa4 from '../components/casas/Casa4/s1';
+
 /**
  * Configuración de planos por proyecto
  * Cada entrada define qué planos están disponibles para un proyecto específico
@@ -55,6 +59,29 @@ export const PROJECT_PLANS_CONFIG = {
         id: 'p2',
         label: 'Planta P2',
         component: P2Casa1
+      }
+    ]
+  },
+
+  // Casa 4 - Configuración con 3 planos
+  'casa4': {
+    title: 'Casa 4',
+    defaultPlan: 'p1',
+    plans: [
+      {
+        id: 'p1',
+        label: 'Planta P1',
+        component: P1Casa4
+      },
+      {
+        id: 'p2',
+        label: 'Planta P2',
+        component: P2Casa4
+      },
+      {
+        id: 's1',
+        label: 'Sótano S1',
+        component: S1Casa4
       }
     ]
   },
