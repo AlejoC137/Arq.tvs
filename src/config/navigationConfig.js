@@ -103,7 +103,7 @@ export const navigationTabs = [
     path: '/Directorio',
     label: 'Directorio',
     icon: Contact,
-    description: 'Contactos y proveedores',
+    description: 'Contactos Internos',
     component: Directorio,
     enabled: true,
     category: 'Gestión'
