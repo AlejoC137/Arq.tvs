@@ -9,7 +9,6 @@ import {
 import './index.css';
 import ProjectTaskModal from './components/ProjectTaskModal';
 import StaffTaskModal from './components/StaffTaskModal';
-import Test from './components/Test.jsx';
 import { getEnabledTabs, getDefaultRoute } from './config/navigationConfig';
 import Materiales from './components/Materiales.jsx'; // <- incluida la vista de Materiales
 

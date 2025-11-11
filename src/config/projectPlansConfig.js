@@ -1,21 +1,17 @@
 // ARCHIVO: src/config/projectPlansConfig.js
 
-import P1Casa2 from '../components/casas/Casa2/p1';
-import P2Casa2 from '../components/casas/Casa2/p2';
-import S1Casa2 from '../components/casas/Casa2/s1';
-import T1Casa2 from '../components/casas/Casa2/t1';
+// Casa 2
+import P1C2 from '../components/casas/Casa2/P1C2';
+import P2C2 from '../components/casas/Casa2/P2C2';
+import S1C2 from '../components/casas/Casa2/S1C2';
+import T1C2 from '../components/casas/Casa2/T1C2';
 
-import P1Casa1 from '../components/casas/Casa1/p1';
-import P2Casa1 from '../components/casas/Casa1/p2';
 
-import P1Casa4 from '../components/casas/Casa4/p1';
-import P2Casa4 from '../components/casas/Casa4/p2';
-import S1Casa4 from '../components/casas/Casa4/s1';
+// Casa 4
+import P1C4 from '../components/casas/Casa4/P1C4';
+import P2C4 from '../components/casas/Casa4/P2C4';
+import S1C4 from '../components/casas/Casa4/S1C4';
 
-/**
- * Configuración de planos por proyecto
- * Cada entrada define qué planos están disponibles para un proyecto específico
- */
 export const PROJECT_PLANS_CONFIG = {
   // Casa 2 - Configuración completa con 4 planos
   'casa2': {
@@ -25,43 +21,28 @@ export const PROJECT_PLANS_CONFIG = {
       {
         id: 'p1',
         label: 'Planta P1',
-        component: P1Casa2
+        component: P1C2
       },
       {
         id: 'p2',
         label: 'Planta P2',
-        component: P2Casa2
+        component: P2C2
       },
       {
         id: 's1',
         label: 'Sección S1',
-        component: S1Casa2
+        component: S1C2
       },
       {
         id: 't1',
         label: 'Técnico T1',
-        component: T1Casa2
+        component: T1C2
       }
     ]
   },
   
   // Casa 1 - Configuración con 2 planos
-  'casa1': {
-    title: 'Casa 1',
-    defaultPlan: 'p1',
-    plans: [
-      {
-        id: 'p1',
-        label: 'Planta P1',
-        component: P1Casa1
-      },
-      {
-        id: 'p2',
-        label: 'Planta P2',
-        component: P2Casa1
-      }
-    ]
-  },
+
 
   // Casa 4 - Configuración con 3 planos
   'casa4': {
@@ -71,17 +52,17 @@ export const PROJECT_PLANS_CONFIG = {
       {
         id: 'p1',
         label: 'Planta P1',
-        component: P1Casa4
+        component: P1C4
       },
       {
         id: 'p2',
         label: 'Planta P2',
-        component: P2Casa4
+        component: P2C4
       },
       {
         id: 's1',
         label: 'Sótano S1',
-        component: S1Casa4
+        component: S1C4
       }
     ]
   },

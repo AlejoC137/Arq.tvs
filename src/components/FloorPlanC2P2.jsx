@@ -158,7 +158,7 @@ const RoomLabel = ({ roomId, count, isSelected }) => {
   );
 };
 
-export function FloorPlan2({ selectedRoom, onRoomClick, tasks = [] }) {
+export function FloorPlanC2P2({ selectedRoom, onRoomClick, tasks = [] }) {
   // Contar tareas por espacio (Lógica existente, se mantiene)
   const taskCountByRoom = useMemo(() => {
     const counts = {};

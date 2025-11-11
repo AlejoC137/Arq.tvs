@@ -2,7 +2,11 @@
 
 // Lista de espacios/habitaciones predefinida para el proyecto
 export const ESPACIOS_HABITACIONES = [
-  // --- Piso 1: Espacios ---
+  // ====================================
+  // CASA 1 (Original)
+  // ====================================
+  
+  // --- Casa 1 Piso 1: Espacios ---
   'HabitacionPrincipal',
   'Cocina',
   'BalconOficina',
@@ -13,7 +17,7 @@ export const ESPACIOS_HABITACIONES = [
   'BañoOficina',
   'BañoHabitacionPrincipal',
   'Escalera',
-  'EstudioPiso1', // Corregido de 'EtudioPiso1'
+  'EstudioPiso1',
   'Sala',
   'Comedor',
   'JardinInterior',
@@ -25,7 +29,7 @@ export const ESPACIOS_HABITACIONES = [
   'CartPort',
   'Jardin',
 
-  // --- Piso 1: Muebles ---
+  // --- Casa 1 Piso 1: Muebles ---
   'MuebleDespensa',
   'MuebleCocina',
   'MuebleRopas',
@@ -43,7 +47,7 @@ export const ESPACIOS_HABITACIONES = [
   'MuebleEstudioPiso1-2',
   'MuebleEstudioPiso1-3',
 
-  // --- Piso 2: Espacios ---
+  // --- Casa 1 Piso 2: Espacios ---
   'HabitacionAuxiliar1',
   'VestierHabitacionAuxiliar1',
   'EstudioPiso2',
@@ -53,12 +57,12 @@ export const ESPACIOS_HABITACIONES = [
   'HabitacionAuxiliar2',
   'TerrazaHabitacionPrincipalPiso2',
   'BañoHabitacionAuxiliar',
-  'ClostHabitacionAuxiliar', // ID original del SVG
+  'ClostHabitacionAuxiliar',
   'BañoHabitacionPrincipalPiso2',
   'BañoHabitacionAuxiliar1',
   'MuebleEstudioPiso2',
 
-  // --- Piso 2: Muebles ---
+  // --- Casa 1 Piso 2: Muebles ---
   'MuebleVestierHabitacionAuxiliar1',
   'MuebleBañoHabitacionAuxiliar',
   'MuebleClostHabitacionAuxiliar',
@@ -66,4 +70,65 @@ export const ESPACIOS_HABITACIONES = [
   'MuebleHabitacionAuxiliar1',
   'MuebleHabitacionAuxiliar2',
   'MuebleBañoHabitacionPrincipalPiso2',
+
+  // ====================================
+  // CASA 2
+  // ====================================
+  
+  // --- Casa 2 Piso 1: Espacios ---
+  'DespensaC2',
+  'CocinaC2',
+  'ComedorC2',
+  'BalconJacuzziC2',
+  'SalaPrincipalC2',
+  'HallPiso1C2',
+  'ZonaDeRopasC2',
+  'EstudioC2',
+  'BañoSocialC2',
+  'HabitacionServicioC2',
+  'BañoServicioC2',
+  'AccesoC2',
+  'EscaleraC2',
+
+  // --- Casa 2 Piso 2: Espacios ---
+  'HallPiso2C2',
+  'BañoHabitacionAuxiliar2C2',
+  'VestierHabitacionAuxiliar2C2',
+  'HabitacionAuxiliar2C2',
+  'BañoHabitacionAuxiliar1C2',
+  'HabitacionAuxiliar1C2',
+  'BañoHabitacionPrincipalPiso2C2',
+  'VestierHabitacionPrincipalPiso2C2',
+  'HabitacionPrincipalPiso2C2',
+  'BalconHabitacionPrincipalPiso2C2',
+  'EscalerasC2',
+
+  // ====================================
+  // CASA 4
+  // ====================================
+  
+  // --- Casa 4 Piso 1: Espacios ---
+  'CocinaComedor',
+  'SalaAuxiliar',
+  'SalaPrincipal',
+  'BañoServicio',
+  'HabitacionServicio',
+  'BañoSocialPiso1',
+  'Almacen',
+  'ZonaDeRopas',
+  'BalconJacuzzi',
+  'Acceso',
+
+  // --- Casa 4 Piso 2: Espacios ---
+  'VestierHabitacionAuxiliar2',
+  'BañoHabitacionAuxiliar2',
+  'HabitacionAuxiliar2',
+  'HallPiso2',
+  'VestierHabitacionPrincipalPiso2',
+  'BañoHabitacionAuxiliar1',
+  'BalconHabitacionPrincipalPiso2',
+  'BañoHabitacionPrincipalPiso2',
+  'HabitacionPrincipalPiso2',
+  'HabitacionAuxiliar1',
+  'Escaleras',
 ];

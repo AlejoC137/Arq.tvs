@@ -4,8 +4,8 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 // ... otros imports si los necesitas dentro de Test ...
 
 // Importa los componentes de plano
-import { FloorPlan1 } from './FloorPlan1'; // Si decides usarlo de nuevo
-import { FloorPlan2 } from './FloorPlan2';
+import { FloorPlanC2P1 } from './FloorPlanC2P1';
+import { FloorPlanC2P2 } from './FloorPlanC2P2';
 
 // 1. Acepta la nueva prop 'onRoomSelect'
 const Test = ({ onRoomSelect }) => {
@@ -65,13 +65,13 @@ const Test = ({ onRoomSelect }) => {
       <div className="flex-grow w-full h-full">
         {/* Renderizado condicional del plano, usando el estado local para resaltar */}
         {currentFloor === 1 && (
-          <FloorPlan1
+          <FloorPlanC2P1
             selectedRoom={selectedRoomLocal}
             onRoomClick={handleRoomClick}
           />
         )}
         {currentFloor === 2 && (
-          <FloorPlan2
+          <FloorPlanC2P2
             selectedRoom={selectedRoomLocal}
             onRoomClick={handleRoomClick}
           />

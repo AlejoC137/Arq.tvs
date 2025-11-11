@@ -194,10 +194,10 @@ const getRoomClassName = (roomId, selectedRoom) => {
 };
 
 /**
- * Componente Principal del Plano (Piso 1)
+ * Componente Principal del Plano (Piso 1 - Casa 2)
  * Acepta 'tasks' para calcular contadores de tareas por espacio
  */
-export function FloorPlan1({ selectedRoom, onRoomClick, tasks = [] }) {
+export function FloorPlanC2P1({ selectedRoom, onRoomClick, tasks = [] }) {
   // Contar tareas por espacio (igual que FloorPlan2)
   const taskCountByRoom = useMemo(() => {
     const counts = {};

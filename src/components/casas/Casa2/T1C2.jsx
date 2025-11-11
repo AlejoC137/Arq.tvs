@@ -1,7 +1,7 @@
 // ARCHIVO: t1.jsx - Detalles Técnicos para Casa 2
 import React from 'react';
 
-const T1Casa2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
+const T1C2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
   return (
     <div className="flex flex-col h-full p-4">
       <h3 className="text-lg font-semibold mb-4">Detalles Técnicos - Casa 2</h3>
@@ -12,4 +12,4 @@ const T1Casa2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
   );
 };
 
-export default T1Casa2;
+export default T1C2;
