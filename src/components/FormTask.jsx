@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Save, X } from 'lucide-react';
-import { ESPACIOS_HABITACIONES } from '../constants/espacios';
+import { getEspaciosPorProyecto } from '../constants/espacios';
 
 // Estado inicial del formulario
 const initialState = {
@@ -64,6 +64,12 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
         // Asumiendo que la columna en la tabla de entregables es 'Stage_id'
         return entregables.filter(e => e.Stage_id === formData.stage_id);
     }, [formData.stage_id, entregables]);
+
+    // Filtra los espacios según el proyecto seleccionado
+    const espaciosDisponibles = useMemo(() => {
+        const currentProject = proyectos?.find(p => p.id === formData.project_id);
+        return getEspaciosPorProyecto(currentProject, false);
+    }, [formData.project_id, proyectos]);
     
     if (!isOpen) return null;
 
@@ -139,7 +145,7 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
 
                             <select id="espacio" name="espacio" value={formData.espacio} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none">
                                 <option value="">-- Sin Asignar --</option>
-                                {ESPACIOS_HABITACIONES.map(espacio => (<option key={espacio} value={espacio}>{espacio}</option>))}
+                                {espaciosDisponibles.map(espacio => (<option key={espacio} value={espacio}>{espacio}</option>))}
                             </select>
                         </div>
                     
