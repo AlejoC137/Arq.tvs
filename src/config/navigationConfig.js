@@ -10,7 +10,9 @@ import {
   FileText, 
   Users,
   ListTodo,
-  FolderKanban
+  FolderKanban,
+  BookOpen,
+  Contact
 } from 'lucide-react';
 
 // Import de componentes (lazy loading para mejor performance)
@@ -21,6 +23,8 @@ const PlanosView = lazy(() => import('../components/PlanosView'));
 const TeamView = lazy(() => import('../components/TeamView'));
 const ProjectDashboard = lazy(() => import('../components/ProjectDashboard'));
 const Materiales = lazy(() => import('../components/Materiales'));
+const Protocolos = lazy(() => import('../components/ProtocolosSupabase'));
+const Directorio = lazy(() => import('../components/DirectorioSupabase'));
 const ProjectKanbanView = lazy(() => import('../components/ProjectKanbanView'));
 const ProjectExcelView = lazy(() => import('../components/ProjectExcelView'));
 
@@ -81,8 +85,28 @@ export const navigationTabs = [
     icon: LayoutDashboard,
     description: 'Gráficos y estadísticas ejecutivas',
     component: Materiales,
-    enabled: true, // Deshabilitado por ahora
+    enabled: true,
     category: 'Análisis'
+  },
+  {
+    id: 'Protocolos',
+    path: '/Protocolos',
+    label: 'Protocolos',
+    icon: BookOpen,
+    description: 'Documentos y procedimientos del estudio',
+    component: Protocolos,
+    enabled: true,
+    category: 'Documentos'
+  },
+  {
+    id: 'Directorio',
+    path: '/Directorio',
+    label: 'Directorio',
+    icon: Contact,
+    description: 'Contactos y proveedores',
+    component: Directorio,
+    enabled: true,
+    category: 'Gestión'
   },
   // {
   //   id: 'kanban',

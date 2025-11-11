@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "nombre": "Juan Pérez",
+    "cargo": "Arquitecto Principal",
+    "empresa": "Estudio ARQ.TVS",
+    "email": "juan.perez@arq.tvs",
+    "telefono": "+57 300 123 4567",
+    "area": "Diseño",
+    "ubicacion": "Bogotá, Colombia"
+  },
+  {
+    "id": 2,
+    "nombre": "María González",
+    "cargo": "Coordinadora de Proyectos",
+    "empresa": "Estudio ARQ.TVS",
+    "email": "maria.gonzalez@arq.tvs",
+    "telefono": "+57 301 234 5678",
+    "area": "Gestión",
+    "ubicacion": "Bogotá, Colombia"
+  },
+  {
+    "id": 3,
+    "nombre": "Carlos Rodríguez",
+    "cargo": "Ingeniero Estructural",
+    "empresa": "Estructuras CR",
+    "email": "carlos@estructurascr.com",
+    "telefono": "+57 302 345 6789",
+    "area": "Consultoría Externa",
+    "ubicacion": "Medellín, Colombia"
+  },
+  {
+    "id": 4,
+    "nombre": "Ana Martínez",
+    "cargo": "Proveedor de Materiales",
+    "empresa": "Materiales Prime",
+    "email": "ana.martinez@materialesprime.com",
+    "telefono": "+57 303 456 7890",
+    "area": "Proveedores",
+    "ubicacion": "Cali, Colombia"
+  },
+  {
+    "id": 5,
+    "nombre": "Roberto Silva",
+    "cargo": "Contratista General",
+    "empresa": "Construcciones Silva",
+    "email": "roberto@construccionessilva.com",
+    "telefono": "+57 304 567 8901",
+    "area": "Construcción",
+    "ubicacion": "Bogotá, Colombia"
+  }
+]
