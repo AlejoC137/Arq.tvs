@@ -1,4 +1,4 @@
-import{c as e}from"./index-cawTiIuy.js";/**
+import{b as e}from"./index-BMF47wD1.js";/**
  * @license lucide-react v0.441.0 - ISC
  *
  * This source code is licensed under the ISC license.
@@ -13,5 +13,4 @@ import{c as e}from"./index-cawTiIuy.js";/**
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
- */const t=e("Clock",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["polyline",{points:"12 6 12 12 16 14",key:"68esgv"}]]);export{a as B,t as C,i as a};
-//# sourceMappingURL=clock-D8SG1aDS.js.map
+ */const t=e("Clock",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["polyline",{points:"12 6 12 12 16 14",key:"68esgv"}]]);export{a as B,i as C,t as a};
