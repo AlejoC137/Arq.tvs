@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { Users, Briefcase, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Users, Briefcase, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { fetchStaff, fetchTasks } from '../store/actions/actions';
 
 const TeamView = () => {
@@ -9,6 +9,7 @@ const TeamView = () => {
   const [allTasks, setAllTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffStats, setStaffStats] = useState({});
+  const [expandedCards, setExpandedCards] = useState(new Set());
 
   useEffect(() => {
     loadData();
@@ -166,90 +167,117 @@ const TeamView = () => {
           </div>
         </div>
 
-        {/* Staff Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Staff Grid - Compacto */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {staffMembers.map((staff) => {
-            const stats = staffStats[staff.id] || { total: 0, pending: 0, inProgress: 0, completed: 0, blocked: 0, completionRate: 0 };
+            const stats = staffStats[staff.id] || { total: 0, completed: 0, completionRate: 0 };
+            const isExpanded = expandedCards.has(staff.id);
+            
+            // Filtrar tareas del miembro
+            const memberTasks = allTasks.filter(t => 
+              t.staff_id === staff.id || 
+              t.Staff_id === staff.id ||
+              t.staffId === staff.id
+            );
+            
+            const toggleExpand = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setExpandedCards(prev => {
+                const newSet = new Set(prev);
+                if (newSet.has(staff.id)) {
+                  newSet.delete(staff.id);
+                } else {
+                  newSet.add(staff.id);
+                }
+                return newSet;
+              });
+            };
             
             return (
-              <a
+              <div
                 key={staff.id}
-                href={`/StaffTaskModal/${staff.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-blue-400 overflow-hidden group"
+                className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 overflow-hidden"
               >
-                {/* Header con nombre */}
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-blue-600 font-bold text-xl">
+                {/* Header compacto */}
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
                       {staff.name ? staff.name.charAt(0).toUpperCase() : '?'}
                     </div>
-                    <div className="flex-1 text-white">
-                      <h3 className="font-bold text-lg truncate">{staff.name}</h3>
-                      <p className="text-sm text-blue-100 truncate">{staff.role_description || 'Sin rol asignado'}</p>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-white truncate">{staff.name}</h3>
+                      <p className="text-xs text-blue-100 truncate">{staff.role_description || 'Sin rol'}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Body con estadísticas */}
-                <div className="p-4 space-y-3">
-                  {/* Progreso */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-600">Progreso</span>
-                      <span className="text-xs font-bold text-gray-800">{stats.completionRate}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${stats.completionRate}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Estadísticas de tareas */}
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-                      <p className="text-xs text-gray-600">Total</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-                      <p className="text-xs text-gray-600">Completas</p>
-                    </div>
-                  </div>
-
-                  {/* Badges de estado */}
-                  <div className="flex flex-wrap gap-2 pt-2 border-t">
-                    {stats.pending > 0 && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {stats.pending} Pendiente{stats.pending > 1 ? 's' : ''}
+                {/* Body - Contador + Botón desplegable */}
+                <div className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Briefcase className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        <span className="font-bold text-gray-900">{stats.total}</span> tareas
                       </span>
-                    )}
-                    {stats.inProgress > 0 && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                        <Briefcase className="w-3 h-3 mr-1" />
-                        {stats.inProgress} En Curso
-                      </span>
-                    )}
-                    {stats.blocked > 0 && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        {stats.blocked} Bloqueada{stats.blocked > 1 ? 's' : ''}
-                      </span>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {stats.total > 0 && (
+                        <>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            stats.completionRate === 100 ? 'bg-green-100 text-green-700' :
+                            stats.completionRate >= 50 ? 'bg-blue-100 text-blue-700' :
+                            'bg-orange-100 text-orange-700'
+                          }`}>
+                            {stats.completionRate}%
+                          </span>
+                          <button
+                            onClick={toggleExpand}
+                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                            title={isExpanded ? 'Ocultar tareas' : 'Ver tareas'}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-600" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-600" />
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div className="bg-gray-50 px-4 py-2 text-center group-hover:bg-blue-50 transition-colors">
-                  <p className="text-sm text-gray-600 group-hover:text-blue-600 font-medium">
-                    Click para ver tareas →
+                {/* Lista de tareas desplegable */}
+                {isExpanded && memberTasks.length > 0 && (
+                  <div className="border-t border-gray-200 bg-gray-50 max-h-64 overflow-y-auto">
+                    <div className="p-2 space-y-1">
+                      {memberTasks.map((task, index) => (
+                        <div 
+                          key={task.id}
+                          className="text-xs p-2 bg-white rounded border border-gray-200 hover:border-blue-300 transition-colors"
+                        >
+                          <p className="text-gray-700 line-clamp-2">
+                            {task.task_description || 'Sin descripción'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer compacto */}
+                <a
+                  href={`/StaffTaskModal/${staff.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block bg-gray-50 px-3 py-2 text-center hover:bg-blue-50 transition-colors border-t border-gray-100"
+                >
+                  <p className="text-xs text-gray-500 hover:text-blue-600 font-medium">
+                    Ver tareas →
                   </p>
-                </div>
-              </a>
+                </a>
+              </div>
             );
           })}
         </div>

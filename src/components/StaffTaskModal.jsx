@@ -18,7 +18,7 @@ import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
-import { ESPACIOS_HABITACIONES } from '../constants/espacios';
+import { getEspaciosPorProyecto } from '../constants/espacios';
 
 const ESTADOS = {
     PENDIENTE: 'Pendiente',
@@ -602,7 +602,16 @@ const StaffTaskModal = () => {
                             </div>
                             <div className="print-row">
                                 <label className="font-medium text-gray-500">Espacio</label>
-                                <EditableCell rowId={task.id} field="espacio" value={task.espacio} type="espacio-select" options={ESPACIOS_HABITACIONES.map(e => ({ id: e, name: e }))} />
+                                <EditableCell 
+                                    rowId={task.id} 
+                                    field="espacio" 
+                                    value={task.espacio} 
+                                    type="espacio-select" 
+                                    options={(() => {
+                                        const taskProject = projects.find(p => p.id === task.project_id);
+                                        return getEspaciosPorProyecto(taskProject, false).map(e => ({ id: e, name: e }));
+                                    })()} 
+                                />
                             </div>
                         </div>
 
@@ -664,7 +673,7 @@ const StaffTaskModal = () => {
 
                             <div data-print-block="true" data-section="acciones">
                                 <label className="font-medium text-gray-500">Acciones y Actividad</label>
-                                <InlineActionsTask task={task} />
+                                <InlineActionsTask task={task} projects={projects} />
                             </div>
                         </div>
                     </div>

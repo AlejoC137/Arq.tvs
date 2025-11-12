@@ -27,6 +27,24 @@ import { Badge } from '../components/ui/Badge.jsx';
 // Team Overview Component
 const TeamOverview = () => {
   const { members } = useSelector(state => state.staff);
+  const { tasks } = useSelector(state => state.tasks);
+  
+  // Calcular tareas por miembro
+  const membersWithTasks = useMemo(() => {
+    return members.map(member => {
+      const memberTasks = tasks.filter(task => task.staff_id === member.id);
+      const completedTasks = memberTasks.filter(t => t.status === 'Completado').length;
+      const totalTasks = memberTasks.length;
+      
+      return {
+        ...member,
+        totalTasks,
+        completedTasks,
+        pendingTasks: totalTasks - completedTasks,
+        completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+      };
+    });
+  }, [members, tasks]);
   
   return (
     <Card className="mb-8">
@@ -36,26 +54,45 @@ const TeamOverview = () => {
           Equipo y Responsabilidades
         </CardTitle>
         <CardDescription>
-          Miembros del equipo arquitectónico y sus roles principales
+          Vista compacta del equipo y contadores de tareas
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {members.map((member) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {membersWithTasks.map((member) => (
             <motion.div
               key={member.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 bg-secondary/50 rounded-lg border"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold">
+              <div className="flex items-start gap-2 mb-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                   {member.name ? member.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <div>
-                  <p className="font-semibold text-foreground">{member.name}</p>
-                  <p className="text-sm text-muted-foreground">{member.role_description}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-gray-900 truncate">{member.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{member.role_description}</p>
                 </div>
+              </div>
+              
+              {/* Contador de tareas */}
+              <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-1">
+                  <CheckSquare className="h-3 w-3 text-gray-400" />
+                  <span className="text-gray-600">
+                    <span className="font-semibold text-gray-900">{member.totalTasks}</span> tareas
+                  </span>
+                </div>
+                {member.totalTasks > 0 && (
+                  <span className={`font-semibold ${
+                    member.completionRate === 100 ? 'text-green-600' :
+                    member.completionRate >= 50 ? 'text-blue-600' :
+                    'text-orange-600'
+                  }`}>
+                    {member.completionRate}%
+                  </span>
+                )}
               </div>
             </motion.div>
           ))}

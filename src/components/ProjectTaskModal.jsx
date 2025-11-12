@@ -16,7 +16,7 @@ import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
-import { ESPACIOS_HABITACIONES } from '../constants/espacios';
+import { getEspaciosPorProyecto } from '../constants/espacios';
 import { PlansViewer, ProjectHeader, TasksToolbar } from './ProjectPlans';
 import { hasProjectPlans } from '../config/projectPlansConfig';
 
@@ -602,7 +602,13 @@ const ProjectTaskModal = () => {
               </div>
               <div className="print-row col-span-2">
                 <label className="font-medium text-gray-500 text-xs mb-1 block">Espacio</label>
-                <EditableCell rowId={task.id} field="espacio" value={task.espacio} type="espacio-select" options={ESPACIOS_HABITACIONES.map(e => ({id: e, name: e}))} />
+                <EditableCell 
+                  rowId={task.id} 
+                  field="espacio" 
+                  value={task.espacio} 
+                  type="espacio-select" 
+                  options={getEspaciosPorProyecto(selectedProject, false).map(e => ({id: e, name: e}))} 
+                />
               </div>
             </div>
 
@@ -664,7 +670,7 @@ const ProjectTaskModal = () => {
 
               <div data-print-block="true" data-section="acciones">
                 <label className="font-medium text-gray-500 text-xs mb-1 block">Acciones y Actividad</label>
-                <InlineActionsTask task={task} />
+                <InlineActionsTask task={task} projects={projects} />
               </div>
             </div>
           </div>
