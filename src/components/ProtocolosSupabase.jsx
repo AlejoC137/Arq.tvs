@@ -294,7 +294,8 @@ const ProtocolosSupabase = () => {
               {filteredProtocolos.map(protocolo => (
                 <div
                   key={protocolo.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white"
+                  onClick={() => handleView(protocolo)}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all bg-white cursor-pointer"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -332,14 +333,7 @@ const ProtocolosSupabase = () => {
                     </div>
                     
                     {/* Acciones */}
-                    <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={() => handleView(protocolo)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver protocolo"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
+                    <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => handleEdit(protocolo)}
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
