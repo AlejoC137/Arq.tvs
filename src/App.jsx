@@ -11,6 +11,7 @@ import ProjectTaskModal from './components/ProjectTaskModal';
 import StaffTaskModal from './components/StaffTaskModal';
 import { getEnabledTabs, getDefaultRoute } from './config/navigationConfig';
 import Materiales from './components/Materiales.jsx'; // <- incluida la vista de Materiales
+import MigracionDatosProyectos from './components/MigracionDatosProyectos.jsx'; // Herramienta de migración temporal
 
 function App() {
   const [data, setData] = useState([]);
@@ -186,6 +187,7 @@ function App() {
               <Route path="/ProjectTaskModal/:id" element={<ProjectTaskModal />} />
               <Route path="/StaffTaskModal/:staffId" element={<StaffTaskModal />} />
               <Route path="/Materiales" element={<Materiales />} />
+              <Route path="/migracion-datos" element={<MigracionDatosProyectos />} />
               
               {/* Rutas dinámicas desde configuración */}
               {navigationItems.map((item) => (

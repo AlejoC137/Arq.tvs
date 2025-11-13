@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { X } from 'lucide-react';
+import { X, Settings } from 'lucide-react';
 // Usamos la acción específica de projectActions
 import { updateProject } from '../store/actions/projectActions.js';
 // Asumimos que tienes una acción genérica para cargar otras tablas (como Personal)
 // Esta podría venir de tu 'actions.js' o de un 'crudActions'
 // Ajusta esta ruta si es necesario
-import { getAllFromTable } from '../store/actions/actions.js'; 
-
-// Lista predefinida de espacios
-const ESPACIOS_LISTA = [
-    "Sala", "Comedor", "Cocina", "Baño Principal", "Baño Social",
-    "Dormitorio 1", "Dormitorio 2", "Dormitorio 3", "Terraza", "Balcón",
-    "Garaje", "Patio", "Estudio", "Zona de Ropas"
-];
+import { getAllFromTable } from '../store/actions/actions.js';
+import DatosProyectoEditor from './DatosProyectoEditor.jsx';
 
 // Lista predefinida de estados (basada en tu imagen y acciones)
 const ESTADOS_LISTA = [
@@ -28,12 +22,12 @@ const PreModalProjectsConfig = ({ proyecto, onClose, onProjectUpdated }) => {
     const [nombre, setNombre] = useState('');
     const [estado, setEstado] = useState('');
     const [responsable, setResponsable] = useState(''); // Guarda el UUID del responsable
-    const [espaciosSeleccionados, setEspaciosSeleccionados] = useState([]);
     
     // Estado para cargar datos
     const [usuarios, setUsuarios] = useState([]); // Lista de usuarios para el dropdown
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [showDatosEditor, setShowDatosEditor] = useState(false);
 
     // Efecto para cargar la lista de usuarios (para el dropdown de 'resp')
     useEffect(() => {
@@ -61,23 +55,9 @@ const PreModalProjectsConfig = ({ proyecto, onClose, onProjectUpdated }) => {
             setNombre(proyecto.name || '');
             setEstado(proyecto.status || '');
             setResponsable(proyecto.resp || ''); // El UUID del responsable
-            setEspaciosSeleccionados(Array.isArray(proyecto.espacios) ? proyecto.espacios : []);
             setError(null);
         }
     }, [proyecto]);
-
-    /**
-     * Maneja el clic en un checkbox de espacio.
-     */
-    const handleSpaceChange = (spaceName) => {
-        setEspaciosSeleccionados(prevEspacios => {
-            if (prevEspacios.includes(spaceName)) {
-                return prevEspacios.filter(s => s !== spaceName);
-            } else {
-                return [...prevEspacios, spaceName];
-            }
-        });
-    };
 
     /**
      * Maneja el guardado de los cambios.
@@ -90,8 +70,7 @@ const PreModalProjectsConfig = ({ proyecto, onClose, onProjectUpdated }) => {
         const updateData = {
             name: nombre,
             status: estado,
-            resp: responsable || null, // Envía null si el string está vacío
-            espacios: espaciosSeleccionados
+            resp: responsable || null // Envía null si el string está vacío
         };
 
         dispatch(updateProject(proyecto.id, updateData))
@@ -209,25 +188,20 @@ const PreModalProjectsConfig = ({ proyecto, onClose, onProjectUpdated }) => {
 
                     <hr className="mb-6" />
 
-                    {/* Checkboxes de Espacios */}
+                    {/* Botón para abrir editor de Datos */}
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-700 mb-4">Seleccionar Espacios</h3>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-4">Datos del Proyecto</h3>
                         <p className="text-sm text-gray-500 mb-4">
-                            Marca los espacios que aplican a este proyecto. Se guardará como una lista de textos.
+                            Gestiona materiales constantes, etapa y presentaciones del proyecto.
                         </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                            {ESPACIOS_LISTA.map(space => (
-                                <label key={space} className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50 transition-colors cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                        checked={espaciosSeleccionados.includes(space)}
-                                        onChange={() => handleSpaceChange(space)}
-                                    />
-                                    <span className="text-gray-700">{space}</span>
-                                </label>
-                            ))}
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowDatosEditor(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                        >
+                            <Settings className="w-5 h-5" />
+                            Configurar Datos del Proyecto
+                        </button>
                     </div>
                 </div>
 
@@ -250,6 +224,19 @@ const PreModalProjectsConfig = ({ proyecto, onClose, onProjectUpdated }) => {
                     </button>
                 </div>
             </div>
+            
+            {/* Modal de Datos del Proyecto */}
+            {showDatosEditor && (
+                <DatosProyectoEditor
+                    proyecto={proyecto}
+                    onClose={() => setShowDatosEditor(false)}
+                    onSave={(updatedProject) => {
+                        // Actualizar el proyecto en el padre
+                        onProjectUpdated(updatedProject);
+                        setShowDatosEditor(false);
+                    }}
+                />
+            )}
         </div>
     );
 };
