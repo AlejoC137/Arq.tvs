@@ -272,19 +272,23 @@ const ProjectHeader = ({ project, projectProgress, onProjectUpdate }) => {
                   <div key={idx} className="flex items-start gap-2 text-xs bg-green-50 p-2 rounded border border-green-100">
                     {isEditing ? (
                       <div className="flex-1 space-y-2">
-                        <select
+                        <input
+                          type="text"
+                          list={`espacios-datalist-${project.id}-${idx}`}
                           value={pres.espacio}
                           onChange={(e) => {
                             const updated = [...editData.presentacionesEspacio];
                             updated[idx].espacio = e.target.value;
                             setEditData({ ...editData, presentacionesEspacio: updated });
                           }}
+                          placeholder="Escribe o selecciona un espacio"
                           className="w-full text-xs px-2 py-1 border border-green-300 rounded"
-                        >
+                        />
+                        <datalist id={`espacios-datalist-${project.id}-${idx}`}>
                           {espaciosProyecto.map(esp => (
-                            <option key={esp} value={esp}>{esp}</option>
+                            <option key={esp} value={esp} />
                           ))}
-                        </select>
+                        </datalist>
                         <input
                           type="url"
                           value={pres.link}

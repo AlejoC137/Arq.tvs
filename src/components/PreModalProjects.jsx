@@ -391,7 +391,9 @@ const PreModalProjects = () => {
                                                     <div key={idx} className="flex items-start gap-2 text-sm bg-green-50 p-2 rounded border border-green-100">
                                                         {isEditing ? (
                                                             <div className="flex-1 space-y-2">
-                                                                <select
+                                                                <input
+                                                                    type="text"
+                                                                    list={`espacios-list-${proyecto.id}-${idx}`}
                                                                     value={pres.espacio}
                                                                     onChange={(e) => {
                                                                         const updated = [...editData[proyecto.id].presentacionesEspacio];
@@ -404,12 +406,14 @@ const PreModalProjects = () => {
                                                                             }
                                                                         });
                                                                     }}
+                                                                    placeholder="Escribe o selecciona un espacio"
                                                                     className="w-full text-xs px-2 py-1 border border-green-300 rounded"
-                                                                >
+                                                                />
+                                                                <datalist id={`espacios-list-${proyecto.id}-${idx}`}>
                                                                     {espaciosProyecto.map(esp => (
-                                                                        <option key={esp} value={esp}>{esp}</option>
+                                                                        <option key={esp} value={esp} />
                                                                     ))}
-                                                                </select>
+                                                                </datalist>
                                                                 <input
                                                                     type="url"
                                                                     value={pres.link}
