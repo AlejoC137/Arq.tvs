@@ -4,15 +4,16 @@
 // Configuración centralizada de todas las pestañas del sistema
 // Para agregar una nueva pestaña, simplemente añade un nuevo objeto al array
 
-import { 
-  LayoutDashboard, 
-  Table, 
-  FileText, 
+import {
+  LayoutDashboard,
+  Table,
+  FileText,
   Users,
   ListTodo,
   FolderKanban,
   BookOpen,
-  Contact
+  Contact,
+  Calendar
 } from 'lucide-react';
 
 // Import de componentes (lazy loading para mejor performance)
@@ -27,6 +28,7 @@ const Protocolos = lazy(() => import('../components/ProtocolosSupabase'));
 const Directorio = lazy(() => import('../components/DirectorioSupabase'));
 const ProjectKanbanView = lazy(() => import('../components/ProjectKanbanView'));
 const ProjectExcelView = lazy(() => import('../components/ProjectExcelView'));
+const CalendarView = lazy(() => import('../components/CalendarView'));
 
 // ========================================
 // TAB CONFIGURATION
@@ -108,6 +110,16 @@ export const navigationTabs = [
     enabled: true,
     category: 'Gestión'
   },
+  {
+    id: 'calendario',
+    path: '/calendario',
+    label: 'Calendario',
+    icon: Calendar,
+    description: 'Vista de calendario de tareas',
+    component: CalendarView,
+    enabled: true,
+    category: 'Gestión'
+  },
   // {
   //   id: 'kanban',
   //   path: '/kanban',
@@ -145,7 +157,7 @@ export const getEnabledTabs = () => {
  * Obtiene tabs por categoría
  */
 export const getTabsByCategory = (category) => {
-  return navigationTabs.filter(tab => 
+  return navigationTabs.filter(tab =>
     tab.category === category && tab.enabled !== false
   );
 };
