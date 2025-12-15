@@ -4,7 +4,7 @@ import { getEspaciosPorProyecto } from '../constants/espacios';
 
 // Estado inicial del formulario
 const initialState = {
-    task_description: '',
+    tema: '',
     project_id: '',
     staff_id: '',
     status: 'Pendiente',
@@ -70,14 +70,14 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
         const currentProject = proyectos?.find(p => p.id === formData.project_id);
         return getEspaciosPorProyecto(currentProject, false);
     }, [formData.project_id, proyectos]);
-    
+
     if (!isOpen) return null;
 
     // Maneja los cambios en la mayoría de los campos del formulario
     const handleChange = (e) => {
         const { name, value, type } = e.target;
         const finalValue = type === 'number' ? parseInt(value, 10) || 0 : value;
-        
+
         setFormData(prev => {
             const updatedData = { ...prev, [name]: finalValue };
             // Si se cambia la etapa, se resetea el entregable
@@ -100,7 +100,7 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!formData.task_description) {
+        if (!formData.tema) {
             alert("Por favor, completa la descripción de la tarea.");
             return;
         }
@@ -120,10 +120,10 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
                         <div className="md:col-span-2">
-                            <label htmlFor="task_description" className="block text-sm font-medium text-gray-700 mb-1">Descripción <span className="text-red-500">*</span></label>
-                            <textarea id="task_description" name="task_description" value={formData.task_description} onChange={handleChange} rows="3" className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" required></textarea>
+                            <label htmlFor="tema" className="block text-sm font-medium text-gray-700 mb-1">Descripción <span className="text-red-500">*</span></label>
+                            <textarea id="tema" name="tema" value={formData.tema} onChange={handleChange} rows="3" className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" required></textarea>
                         </div>
-            
+
                         <div>
                             <label htmlFor="staff_id" className="block text-sm font-medium text-gray-700 mb-1">Responsable</label>
                             <select id="staff_id" name="staff_id" value={formData.staff_id} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none">
@@ -135,7 +135,7 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
                         <div>
                             <label htmlFor="stage_id" className="block text-sm font-medium text-gray-700 mb-1">Etapa</label>
                             <select id="stage_id" name="stage_id" value={formData.stage_id} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none">
-                                 <option value="">-- Sin Asignar --</option>
+                                <option value="">-- Sin Asignar --</option>
                                 {stages?.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
                             </select>
                         </div>
@@ -148,7 +148,7 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
                                 {espaciosDisponibles.map(espacio => (<option key={espacio} value={espacio}>{espacio}</option>))}
                             </select>
                         </div>
-                    
+
                         <div>
                             <label htmlFor="assignDate" className="block text-sm font-medium text-gray-700 mb-1">Fecha Asignación</label>
                             <input id="assignDate" name="assignDate" type="date" value={currentDates.assignDate} onChange={handleDateChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" />
@@ -157,7 +157,7 @@ const FormTask = ({ isOpen, onClose, onSubmit, proyectos, staff, stages, entrega
                             <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">Fecha Límite</label>
                             <input id="dueDate" name="dueDate" type="date" value={currentDates.dueDate} onChange={handleDateChange} className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none" />
                         </div>
- 
+
                     </div>
                     <div className="flex justify-end items-center p-4 border-t bg-gray-50 rounded-b-lg">
                         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 mr-2">Cancelar</button>

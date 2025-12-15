@@ -12,6 +12,8 @@ import {
 
 import MaterialCreador from './MaterialCreador';
 
+import ViewToggle from './common/ViewToggle';
+
 const INITIAL_COLUMN_VISIBILITY = {
   'categoria': true,
   'Nombre': true,
@@ -117,7 +119,7 @@ const formatDisplayValue = (value, key) => {
 
 // DataRow (fuera del componente principal para evitar pérdida de foco)
 const DataRow = ({ row, activeCols, dirty, edits, editMode, onCellChange }) => {
-  let rowId = row.id ?? row._id ?? row.codigo;
+  let rowId = row.id;
   if (!rowId && row.Nombre) {
     rowId = row.Nombre;
   }
@@ -188,6 +190,8 @@ const Materiales = () => {
 
   const [isGrouped, setIsGrouped] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
+
+  const [viewMode, setViewMode] = useState('list'); // 'list' default for Excel-like preference
 
   const fetchData = useCallback(async () => {
     try {
@@ -535,9 +539,8 @@ const Materiales = () => {
               {columns.map((k) => (
                 <label
                   key={k}
-                  className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-gray-50 ${
-                    INTERNAL_KEYS.has(k) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                  }`}
+                  className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-gray-50 ${INTERNAL_KEYS.has(k) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                    }`}
                   title={k}
                 >
                   <div className="flex items-center gap-2">
@@ -595,8 +598,11 @@ const Materiales = () => {
 
             <ColumnPicker />
 
+            <ViewToggle viewMode={viewMode} onViewChange={setViewMode} />
+
             <button
               onClick={() => setIsGrouped(g => !g)}
+              // Hide grouping button in grid view if not compatible, or keep it. Keeping it.
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${isGrouped ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
               title="Agrupar por Tipo"
             >
@@ -664,82 +670,162 @@ const Materiales = () => {
             <div className="p-4 text-red-600 bg-red-50 m-4 rounded-lg">{error}</div>
           )}
 
-          <div className="overflow-auto h-full">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr>
-                  {activeCols.map((colKey) => (
-                    <th
-                      key={colKey}
-                      onClick={() => toggleSort(colKey)}
-                      className="text-left font-semibold text-gray-600 px-3 py-3 cursor-pointer select-none whitespace-nowrap"
-                      title={`Ordenar por ${colKey}`}
-                    >
-                      {colKey} <SortIcon col={colKey} />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+          {viewMode === 'grid' ? (
+            <div className="p-4 overflow-auto h-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {sorted.map(row => (
+                  <div key={row.id ?? row._id ?? row.codigo ?? row.Nombre} className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+                    {/* Imagen o Placeholder */}
+                    <div className="h-48 bg-gray-100 relative">
+                      {row.foto_url && row.foto_url.startsWith('http') ? (
+                        <img src={row.foto_url} alt={row.Nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <Columns className="w-12 h-12 opacity-50" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        {row.marca && (
+                          <span className="bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                            {row.marca}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-              <tbody className="divide-y divide-gray-200">
-                {isGrouped && groupedData && groupedData.keys.map(groupKey => {
-                  const itemsInGroup = groupedData.data[groupKey];
-                  const isCollapsed = !expandedGroups.has(groupKey);
+                    <div className="p-4 flex-1 flex flex-col">
+                      <div className="mb-2">
+                        <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                          {row.categoria || 'Sin Categoría'}
+                        </span>
+                        <h3 className="font-bold text-gray-800 text-lg leading-tight line-clamp-2" title={row.Nombre}>
+                          {row.Nombre || 'Sin Nombre'}
+                        </h3>
+                      </div>
 
-                  return (
-                    <React.Fragment key={groupKey}>
-                      <tr
-                        className="bg-blue-50 hover:bg-blue-100 cursor-pointer"
-                        onClick={() => toggleGroup(groupKey)}
-                      >
-                        <td colSpan={activeCols.length} className="px-3 py-3 font-semibold text-blue-800">
+                      <div className="space-y-1 text-sm text-gray-600 flex-1">
+                        {row.proveedor && (
                           <div className="flex items-center gap-2">
-                            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            <span>{groupKey}</span>
-                            <span className="font-normal text-blue-600">({itemsInGroup.length} items)</span>
+                            <span className="w-4 flex justify-center text-gray-400">P:</span>
+                            <span className="truncate">{row.proveedor}</span>
                           </div>
-                        </td>
-                      </tr>
+                        )}
+                        {row.uso_recomendado && (
+                          <div className="flex items-center gap-2">
+                            <span className="w-4 flex justify-center text-gray-400">U:</span>
+                            <span className="truncate">{row.uso_recomendado}</span>
+                          </div>
+                        )}
+                      </div>
 
-                      {!isCollapsed && itemsInGroup.map(row => (
-                        <DataRow
-                          key={row.id ?? row._id ?? row.codigo ?? row.Nombre}
-                          row={row}
-                          activeCols={activeCols}
-                          dirty={dirty}
-                          edits={edits}
-                          editMode={editMode}
-                          onCellChange={onCellChange}
-                        />
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
-
-                {!isGrouped && sorted.map((row) => (
-                  <DataRow
-                    key={row.id ?? row._id ?? row.codigo ?? row.Nombre}
-                    row={row}
-                    activeCols={activeCols}
-                    dirty={dirty}
-                    edits={edits}
-                    editMode={editMode}
-                    onCellChange={onCellChange}
-                  />
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <div>
+                          {isNumberish(row.precio_COP) ? (
+                            <span className="font-bold text-gray-900 text-lg">
+                              {Number(row.precio_COP).toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">Sin precio</span>
+                          )}
+                          {row.unidad && <span className="text-xs text-gray-500 ml-1">/{row.unidad}</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {/* Botón rápido de editar en grid (opcional) */}
+                          <button
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                            title="Ver detalles (implementar modal completo si se desea)"
+                          >
+                            <Eye size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-
-                {sorted.length === 0 && !loading && (
-                  <tr>
-                    <td colSpan={activeCols.length} className="px-4 py-12 text-center text-gray-500">
-                      No se encontraron materiales {debounced ? 'que coincidan con la búsqueda.' : ''}
-                    </td>
-                  </tr>
+                {sorted.length === 0 && (
+                  <div className="col-span-full py-12 text-center text-gray-500">
+                    No se encontraron materiales.
+                  </div>
                 )}
-              </tbody>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-auto h-full">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    {activeCols.map((colKey) => (
+                      <th
+                        key={colKey}
+                        onClick={() => toggleSort(colKey)}
+                        className="text-left font-semibold text-gray-600 px-3 py-3 cursor-pointer select-none whitespace-nowrap"
+                        title={`Ordenar por ${colKey}`}
+                      >
+                        {colKey} <SortIcon col={colKey} />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
 
-            </table>
-          </div>
+                <tbody className="divide-y divide-gray-200">
+                  {isGrouped && groupedData && groupedData.keys.map(groupKey => {
+                    const itemsInGroup = groupedData.data[groupKey];
+                    const isCollapsed = !expandedGroups.has(groupKey);
 
+                    return (
+                      <React.Fragment key={groupKey}>
+                        <tr
+                          className="bg-blue-50 hover:bg-blue-100 cursor-pointer"
+                          onClick={() => toggleGroup(groupKey)}
+                        >
+                          <td colSpan={activeCols.length} className="px-3 py-3 font-semibold text-blue-800">
+                            <div className="flex items-center gap-2">
+                              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              <span>{groupKey}</span>
+                              <span className="font-normal text-blue-600">({itemsInGroup.length} items)</span>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {!isCollapsed && itemsInGroup.map(row => (
+                          <DataRow
+                            key={row.id ?? row._id ?? row.codigo ?? row.Nombre}
+                            row={row}
+                            activeCols={activeCols}
+                            dirty={dirty}
+                            edits={edits}
+                            editMode={editMode}
+                            onCellChange={onCellChange}
+                          />
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+
+                  {!isGrouped && sorted.map((row) => (
+                    <DataRow
+                      key={row.id ?? row._id ?? row.codigo ?? row.Nombre}
+                      row={row}
+                      activeCols={activeCols}
+                      dirty={dirty}
+                      edits={edits}
+                      editMode={editMode}
+                      onCellChange={onCellChange}
+                    />
+                  ))}
+
+                  {sorted.length === 0 && !loading && (
+                    <tr>
+                      <td colSpan={activeCols.length} className="px-4 py-12 text-center text-gray-500">
+                        No se encontraron materiales {debounced ? 'que coincidan con la búsqueda.' : ''}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="text-xs text-gray-500 flex items-center gap-3">

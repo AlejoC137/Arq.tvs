@@ -16,9 +16,9 @@ const useSelector = (selector) => {
   const mockState = {
     tasks: {
       tasks: [
-        { id: 1, task_description: 'Diseñar el plano principal del lobby', category: 'Diseño Arquitectónico', status: 'En Progreso', projects: { name: 'Torre Corporativa' }, staff: { name: 'Ana Vélez' }, stages: { name: 'Diseño' }, project_id: 'p1', staff_id: 's1', stage_id: 'st1' },
-        { id: 2, task_description: 'Calcular la carga estructural de las vigas', category: 'Ingeniería Estructural', status: 'Completo', projects: { name: 'Puente Centenario' }, staff: { name: 'Carlos Rojas' }, stages: { name: 'Cálculo' }, project_id: 'p2', staff_id: 's2', stage_id: 'st2' },
-        { id: 3, task_description: 'Revisar normativa de sismoresistencia', category: 'Normativa', status: 'Pendiente', projects: { name: 'Torre Corporativa' }, staff: { name: 'Luisa Parra' }, stages: { name: 'Investigación' }, project_id: 'p1', staff_id: 's3', stage_id: 'st3' },
+        { id: 1, tema: 'Diseñar el plano principal del lobby', category: 'Diseño Arquitectónico', status: 'En Progreso', projects: { name: 'Torre Corporativa' }, staff: { name: 'Ana Vélez' }, stages: { name: 'Diseño' }, project_id: 'p1', staff_id: 's1', stage_id: 'st1' },
+        { id: 2, tema: 'Calcular la carga estructural de las vigas', category: 'Ingeniería Estructural', status: 'Completo', projects: { name: 'Puente Centenario' }, staff: { name: 'Carlos Rojas' }, stages: { name: 'Cálculo' }, project_id: 'p2', staff_id: 's2', stage_id: 'st2' },
+        { id: 3, tema: 'Revisar normativa de sismoresistencia', category: 'Normativa', status: 'Pendiente', projects: { name: 'Torre Corporativa' }, staff: { name: 'Luisa Parra' }, stages: { name: 'Investigación' }, project_id: 'p1', staff_id: 's3', stage_id: 'st3' },
       ],
       loading: false,
       error: null,
@@ -145,71 +145,71 @@ const CrudForm = ({ fields, initialData, onSubmit, onCancel, loading, submitText
 };
 
 const DataTable = ({ title, description, data, columns, loading, onAdd, onEdit, onDelete, searchPlaceholder, emptyMessage }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const filteredData = data.filter(item => 
-        Object.values(item).some(val => 
-            String(val).toLowerCase().includes(searchTerm.toLowerCase())
-        )
-    );
+  const [searchTerm, setSearchTerm] = useState('');
+  const filteredData = data.filter(item =>
+    Object.values(item).some(val =>
+      String(val).toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
 
-    return (
-        <div className="bg-white border rounded-lg shadow-sm">
-            <div className="p-4 border-b">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h3 className="text-lg font-semibold">{title}</h3>
-                        <p className="text-sm text-gray-500">{description}</p>
-                    </div>
-                    <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-600   rounded-md">
-                        <Plus size={16} /> Agregar
-                    </button>
-                </div>
-                <div className="mt-4 relative">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input 
-                        type="text" 
-                        placeholder={searchPlaceholder}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border rounded-md"
-                    />
-                </div>
-            </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {columns.map(col => <th key={col.key} className="p-3 text-left font-medium text-gray-600">{col.title}</th>)}
-                            <th className="p-3 text-right font-medium text-gray-600">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {loading ? (
-                            <tr><td colSpan={columns.length + 1} className="p-4 text-center">Cargando...</td></tr>
-                        ) : filteredData.length === 0 ? (
-                            <tr><td colSpan={columns.length + 1} className="p-4 text-center">{emptyMessage}</td></tr>
-                        ) : (
-                            filteredData.map(item => (
-                                <tr key={item.id} className="hover:bg-gray-50">
-                                    {columns.map(col => (
-                                        <td key={col.key} className={`p-3 align-top ${col.className || ''}`}>
-                                            {col.render ? col.render(item[col.key] || item, item) : item[col.key]}
-                                        </td>
-                                    ))}
-                                    <td className="p-3 text-right">
-                                        <div className="inline-flex gap-2">
-                                            <button onClick={() => onEdit(item)} className="text-blue-600 hover:text-blue-800"><Edit size={16}/></button>
-                                            <button onClick={() => onDelete(item)} className="text-red-600 hover:text-red-800"><Trash2 size={16}/></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+  return (
+    <div className="bg-white border rounded-lg shadow-sm">
+      <div className="p-4 border-b">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-semibold">{title}</h3>
+            <p className="text-sm text-gray-500">{description}</p>
+          </div>
+          <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-blue-600   rounded-md">
+            <Plus size={16} /> Agregar
+          </button>
         </div>
-    );
+        <div className="mt-4 relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder={searchPlaceholder}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-md"
+          />
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              {columns.map(col => <th key={col.key} className="p-3 text-left font-medium text-gray-600">{col.title}</th>)}
+              <th className="p-3 text-right font-medium text-gray-600">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {loading ? (
+              <tr><td colSpan={columns.length + 1} className="p-4 text-center">Cargando...</td></tr>
+            ) : filteredData.length === 0 ? (
+              <tr><td colSpan={columns.length + 1} className="p-4 text-center">{emptyMessage}</td></tr>
+            ) : (
+              filteredData.map(item => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  {columns.map(col => (
+                    <td key={col.key} className={`p-3 align-top ${col.className || ''}`}>
+                      {col.render ? col.render(item[col.key] || item, item) : item[col.key]}
+                    </td>
+                  ))}
+                  <td className="p-3 text-right">
+                    <div className="inline-flex gap-2">
+                      <button onClick={() => onEdit(item)} className="text-blue-600 hover:text-blue-800"><Edit size={16} /></button>
+                      <button onClick={() => onDelete(item)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
 
 // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
@@ -220,7 +220,7 @@ const TasksPage = () => {
   const { projects } = useSelector(state => state.projects);
   const { members: staff } = useSelector(state => state.staff);
   const { stages } = useSelector(state => state.stages);
-  
+
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -247,7 +247,7 @@ const TasksPage = () => {
 
   const taskColumns = [
     {
-      key: 'task_description',
+      key: 'tema',
       title: 'Descripción de la Tarea',
       className: 'max-w-md',
       render: (value) => (
@@ -295,7 +295,7 @@ const TasksPage = () => {
 
   const taskFormFields = [
     {
-      name: 'task_description',
+      name: 'tema',
       label: 'Descripción de la Tarea',
       type: 'textarea',
       required: true,
@@ -380,12 +380,12 @@ const TasksPage = () => {
   };
 
   const handleDelete = async (task) => {
-    if (window.confirm(`¿Estás seguro de que deseas eliminar la tarea "${task.task_description}"?`)) {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar la tarea "${task.tema}"?`)) {
       const result = await dispatch(deleteTaskData(task.id));
       if (!result.success) {
         alert('Error al eliminar: ' + result.error);
       } else {
-         alert('Tarea eliminada (simulado). En una app real, la lista se actualizaría.');
+        alert('Tarea eliminada (simulado). En una app real, la lista se actualizaría.');
       }
     }
   };
@@ -406,7 +406,7 @@ const TasksPage = () => {
       } else {
         result = await dispatch(createTask(processedData));
       }
-      
+
       if (result.success) {
         alert('Operación exitosa (simulado). La lista se actualizaría.');
         setShowModal(false);

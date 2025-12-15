@@ -7,6 +7,7 @@ import filtersReducer from './reducers/filtersReducer.js';
 import staffReducer from './reducers/staffReducer.js';
 import stagesReducer from './reducers/stagesReducer.js';
 import entregablesReducer from './reducers/entregablesReducer.js';
+import tablesReducer from './reducers/tablesReducer.js';
 
 const rootReducer = combineReducers({
   projects: projectsReducer,
@@ -16,6 +17,7 @@ const rootReducer = combineReducers({
   staff: staffReducer,
   stages: stagesReducer,
   entregables: entregablesReducer,
+  tables: tablesReducer,
 });
 
 const store = createStore(

@@ -1,14 +1,12 @@
 // MODELO DE BASE DE DATOS SUPABASE PARA ARQ.TVS
 // Este archivo define la estructura de tablas necesaria para conectar con Supabase
 
-import { createClient } from '@supabase/supabase-js';
-
 // ================================
 // CONFIGURACIÓN DE SUPABASE
 // ================================
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Usamos el cliente ya configurado en config/supabaseClient
+import supabaseClient from '../config/supabaseClient';
+export const supabase = supabaseClient;
 
 // ================================
 // ESQUEMAS DE TABLAS PRINCIPALES
@@ -23,8 +21,8 @@ export const PROYECTOS_SCHEMA = {
   columns: {
     id: { type: 'uuid', primary_key: true }, // UUID existente del CSV
     name: { type: 'varchar(100)', not_null: true }, // Nombre del proyecto del CSV
-    status: { 
-      type: 'varchar(30)', 
+    status: {
+      type: 'varchar(30)',
       check: "status IN ('En Progreso', 'Pendiente', 'En Diseño', 'Completado', 'Pausado')",
       default: "'Pendiente'"
     },
@@ -46,8 +44,8 @@ export const CATEGORIES_SCHEMA = {
     descripcion: { type: 'text' },
     color: { type: 'varchar(7)', default: "'#6B7280'" }, // Código hexadecimal
     icono: { type: 'varchar(50)' }, // Nombre del ícono de Lucide
-    etapa_principal: { 
-      type: 'varchar(30)', 
+    etapa_principal: {
+      type: 'varchar(30)',
       check: "etapa_principal IN ('Arquitectónica', 'Técnica', 'Construcción')"
     },
     created_at: { type: 'timestamptz', default: 'now()' }
@@ -64,7 +62,7 @@ export const STAFF_SCHEMA = {
     id: { type: 'uuid', primary_key: true }, // UUID existente del CSV
     name: { type: 'varchar(100)', not_null: true }, // Nombre completo del CSV
     role_description: { type: 'text', not_null: true }, // Descripción del rol del CSV
-    Tasks: { type: 'text' }, // Campo Tasks del CSV (puede estar vacío)
+    tema: { type: 'text' }, // Campo tema del CSV (anteriormente Tasks) (puede estar vacío)
     created_at: { type: 'timestamptz', default: 'now()' },
     updated_at: { type: 'timestamptz', default: 'now()' }
   }
@@ -91,30 +89,30 @@ export const STAGE_SCHEMA = {
 
 /**
  * TABLA: Tareas (ADAPTADA A CSV: Tareas_rows.csv)
- * CSV tiene: id, category, task_description, status, notes, project_id, staff_id, stage_id
+ * CSV tiene: id, category, tema, status, notes, project_id, staff_id, stage_id
  */
 export const TAREAS_SCHEMA = {
   table_name: 'Tareas',
   columns: {
     id: { type: 'uuid', primary_key: true }, // UUID existente del CSV
     category: { type: 'varchar(100)', not_null: true }, // Categoría como texto del CSV
-    task_description: { type: 'text', not_null: true }, // Descripción de tarea del CSV
-    status: { 
-      type: 'varchar(30)', 
+    tema: { type: 'text', not_null: true }, // Descripción de tarea del CSV (anteriormente task_description)
+    status: {
+      type: 'varchar(30)',
       check: "status IN ('Pendiente', 'En Progreso', 'En Diseño', 'Bloqueado', 'En Discusión', 'Aprobación Requerida', 'Completado')",
       default: "'Pendiente'"
     },
     notes: { type: 'text' }, // Notas del CSV
-    project_id: { 
-      type: 'uuid', 
-      foreign_key: 'Proyectos(id) ON DELETE CASCADE' 
-    },
-    staff_id: { 
+    project_id: {
       type: 'uuid',
-      foreign_key: 'Staff(id) ON DELETE SET NULL' 
+      foreign_key: 'Proyectos(id) ON DELETE CASCADE'
     },
-    stage_id: { 
-      type: 'uuid', 
+    staff_id: {
+      type: 'uuid',
+      foreign_key: 'Staff(id) ON DELETE SET NULL'
+    },
+    stage_id: {
+      type: 'uuid',
       foreign_key: 'Stage(id) ON DELETE SET NULL'
     },
     created_at: { type: 'timestamptz', default: 'now()' },
@@ -137,9 +135,9 @@ export const ENTREGABLES_TEMPLATE_SCHEMA = {
     vistaTipo: { type: 'varchar(50)' }, // vistaTipo del CSV
     escala_tipica: { type: 'varchar(20)' }, // escala_tipica del CSV
     software_utilizado: { type: 'varchar(100)' }, // software_utilizado del CSV
-    Stage_id: { 
-      type: 'uuid', 
-      foreign_key: 'Stage(id) ON DELETE SET NULL' 
+    Stage_id: {
+      type: 'uuid',
+      foreign_key: 'Stage(id) ON DELETE SET NULL'
     }, // Stage_id del CSV
     vistaSubTipo: { type: 'varchar(50)' }, // vistaSubTipo del CSV
     created_at: { type: 'timestamptz', default: 'now()' },
@@ -150,6 +148,52 @@ export const ENTREGABLES_TEMPLATE_SCHEMA = {
 // NOTA: planos_proyecto no existe en CSV - se puede crear después si es necesario
 
 // NOTA: actividades no existe en CSV - tabla para logging futuro
+
+/**
+ * TABLA: Espacio_Elemento (ADAPTADA A CSV: Espacio_Elemento_rows.csv)
+ * CSV tiene: _id, nombre, tipo, piso, proyecto, etapa, componentes, tareas, apellido
+ */
+export const ESPACIO_ELEMENTO_SCHEMA = {
+  table_name: 'Espacio_Elemento',
+  columns: {
+    id: { type: 'uuid', primary_key: true, default: 'uuid_generate_v4()' }, // _id del CSV
+    nombre: { type: 'varchar(100)', not_null: true }, // nombre del CSV
+    tipo: {
+      type: 'varchar(50)',
+      check: "tipo IN ('Espacio', 'Elemento')"
+    }, // tipo del CSV
+    piso: { type: 'varchar(50)' }, // piso del CSV
+    proyecto_id: { // proyecto del CSV (se asume que es un ID o se relaciona)
+      type: 'uuid',
+      foreign_key: 'Proyectos(id) ON DELETE CASCADE'
+    },
+    etapa: { type: 'varchar(50)' }, // etapa del CSV
+    descripcion: { type: 'text' }, // apellido? o extra
+    created_at: { type: 'timestamptz', default: 'now()' },
+    updated_at: { type: 'timestamptz', default: 'now()' }
+  }
+};
+
+/**
+ * TABLA: Componentes (ADAPTADA A CSV: Componentes_rows.csv)
+ * CSV tiene: id, nombre, acabado, construcción, descripcion, espacio_elemento
+ */
+export const COMPONENTES_SCHEMA = {
+  table_name: 'Componentes',
+  columns: {
+    id: { type: 'uuid', primary_key: true, default: 'uuid_generate_v4()' }, // id del CSV
+    nombre: { type: 'varchar(100)', not_null: true }, // nombre del CSV
+    acabado: { type: 'text' }, // acabado del CSV
+    construccion: { type: 'text' }, // construcción del CSV
+    descripcion: { type: 'text' }, // descripcion del CSV
+    espacio_elemento_id: { // espacio_elemento del CSV
+      type: 'uuid',
+      foreign_key: 'Espacio_Elemento(id) ON DELETE SET NULL'
+    },
+    created_at: { type: 'timestamptz', default: 'now()' },
+    updated_at: { type: 'timestamptz', default: 'now()' }
+  }
+};
 
 // ================================
 // FUNCIONES HELPER PARA SUPABASE
@@ -314,7 +358,9 @@ export default {
   STAGE_SCHEMA,
   TAREAS_SCHEMA,
   ENTREGABLES_TEMPLATE_SCHEMA,
-  
+  ESPACIO_ELEMENTO_SCHEMA,
+  COMPONENTES_SCHEMA,
+
   // FUNCIONES HELPER (SE PUEDEN ACTUALIZAR DESPUÉS)
   getTareasCompletas,
   crearTarea,

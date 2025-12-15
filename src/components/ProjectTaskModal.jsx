@@ -16,7 +16,7 @@ import TaskActions from './TaskActions';
 import TaskLog from './TaskLog';
 import InlineActionsTask from './InlineActionsTask';
 import FormTask from './FormTask';
-import { getEspaciosPorProyecto } from '../constants/espacios';
+// import { getEspaciosPorProyecto } from '../constants/espacios';
 import { PlansViewer, ProjectHeader, TasksToolbar } from './ProjectPlans';
 import { hasProjectPlans } from '../config/projectPlansConfig';
 
@@ -48,17 +48,62 @@ const getEstadoColor = (estado) => {
   return colors[estado] || 'bg-gray-100 text-gray-800';
 };
 
+
+// Importación de espacios desde BD (reemplazando constantes)
+// import { getEspaciosPorProyecto } from '../constants/espacios'; 
+
 const ProjectTaskModal = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
+
+  // Selectors
+  const projects = useSelector(state => state.projects.projects);
+  const tasks = useSelector(state => state.tasks.tasks);
+  const dbSpaces = useSelector(state => state.tables?.Espacio_Elemento || []);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
-  
-  // Estados para plano y filtro de espacio
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [showPlanView, setShowPlanView] = useState(false); // Iniciar cerrado por defecto
+  const [showPlanView, setShowPlanView] = useState(false);
+
+  // Obtener proyecto actual
+  const selectedProject = useMemo(() =>
+    projects.find(p => p.id === id || p.id === parseInt(id)),
+    [projects, id]);
+
+  // Cargar espacios de la BD
+  useEffect(() => {
+    if (!dbSpaces.length) {
+      dispatch(getAllFromTable('Espacio_Elemento'));
+    }
+  }, [dispatch, dbSpaces.length]);
+
+  // Filtrar espacios para el proyecto actual
+  const projectSpaces = useMemo(() => {
+    if (!selectedProject) return [];
+
+    // Si tenemos espacios en BD para este proyecto, usarlos
+    const dbProjectSpaces = dbSpaces.filter(s =>
+      s.proyecto_id === selectedProject.id && s.tipo === 'Espacio'
+    );
+
+    if (dbProjectSpaces.length > 0) {
+      return dbProjectSpaces.map(s => s.nombre);
+    }
+
+    // Fallback: tratar de usar el sistema antiguo si no hay datos en BD
+    // Esto asegura compatibilidad durante la migración
+    try {
+      // Import dinámico o lógica inline si es necesario, 
+      // pero idealmente ya deberíamos tener datos en BD.
+      // Por ahora retornamos array vacío si no hay coincidencias de proyecto
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }, [dbSpaces, selectedProject]);
 
   const [data, setData] = useState([]);
-  const { projects, loading, error } = useSelector((state) => state.projects);
+  const { loading, error } = useSelector((state) => state.projects);
   const [projectTasks, setProjectTasks] = useState([]);
   const [staff, setStaff] = useState([]);
   const [stages, setStages] = useState([]);
@@ -71,8 +116,23 @@ const ProjectTaskModal = () => {
     { id: "Alta", name: "Alta" },
   ]);
   const [selectedRows, setSelectedRows] = useState(new Set());
-  const [sortConfig, setSortConfig] = useState({ key: 'Priority', direction: 'descending' });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [managerFilter, setManagerFilter] = useState('all');
+  const [temaFilter, setTemaFilter] = useState('all'); // Nuevo filtro por Tema
+
+  useEffect(() => {
+    if (id) {
+      // Cargar tareas si es necesario
+      // dispatch(fetchTasksByProject(id)); // Asumiendo que esto ya se hace o se maneja globalmente
+    }
+  }, [dispatch, id]);
+
+  // Derivar listas de filtros
+  const temas = useMemo(() => [...new Set(projectTasks.map(t => t.tema).filter(Boolean))], [projectTasks]);
+  const managers = useMemo(() => [...new Set(projectTasks.map(t => t.manager).filter(Boolean))], [projectTasks]);
 
   const updateCell = (rowId, fieldsToUpdate) =>
     dispatch(updateTask(rowId, fieldsToUpdate))
@@ -103,7 +163,7 @@ const ProjectTaskModal = () => {
       const { id: _omit, created_at, ...n } = t;
       return dispatch(addTask({
         ...n,
-        task_description: `${t.task_description} (Copia)`,
+        tema: `${t.tema} (Copia)`,
         status: 'Pendiente',
         Progress: 0
       }));
@@ -135,12 +195,12 @@ const ProjectTaskModal = () => {
 
   const filteredAndSortedTasks = useMemo(() => {
     let items = [...projectTasks];
-    
+
     if (searchTerm)
       items = items.filter(task =>
-        task.task_description?.toLowerCase().includes(searchTerm.toLowerCase())
+        task.tema?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    
+
     if (selectedRoom) {
       items = items.filter(task => {
         if (task.espacio === selectedRoom) return true;
@@ -172,8 +232,8 @@ const ProjectTaskModal = () => {
     return items;
   }, [projectTasks, sortConfig, searchTerm, selectedRoom]);
 
-  const selectedProject = projects.find(p => p.id === id);
-  
+
+
   // Auto-abrir vista de planos si el proyecto tiene planos configurados
   useEffect(() => {
     if (selectedProject && hasProjectPlans(selectedProject)) {
@@ -199,7 +259,7 @@ const ProjectTaskModal = () => {
     setIsFormOpen(false);
   };
 
-  const EditableCell = ({ rowId, field, value, type = 'text', options = [], onExitEditing = () => {} }) => {
+  const EditableCell = ({ rowId, field, value, type = 'text', options = [], onExitEditing = () => { } }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(value);
 
@@ -380,7 +440,7 @@ const ProjectTaskModal = () => {
 
     // ========================= IMPRESIÓN NUEVA =========================
     const printTask = () => {
-      const title = task.task_description || '-';
+      const title = task.tema || '-';
       const responsable = responsible?.name || 'Sin asignar';
       const fecha = dueDate || 'Sin fecha';
       const estado = task.status || 'Pendiente';
@@ -453,7 +513,7 @@ const ProjectTaskModal = () => {
           <div class="chips">
             <span class="chip">${responsable}</span>
             <span class="chip">${fecha}</span>
-            <span class="chip estado ${estado.toLowerCase().replace(/\s+/g,'-')}">${estado}</span>
+            <span class="chip estado ${estado.toLowerCase().replace(/\s+/g, '-')}">${estado}</span>
           </div>
         </div>
         <hr class="sep"/>
@@ -475,7 +535,7 @@ const ProjectTaskModal = () => {
 
         <div class="blk avoid">
           <h4>Notas</h4>
-          <div class="box">${notas ? String(notas).replace(/\n/g,'<br/>') : '<span class="muted">-</span>'}</div>
+          <div class="box">${notas ? String(notas).replace(/\n/g, '<br/>') : '<span class="muted">-</span>'}</div>
         </div>
 
         <div class="blk avoid acciones">
@@ -527,14 +587,14 @@ const ProjectTaskModal = () => {
             {isEditingDesc ? (
               <EditableCell
                 rowId={task.id}
-                field="task_description"
-                value={task.task_description}
+                field="tema"
+                value={task.tema}
                 type="textarea"
                 onExitEditing={() => setIsEditingDesc(false)}
               />
             ) : (
               <div className="p-1 cursor-pointer break-words line-clamp-2">
-                {task.task_description || '-'}
+                {task.tema || '-'}
               </div>
             )}
           </div>
@@ -602,12 +662,12 @@ const ProjectTaskModal = () => {
               </div>
               <div className="print-row col-span-2">
                 <label className="font-medium text-gray-500 text-xs mb-1 block">Espacio</label>
-                <EditableCell 
-                  rowId={task.id} 
-                  field="espacio" 
-                  value={task.espacio} 
-                  type="espacio-select" 
-                  options={getEspaciosPorProyecto(selectedProject, false).map(e => ({id: e, name: e}))} 
+                <EditableCell
+                  rowId={task.id}
+                  field="espacio"
+                  value={task.espacio}
+                  type="espacio-select"
+                  options={projectSpaces.map(e => ({ id: e, name: e }))}
                 />
               </div>
             </div>
@@ -689,6 +749,7 @@ const ProjectTaskModal = () => {
             <PlansViewer
               tasks={projectTasks}
               project={selectedProject}
+              spaces={dbSpaces.filter(s => s.proyecto === id)} // PASAR ESPACIOS FILTRADOS
               selectedRoom={selectedRoom}
               onRoomSelect={setSelectedRoom}
               onClose={() => {
@@ -730,6 +791,10 @@ const ProjectTaskModal = () => {
                 onNewTask={() => setIsFormOpen(true)}
                 project={selectedProject}
                 showPlanView={showPlanView}
+                // Props for space filtering
+                spaces={projectSpaces}
+                selectedRoom={selectedRoom}
+                onRoomSelect={setSelectedRoom}
                 onTogglePlanView={() => setShowPlanView(!showPlanView)}
               />
 

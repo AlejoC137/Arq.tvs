@@ -8,20 +8,22 @@ import {
   Save, FileDown, RefreshCcw, User
 } from 'lucide-react';
 
+import ViewToggle from './common/ViewToggle';
 import { getAllFromTable, createInTable, updateInTable, deleteFromTable } from '../store/actions/actions';
 
 const ProtocolosSupabase = () => {
   const dispatch = useDispatch();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [protocolos, setProtocolos] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+
   // Estados para el modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('view'); // 'view', 'create', 'edit'
   const [selectedProtocolo, setSelectedProtocolo] = useState(null);
-  
+
   // Estados para el formulario
   const [formData, setFormData] = useState({
     Nombre: '',
@@ -35,14 +37,14 @@ const ProtocolosSupabase = () => {
       setLoading(true);
       const action = await dispatch(getAllFromTable('Protocolos'));
       const data = action?.payload || [];
-      
+
       // Ordenar por fecha de actualización (más recientes primero)
       const sorted = [...data].sort((a, b) => {
         const dateA = new Date(a.FechaUpdate || 0);
         const dateB = new Date(b.FechaUpdate || 0);
         return dateB - dateA;
       });
-      
+
       setProtocolos(sorted);
     } catch (error) {
       console.error('Error al cargar protocolos:', error);
@@ -105,7 +107,7 @@ const ProtocolosSupabase = () => {
 
     try {
       setLoading(true);
-      
+
       const dataToSave = {
         Nombre: formData.Nombre.trim(),
         Contenido: formData.Contenido.trim(),
@@ -146,12 +148,12 @@ const ProtocolosSupabase = () => {
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(100);
-    
+
     if (protocolo.Editor) {
       doc.text(`Editado por: ${protocolo.Editor}`, margin, yPosition);
       yPosition += 6;
     }
-    
+
     if (protocolo.FechaUpdate) {
       const fecha = new Date(protocolo.FechaUpdate).toLocaleDateString('es-CO', {
         year: 'numeric',
@@ -163,7 +165,7 @@ const ProtocolosSupabase = () => {
       doc.text(`Actualizado: ${fecha}`, margin, yPosition);
       yPosition += 6;
     }
-    
+
     yPosition += 4;
 
     // Línea divisoria
@@ -175,7 +177,7 @@ const ProtocolosSupabase = () => {
     doc.setTextColor(0);
     doc.setFontSize(11);
     const lines = doc.splitTextToSize(protocolo.Contenido || '', maxWidth);
-    
+
     lines.forEach(line => {
       if (yPosition > 270) {
         doc.addPage();
@@ -190,7 +192,7 @@ const ProtocolosSupabase = () => {
       .replace(/[^a-z0-9]/gi, '-')
       .toLowerCase()
       .substring(0, 50);
-    
+
     doc.save(`protocolo-${fileName}.pdf`);
   };
 
@@ -227,6 +229,7 @@ const ProtocolosSupabase = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <ViewToggle viewMode={viewMode} onViewChange={setViewMode} />
               <button
                 onClick={fetchProtocolos}
                 disabled={loading}
@@ -241,7 +244,7 @@ const ProtocolosSupabase = () => {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                Nuevo Protocolo
+                <span className="hidden sm:inline">Nuevo</span>
               </button>
             </div>
           </div>
@@ -260,7 +263,7 @@ const ProtocolosSupabase = () => {
 
           {/* Contador */}
           <div className="mt-3 text-sm text-gray-500">
-            {filteredProtocolos.length} protocolo{filteredProtocolos.length !== 1 ? 's' : ''} 
+            {filteredProtocolos.length} protocolo{filteredProtocolos.length !== 1 ? 's' : ''}
             {searchTerm && ` encontrado${filteredProtocolos.length !== 1 ? 's' : ''}`}
           </div>
         </div>
@@ -274,8 +277,8 @@ const ProtocolosSupabase = () => {
                 {searchTerm ? 'No se encontraron protocolos' : 'No hay protocolos'}
               </h3>
               <p className="text-gray-500 mb-4">
-                {searchTerm 
-                  ? 'Intenta con otros términos de búsqueda' 
+                {searchTerm
+                  ? 'Intenta con otros términos de búsqueda'
                   : 'Crea tu primer protocolo para comenzar'
                 }
               </p>
@@ -289,76 +292,154 @@ const ProtocolosSupabase = () => {
                 </button>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProtocolos.map(protocolo => (
                 <div
                   key={protocolo.id}
                   onClick={() => handleView(protocolo)}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all bg-white cursor-pointer"
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all bg-white cursor-pointer flex flex-col h-full"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900 line-clamp-1" title={protocolo.Nombre}>
                         {protocolo.Nombre}
                       </h3>
-                      
-                      {/* Preview del contenido */}
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                        {protocolo.Contenido?.substring(0, 200)}
-                        {protocolo.Contenido?.length > 200 && '...'}
-                      </p>
-                      
-                      {/* Metadata */}
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        {protocolo.Editor && (
-                          <div className="flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            <span>{protocolo.Editor}</span>
-                          </div>
-                        )}
-                        {protocolo.FechaUpdate && (
-                          <div className="flex items-center gap-1">
-                            <FileText className="w-3 h-3" />
-                            <span>
-                              {new Date(protocolo.FechaUpdate).toLocaleDateString('es-CO', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                        )}
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleEdit(protocolo)}
+                          className="text-green-600 hover:text-green-800 p-1"
+                          title="Editar"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(protocolo)}
+                          className="text-red-600 hover:text-red-800 p-1"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
-                    
-                    {/* Acciones */}
-                    <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => handleEdit(protocolo)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleExportPDF(protocolo)}
-                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                        title="Exportar PDF"
-                      >
-                        <FileDown className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(protocolo)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+
+                    {/* Preview del contenido */}
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-3">
+                      {protocolo.Contenido}
+                    </p>
+
+                    {/* Metadata */}
+                    <div className="flex flex-col gap-1 text-xs text-gray-500 mt-auto pt-2 border-t border-gray-100">
+                      {protocolo.Editor && (
+                        <div className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          <span>{protocolo.Editor}</span>
+                        </div>
+                      )}
+                      {protocolo.FechaUpdate && (
+                        <div className="flex items-center gap-1">
+                          <FileText className="w-3 h-3" />
+                          <span>
+                            {new Date(protocolo.FechaUpdate).toLocaleDateString('es-CO', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      )}
                     </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExportPDF(protocolo);
+                      }}
+                      className="text-xs flex items-center gap-1 text-purple-600 hover:text-purple-800 font-medium"
+                    >
+                      <FileDown size={14} /> PDF
+                    </button>
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nombre
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Editor
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actualizado
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredProtocolos.map((protocolo) => (
+                    <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleView(protocolo)}>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <FileText className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0" />
+                          <div className="text-sm font-medium text-gray-900 line-clamp-1">{protocolo.Nombre}</div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 line-clamp-1 pl-8">
+                          {protocolo.Contenido?.substring(0, 50)}...
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{protocolo.Editor || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">
+                          {protocolo.FechaUpdate ? new Date(protocolo.FechaUpdate).toLocaleDateString('es-CO') : '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleView(protocolo)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Ver"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(protocolo)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Editar"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleExportPDF(protocolo)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="PDF"
+                          >
+                            <FileDown size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(protocolo)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -415,7 +496,7 @@ const ProtocolosSupabase = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Contenido en Markdown */}
                   <div className="prose max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>

@@ -53,7 +53,7 @@ const result = await tasksService.getAll();
 // Crear una nueva tarea
 const newTask = {
   category: 'Diseño',
-  task_description: 'Crear planos arquitectónicos',
+- `tema` (text)
   status: 'Pendiente',
   notes: 'Incluir detalles de fachada',
   project_id: 1,
@@ -199,7 +199,7 @@ function TasksComponent() {
       <div>
         {tasks.map(task => (
           <div key={task.id}>
-            <h3>{task.task_description}</h3>
+            <h3>{task.tema}</h3>
             <p>Estado: {task.status}</p>
             <button 
               onClick={() => handleUpdateTaskStatus(task.id, 'Completo')}
@@ -309,7 +309,7 @@ El código asume las siguientes tablas en Supabase:
 ### Tabla `tasks`
 - `id` (integer, primary key)
 - `category` (text)
-- `task_description` (text)
+- `tema` (text)
 - `status` (text)
 - `notes` (text)
 - `project_id` (integer, foreign key)

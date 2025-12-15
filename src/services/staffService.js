@@ -8,7 +8,7 @@ export const staffService = {
         .from('staff')
         .select('*')
         .order('name');
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Staff loaded successfully');
     } catch (error) {
@@ -24,7 +24,7 @@ export const staffService = {
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Staff member found');
     } catch (error) {
@@ -44,7 +44,7 @@ export const staffService = {
         }])
         .select()
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Staff member created successfully');
     } catch (error) {
@@ -65,7 +65,7 @@ export const staffService = {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Staff member updated successfully');
     } catch (error) {
@@ -80,7 +80,7 @@ export const staffService = {
         .from('staff')
         .delete()
         .eq('id', id);
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(null, 'Staff member deleted successfully');
     } catch (error) {
@@ -97,7 +97,7 @@ export const staffService = {
           *,
           tasks (
             id,
-            task_description,
+            tema,
             status,
             category,
             project_id
@@ -105,7 +105,7 @@ export const staffService = {
         `)
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Staff member with tasks loaded');
     } catch (error) {

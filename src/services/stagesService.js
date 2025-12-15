@@ -8,7 +8,7 @@ export const stagesService = {
         .from('stages')
         .select('*')
         .order('name');
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Stages loaded successfully');
     } catch (error) {
@@ -24,7 +24,7 @@ export const stagesService = {
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Stage found');
     } catch (error) {
@@ -47,7 +47,7 @@ export const stagesService = {
         }])
         .select()
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Stage created successfully');
     } catch (error) {
@@ -71,7 +71,7 @@ export const stagesService = {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Stage updated successfully');
     } catch (error) {
@@ -86,7 +86,7 @@ export const stagesService = {
         .from('stages')
         .delete()
         .eq('id', id);
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(null, 'Stage deleted successfully');
     } catch (error) {
@@ -103,7 +103,7 @@ export const stagesService = {
           *,
           tasks (
             id,
-            task_description,
+            tema,
             status,
             category,
             project_id,
@@ -112,7 +112,7 @@ export const stagesService = {
         `)
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Stage with tasks loaded');
     } catch (error) {
@@ -138,7 +138,7 @@ export const stagesService = {
         `)
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Stage with entregables loaded');
     } catch (error) {
@@ -162,9 +162,9 @@ export const stagesService = {
           )
         `)
         .order('name');
-      
+
       if (error) return handleSupabaseError(error);
-      
+
       // Calculate stats for each stage
       const stagesWithStats = data.map(stage => ({
         ...stage,
@@ -174,7 +174,7 @@ export const stagesService = {
         inProgressTasks: stage.tasks?.filter(task => task.status === 'En Progreso').length || 0,
         entregableCount: stage.entregables_template?.length || 0
       }));
-      
+
       return handleSupabaseSuccess(stagesWithStats, 'Stages with stats loaded');
     } catch (error) {
       return handleSupabaseError(error);

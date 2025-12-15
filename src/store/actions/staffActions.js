@@ -19,7 +19,7 @@ const staffTransformer = (data) => {
       projectsCount: item.projects?.length || 0,
     }));
   }
-  
+
   return {
     ...transformers.addTimestamps(data),
     ...transformers.formatForDisplay(data),
@@ -62,31 +62,31 @@ export const {
   // Fetch operations
   fetchAll: fetchStaff,
   fetchById: fetchStaffById,
-  
+
   // Create operations
   create: createStaff,
-  
+
   // Update operations
   update: updateStaff,
-  
+
   // Delete operations
   delete: deleteStaff,
-  
+
   // Bulk operations
   bulkCreate: bulkCreateStaff,
   bulkUpdate: bulkUpdateStaff,
   bulkDelete: bulkDeleteStaff,
-  
+
   // Utility operations
   count: countStaff,
   search: searchStaff,
-  
+
   // State management
   setLoading: setStaffLoading,
   setError: setStaffError,
   clearError: clearStaffError,
   resetState: resetStaffState,
-  
+
   // Action types reference
   actionTypes: staffActionTypes,
 } = staffActions;
@@ -99,7 +99,7 @@ export const {
 export const fetchStaffWithTasks = () => {
   return async (dispatch) => {
     dispatch(staffActions.fetchRequest());
-    
+
     try {
       const { data, error } = await supabase
         .from('Staff')
@@ -107,7 +107,7 @@ export const fetchStaffWithTasks = () => {
           *,
           tasks!inner(
             id,
-            task_description,
+            tema,
             status,
             priority,
             due_date,
@@ -115,9 +115,9 @@ export const fetchStaffWithTasks = () => {
           )
         `)
         .order('name');
-      
+
       if (error) throw error;
-      
+
       dispatch(staffActions.fetchSuccess(staffTransformer(data || [])));
       return { success: true, data };
     } catch (error) {
@@ -165,24 +165,24 @@ export const getStaffWorkload = (staffId) => {
         .from('Tareas')
         .select('id, status, priority, due_date')
         .eq('staff_id', staffId);
-      
+
       if (error) throw error;
-      
+
       const workload = {
         total: data.length,
         pending: data.filter(t => t.status === 'Pendiente').length,
         inProgress: data.filter(t => t.status === 'En Progreso').length,
         completed: data.filter(t => t.status === 'Completo').length,
-        overdue: data.filter(t => 
-          t.due_date && 
-          new Date(t.due_date) < new Date() && 
+        overdue: data.filter(t =>
+          t.due_date &&
+          new Date(t.due_date) < new Date() &&
           t.status !== 'Completo'
         ).length,
-        highPriority: data.filter(t => 
+        highPriority: data.filter(t =>
           t.priority === 'Alta' || t.priority === 'Crítica'
         ).length,
       };
-      
+
       return { success: true, data: workload };
     } catch (error) {
       console.error('Error getting staff workload:', error);

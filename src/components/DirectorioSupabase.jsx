@@ -7,20 +7,22 @@ import {
   Edit, Trash2, Eye, X, Save, FileDown, RefreshCcw, User
 } from 'lucide-react';
 
+import ViewToggle from './common/ViewToggle';
 import { getAllFromTable, createInTable, updateInTable, deleteFromTable } from '../store/actions/actions';
 
 const DirectorioSupabase = () => {
   const dispatch = useDispatch();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [contactos, setContactos] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+
   // Estados para el modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('view'); // 'view', 'create', 'edit'
   const [selectedContacto, setSelectedContacto] = useState(null);
-  
+
   // Estados para el formulario (Nombre, Contacto, Cargo)
   const [formData, setFormData] = useState({
     Nombre: '',
@@ -35,12 +37,12 @@ const DirectorioSupabase = () => {
       setLoading(true);
       const action = await dispatch(getAllFromTable('Directorio'));
       const data = action?.payload || [];
-      
+
       // Ordenar alfabéticamente por Nombre
-      const sorted = [...data].sort((a, b) => 
+      const sorted = [...data].sort((a, b) =>
         (a.Nombre || '').localeCompare(b.Nombre || '')
       );
-      
+
       setContactos(sorted);
     } catch (error) {
       console.error('Error al cargar contactos:', error);
@@ -103,7 +105,7 @@ const DirectorioSupabase = () => {
 
     try {
       setLoading(true);
-      
+
       const dataToSave = {
         Nombre: formData.Nombre.trim(),
         Contacto: formData.Contacto.trim(),
@@ -128,18 +130,18 @@ const DirectorioSupabase = () => {
 
   const handleExportAllPDF = () => {
     const doc = new jsPDF();
-    
+
     // Título
     doc.setFontSize(20);
     doc.setFont(undefined, 'bold');
     doc.text('Directorio de Contactos', 20, 20);
-    
+
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(100);
     doc.text(`Generado: ${new Date().toLocaleDateString('es-CO')}`, 20, 28);
     doc.text(`Total contactos: ${contactos.length}`, 20, 33);
-    
+
     // Tabla
     const tableData = contactos.map(c => [
       c.Nombre || '',
@@ -177,7 +179,7 @@ const DirectorioSupabase = () => {
     // Información
     doc.setFontSize(12);
     doc.setFont(undefined, 'normal');
-    
+
     const info = [
       [`Contacto: ${contacto.Contacto || 'N/A'}`],
       [`Cargo: ${contacto.Cargo || 'N/A'}`]
@@ -194,7 +196,7 @@ const DirectorioSupabase = () => {
       .replace(/[^a-z0-9]/gi, '-')
       .toLowerCase()
       .substring(0, 50);
-    
+
     doc.save(`contacto-${fileName}.pdf`);
   };
 
@@ -231,6 +233,7 @@ const DirectorioSupabase = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <ViewToggle viewMode={viewMode} onViewChange={setViewMode} />
               <button
                 onClick={fetchContactos}
                 disabled={loading}
@@ -243,16 +246,17 @@ const DirectorioSupabase = () => {
               <button
                 onClick={handleExportAllPDF}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                title="Exportar Todo a PDF"
               >
                 <FileDown className="w-4 h-4" />
-                Exportar Todo
+                <span className="hidden sm:inline">Exportar</span>
               </button>
               <button
                 onClick={handleCreate}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                Nuevo Contacto
+                <span className="hidden sm:inline">Nuevo</span>
               </button>
             </div>
           </div>
@@ -271,7 +275,7 @@ const DirectorioSupabase = () => {
 
           {/* Contador */}
           <div className="mt-3 text-sm text-gray-500">
-            {filteredContactos.length} contacto{filteredContactos.length !== 1 ? 's' : ''} 
+            {filteredContactos.length} contacto{filteredContactos.length !== 1 ? 's' : ''}
             {searchTerm && ` encontrado${filteredContactos.length !== 1 ? 's' : ''}`}
           </div>
         </div>
@@ -285,8 +289,8 @@ const DirectorioSupabase = () => {
                 {searchTerm ? 'No se encontraron contactos' : 'No hay contactos'}
               </h3>
               <p className="text-gray-500 mb-4">
-                {searchTerm 
-                  ? 'Intenta con otros términos de búsqueda' 
+                {searchTerm
+                  ? 'Intenta con otros términos de búsqueda'
                   : 'Agrega tu primer contacto para comenzar'
                 }
               </p>
@@ -300,7 +304,7 @@ const DirectorioSupabase = () => {
                 </button>
               )}
             </div>
-          ) : (
+          ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredContactos.map(contacto => (
                 <div
@@ -354,11 +358,84 @@ const DirectorioSupabase = () => {
                     </div>
                   </div>
 
-                  <div className="text-sm text-gray-700 whitespace-pre-line">
+                  <div className="text-sm text-gray-700 whitespace-pre-line line-clamp-3">
                     {contacto.Contacto}
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nombre
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Cargo
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Contacto
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredContactos.map((contacto) => (
+                    <tr key={contacto.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs mr-3">
+                            {(contacto.Nombre || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="text-sm font-medium text-gray-900">{contacto.Nombre || 'Sin nombre'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{contacto.Cargo || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-500 max-w-xs truncate" title={contacto.Contacto}>{contacto.Contacto || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleView(contacto)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Ver"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(contacto)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Editar"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleExportContactPDF(contacto)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="PDF"
+                          >
+                            <FileDown size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(contacto)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

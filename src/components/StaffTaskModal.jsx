@@ -101,7 +101,7 @@ const StaffTaskModal = () => {
             const { id: _omit, created_at, ...n } = t;
             return dispatch(addTask({
                 ...n,
-                task_description: `${t.task_description} (Copia)`,
+                tema: `${t.tema} (Copia)`,
                 status: 'Pendiente',
                 Progress: 0
             }));
@@ -147,7 +147,7 @@ const StaffTaskModal = () => {
         let items = [...staffTasks];
         if (searchTerm)
             items = items.filter(task =>
-                task.task_description?.toLowerCase().includes(searchTerm.toLowerCase())
+                task.tema?.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
         const priorityOrder = { 'Alta': 5, 'Media-Alta': 4, 'Media': 3, 'Media-Baja': 2, 'Baja': 1, 'undefined': 0 };
@@ -186,10 +186,10 @@ const StaffTaskModal = () => {
         ['project_id', 'staff_id', 'stage_id', 'entregable_id'].forEach(field => {
             if (sanitizedTaskData[field] === '') sanitizedTaskData[field] = null;
         });
-        
+
         // La llamada a .then(fetchTasks) se ha eliminado.
         dispatch(addTask(sanitizedTaskData));
-        
+
         // Al llamar a setIsFormOpen(false), el useEffect [fetchData] se disparará
         // y recargará los datos.
         setIsFormOpen(false);
@@ -377,7 +377,7 @@ const StaffTaskModal = () => {
 
         // ========================= IMPRESIÓN NUEVA =========================
         const printTask = () => {
-            const title = task.task_description || '-';
+            const title = task.tema || '-';
             const proyectoNombre = project?.name || 'Sin proyecto';
             const fecha = dueDate || 'Sin fecha';
             const estado = task.status || 'Pendiente';
@@ -526,14 +526,14 @@ const StaffTaskModal = () => {
                         {isEditingDesc ? (
                             <EditableCell
                                 rowId={task.id}
-                                field="task_description"
-                                value={task.task_description}
+                                field="tema"
+                                value={task.tema}
                                 type="textarea"
                                 onExitEditing={() => setIsEditingDesc(false)}
                             />
                         ) : (
                             <div className="p-1 min-h-[28px] cursor-pointer select-text">
-                                {task.task_description || '-'}
+                                {task.tema || '-'}
                             </div>
                         )}
                     </div>
@@ -602,15 +602,15 @@ const StaffTaskModal = () => {
                             </div>
                             <div className="print-row">
                                 <label className="font-medium text-gray-500">Espacio</label>
-                                <EditableCell 
-                                    rowId={task.id} 
-                                    field="espacio" 
-                                    value={task.espacio} 
-                                    type="espacio-select" 
+                                <EditableCell
+                                    rowId={task.id}
+                                    field="espacio"
+                                    value={task.espacio}
+                                    type="espacio-select"
                                     options={(() => {
                                         const taskProject = projects.find(p => p.id === task.project_id);
                                         return getEspaciosPorProyecto(taskProject, false).map(e => ({ id: e, name: e }));
-                                    })()} 
+                                    })()}
                                 />
                             </div>
                         </div>
@@ -757,7 +757,7 @@ const StaffTaskModal = () => {
                                 className="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="Priority">Prioridad</option>
-                                <option value="task_description">Nombre Tarea</option>
+                                <option value="tema">Nombre Tarea</option>
                                 <option value="status">Estado</option>
                             </select>
                             <button

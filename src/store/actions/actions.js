@@ -95,10 +95,10 @@ export function getAllFromTable(tableName) {
     try {
       const { data, error } = await supabase.from(tableName).select('*');
       if (error) throw error;
-      return dispatch({ 
-        type: GET_ALL_FROM_TABLE, 
-        payload: data, 
-        path: tableName 
+      return dispatch({
+        type: GET_ALL_FROM_TABLE,
+        payload: data,
+        path: tableName
       });
     } catch (error) {
       console.error(`Error fetching from ${tableName}:`, error);
@@ -118,15 +118,15 @@ export function createInTable(tableName, data) {
         .insert([data])
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       dispatch({
         type: 'CREATE_IN_TABLE',
         path: tableName,
         payload: result
       });
-      
+
       return result;
     } catch (error) {
       console.error(`Error creating in ${tableName}:`, error);
@@ -145,24 +145,28 @@ export function createRow(tableName, data) {
 /**
  * Generic function to update in any table
  */
-export function updateInTable(tableName, id, updates) {
+export function updateInTable(tableName, id, updates, idColumn = 'id') {
   return async (dispatch) => {
+    // Fail-safe: Force _id for Espacio_Elemento regardless of argument
+    const actualIdColumn = tableName === 'Espacio_Elemento' ? '_id' : idColumn;
+
+    console.log(`[actions] updateInTable called for ${tableName}`, { id, updates, idColumn: actualIdColumn });
     try {
       const { data, error } = await supabase
         .from(tableName)
         .update(updates)
-        .eq('id', id)
+        .eq(actualIdColumn, id)
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       dispatch({
         type: 'UPDATE_IN_TABLE',
         path: tableName,
         payload: data
       });
-      
+
       return data;
     } catch (error) {
       console.error(`Error updating in ${tableName}:`, error);
@@ -174,29 +178,29 @@ export function updateInTable(tableName, id, updates) {
 /**
  * Generic function to update a row in any table (alias for updateInTable)
  */
-export function updateRow(tableName, id, updates) {
-  return updateInTable(tableName, id, updates);
+export function updateRow(tableName, id, updates, idColumn = 'id') {
+  return updateInTable(tableName, id, updates, idColumn);
 }
 
 /**
  * Generic function to delete from any table
  */
-export function deleteFromTable(tableName, id) {
+export function deleteFromTable(tableName, id, idColumn = 'id') {
   return async (dispatch) => {
     try {
       const { error } = await supabase
         .from(tableName)
         .delete()
-        .eq('id', id);
-      
+        .eq(idColumn, id);
+
       if (error) throw error;
-      
+
       dispatch({
         type: 'DELETE_FROM_TABLE',
         path: tableName,
         payload: id
       });
-      
+
       return id;
     } catch (error) {
       console.error(`Error deleting from ${tableName}:`, error);

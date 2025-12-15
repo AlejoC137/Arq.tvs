@@ -62,7 +62,7 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
     setActions(updatedActions);
     resetForm();
   };
-  
+
   // Función para empezar a editar una acción
   const handleEdit = (index) => {
     setEditingIndex(index);
@@ -82,12 +82,12 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
     try {
       // Convertimos el array de acciones a un string JSON para guardarlo
       const actionsJsonString = JSON.stringify(actions);
-      
+
       // Llamamos a la acción de Redux para actualizar la tarea en Supabase
       await dispatch(updateTask(task.id, { acciones: actionsJsonString }));
-      
+
       // Notificamos al componente padre que los datos se guardaron para que pueda refrescar
-      onDataSaved(); 
+      onDataSaved();
       onClose(); // Cerramos el modal
     } catch (error) {
       console.error("Error al guardar las acciones en Supabase:", error);
@@ -105,7 +105,7 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
         <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Gestionar Acciones: <span className="font-normal">{task.task_description}</span></h2>
+          <h2 className="text-xl font-bold text-gray-800">Gestionar Acciones: <span className="font-normal">{task.tema}</span></h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
         </div>
 
@@ -122,7 +122,7 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
               <input type="text" name="executer" value={currentAction.executer} onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="Quién la realiza" />
             </div>
             <div className="flex items-center space-x-4">
-               <div className="flex items-center h-full">
+              <div className="flex items-center h-full">
                 <input id="lista-checkbox" type="checkbox" name="lista" checked={currentAction.lista} onChange={handleInputChange} className="h-5 w-5 text-blue-600 border-gray-300 rounded" />
                 <label htmlFor="lista-checkbox" className="ml-2 text-sm text-gray-700">¿Lista?</label>
               </div>
@@ -131,16 +131,16 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
                 {editingIndex !== null ? 'Actualizar' : 'Agregar'}
               </button>
             </div>
-             {editingIndex !== null && (
+            {editingIndex !== null && (
               <div className="md:col-span-3">
-                  <button type="button" onClick={resetForm} className="text-sm text-gray-600 hover:underline">Cancelar edición</button>
+                <button type="button" onClick={resetForm} className="text-sm text-gray-600 hover:underline">Cancelar edición</button>
               </div>
             )}
           </form>
 
           {/* Lista de acciones existentes */}
           <div className="space-y-2">
-             <h3 className="font-medium text-gray-800">Acciones Registradas ({actions.length})</h3>
+            <h3 className="font-medium text-gray-800">Acciones Registradas ({actions.length})</h3>
             {actions.length > 0 ? (
               <ul className="border rounded-lg max-h-60 overflow-y-auto">
                 {actions.map((act, index) => (
@@ -150,7 +150,7 @@ const ActionsTask = ({ task, onClose, onDataSaved }) => {
                       <p className="text-sm text-gray-600">Ejecutor: {act.executer}</p>
                     </div>
                     <div className="flex items-center space-x-2">
-                       {act.lista && <span className="text-xs font-bold text-green-600">LISTA</span>}
+                      {act.lista && <span className="text-xs font-bold text-green-600">LISTA</span>}
                       <button onClick={() => handleEdit(index)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full" title="Editar"><Edit2 size={16} /></button>
                       <button onClick={() => handleDelete(index)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full" title="Eliminar"><Trash2 size={16} /></button>
                     </div>

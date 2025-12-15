@@ -17,7 +17,7 @@ const stageTransformer = (data) => {
       orderIndex: item.order_index || 0,
     }));
   }
-  
+
   return {
     ...transformers.addTimestamps(data),
     ...transformers.formatForDisplay(data),
@@ -48,31 +48,31 @@ export const {
   // Fetch operations
   fetchAll: fetchStages,
   fetchById: fetchStageById,
-  
+
   // Create operations
   create: createStage,
-  
+
   // Update operations
   update: updateStage,
-  
+
   // Delete operations
   delete: deleteStage,
-  
+
   // Bulk operations
   bulkCreate: bulkCreateStages,
   bulkUpdate: bulkUpdateStages,
   bulkDelete: bulkDeleteStages,
-  
+
   // Utility operations
   count: countStages,
   search: searchStages,
-  
+
   // State management
   setLoading: setStagesLoading,
   setError: setStagesError,
   clearError: clearStagesError,
   resetState: resetStagesState,
-  
+
   // Action types reference
   actionTypes: stageActionTypes,
 } = stageActions;
@@ -85,7 +85,7 @@ export const {
 export const fetchStagesWithTasks = () => {
   return async (dispatch) => {
     dispatch(stageActions.fetchRequest());
-    
+
     try {
       const { data, error } = await supabase
         .from('Stages')
@@ -93,7 +93,7 @@ export const fetchStagesWithTasks = () => {
           *,
           tasks!inner(
             id,
-            task_description,
+            tema,
             status,
             priority,
             staff(name),
@@ -101,9 +101,9 @@ export const fetchStagesWithTasks = () => {
           )
         `)
         .order('order_index');
-      
+
       if (error) throw error;
-      
+
       dispatch(stageActions.fetchSuccess(stageTransformer(data || [])));
       return { success: true, data };
     } catch (error) {
@@ -127,7 +127,7 @@ export const reorderStages = (stages) => {
         id: stage.id,
         data: { order_index: index + 1 }
       }));
-      
+
       const result = await dispatch(stageActions.bulkUpdate(updates));
       return result;
     } catch (error) {
@@ -159,21 +159,21 @@ export const getStageStatistics = (stageId) => {
         .from('Tareas')
         .select('id, status, priority, created_at')
         .eq('stage_id', stageId);
-      
+
       if (error) throw error;
-      
+
       const stats = {
         total: data.length,
         pending: data.filter(t => t.status === 'Pendiente').length,
         inProgress: data.filter(t => t.status === 'En Progreso').length,
         completed: data.filter(t => t.status === 'Completo').length,
-        highPriority: data.filter(t => 
+        highPriority: data.filter(t =>
           t.priority === 'Alta' || t.priority === 'Crítica'
         ).length,
-        completionRate: data.length > 0 ? 
+        completionRate: data.length > 0 ?
           Math.round((data.filter(t => t.status === 'Completo').length / data.length) * 100) : 0
       };
-      
+
       return { success: true, data: stats };
     } catch (error) {
       console.error('Error getting stage statistics:', error);
@@ -190,16 +190,16 @@ export const moveTasksBetweenStages = (fromStageId, toStageId, taskIds) => {
         id: taskId,
         data: { stage_id: toStageId }
       }));
-      
+
       // This would need the task actions to be available
       // For now, we'll do a direct update
       const { error } = await supabase
         .from('Tareas')
         .update({ stage_id: toStageId })
         .in('id', taskIds);
-      
+
       if (error) throw error;
-      
+
       return { success: true, movedTasks: taskIds };
     } catch (error) {
       console.error('Error moving tasks between stages:', error);

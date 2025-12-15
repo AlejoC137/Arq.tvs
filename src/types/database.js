@@ -12,7 +12,7 @@ export const StageSchema = {
   name: 'string',
   description: 'string',
   objectives: 'string',
-  deliverables: 'string', 
+  deliverables: 'string',
   products: 'string',
   stakeholders: 'string'
 };
@@ -21,7 +21,7 @@ export const StageSchema = {
 export const TasksSchema = {
   id: 'string', // UUID
   category: 'string',
-  task_description: 'string',
+  tema: 'string',
   status: 'string', // 'Pendiente', 'En Diseño', 'En Progreso', 'Aprobación Requerida', 'Bloqueado', 'Completo', etc.
   notes: 'string',
   project_id: 'string', // UUID foreign key
@@ -52,7 +52,7 @@ export const EntregablesTemplateSchema = {
 // Status options for tasks
 export const TaskStatusOptions = [
   'Pendiente',
-  'En Diseño', 
+  'En Diseño',
   'En Progreso',
   'Aprobación Requerida',
   'Bloqueado',
@@ -72,7 +72,7 @@ export const ProjectStatusOptions = [
 // Task categories
 export const TaskCategories = [
   'Diseño estructural',
-  'Revisión de diseño', 
+  'Revisión de diseño',
   'Puertas',
   'Baños',
   'Exterior',
@@ -92,7 +92,7 @@ export const TaskCategories = [
 // View types for entregables
 export const ViewTypes = [
   'Planta',
-  'Alzado', 
+  'Alzado',
   'Sección',
   'Perspectiva',
   'Axonométrica',
@@ -116,6 +116,6 @@ export const SoftwareOptions = [
 // Tipo options for entregables
 export const EntregableTypes = [
   '2D',
-  '3D', 
+  '3D',
   '2D/3D'
 ];

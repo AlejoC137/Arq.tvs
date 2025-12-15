@@ -7,16 +7,19 @@ import { hasProjectPlans } from '../../config/projectPlansConfig';
 /**
  * Componente para la barra de herramientas de las tareas
  */
-const TasksToolbar = ({ 
-  searchTerm, 
-  onSearchChange, 
-  sortConfig, 
+const TasksToolbar = ({
+  searchTerm,
+  onSearchChange,
+  sortConfig,
   onSortChange,
   onToggleDirection,
   onNewTask,
   project,
   showPlanView,
-  onTogglePlanView
+  onTogglePlanView,
+  spaces = [],
+  selectedRoom,
+  onRoomSelect
 }) => {
   const projectHasPlans = hasProjectPlans(project);
 
@@ -35,10 +38,25 @@ const TasksToolbar = ({
           />
         </div>
 
+
         {/* Sort Controls */}
         <div className="flex items-center gap-2">
-          <label htmlFor="sort-select" className="text-sm font-medium text-gray-600">
-            Ordenar por:
+          {/* Espacios Filter */}
+          {spaces && spaces.length > 0 && (
+            <select
+              value={selectedRoom || ''}
+              onChange={(e) => onRoomSelect(e.target.value || null)}
+              className="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-blue-500 max-w-[200px]"
+            >
+              <option value="">Todos los Espacios</option>
+              {spaces.map(space => (
+                <option key={space} value={space}>{space}</option>
+              ))}
+            </select>
+          )}
+
+          <label htmlFor="sort-select" className="text-sm font-medium text-gray-600 hidden md:block">
+            Ordenar:
           </label>
           <select
             id="sort-select"
@@ -47,7 +65,7 @@ const TasksToolbar = ({
             className="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-blue-500"
           >
             <option value="Priority">Prioridad</option>
-            <option value="task_description">Nombre Tarea</option>
+            <option value="tema">Nombre Tarea</option>
             <option value="status">Estado</option>
           </select>
           <button
@@ -69,11 +87,10 @@ const TasksToolbar = ({
         {projectHasPlans && (
           <button
             onClick={onTogglePlanView}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold ${
-              showPlanView
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold ${showPlanView
+              ? 'bg-green-600 text-white hover:bg-green-700'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
           >
             {showPlanView ? '✓ Planos' : 'Ver Planos'}
           </button>

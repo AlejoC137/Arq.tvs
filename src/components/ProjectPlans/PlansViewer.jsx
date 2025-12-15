@@ -7,12 +7,24 @@ import { getProjectPlanConfig } from '../../config/projectPlansConfig';
 /**
  * Componente para visualizar y navegar entre los planos de un proyecto
  */
-const PlansViewer = ({ project, selectedRoom, onRoomSelect, onClose, tasks }) => {
+const PlansViewer = ({ project, selectedRoom, onRoomSelect, onClose, tasks, spaces = [] }) => {
   // Usar las tareas pasadas como prop, o como fallback obtenerlas desde Redux
   const allTasks = useSelector(state => state.tasks?.tasks || []);
   const projectTasks = tasks || allTasks.filter(task => task.project_id === project?.id);
   const planConfig = getProjectPlanConfig(project);
   const [selectedPlan, setSelectedPlan] = useState(planConfig.defaultPlan);
+
+  // Crear mapa de espacios: key = codigo_plano, value = objeto espacio BD
+  const spaceMapping = React.useMemo(() => {
+    const map = {};
+    spaces.forEach(sp => {
+      // Usar codigo_plano si existe, es fundamental para el mapeo
+      if (sp.codigo_plano && sp.codigo_plano.trim() !== '') {
+        map[sp.codigo_plano] = sp;
+      }
+    });
+    return map;
+  }, [spaces]);
 
   // Actualizar el plano seleccionado cuando cambia el proyecto
   useEffect(() => {
@@ -43,11 +55,14 @@ const PlansViewer = ({ project, selectedRoom, onRoomSelect, onClose, tasks }) =>
 
   const planProps = {
     onRoomSelect: (room) => {
+      // Si tenemos mapeo, intentar devolver el objeto o el ID
+      // Por ahora mantengamos compatibilidad devolviendo el string ID
       if (onRoomSelect) onRoomSelect(room);
       console.log('Espacio seleccionado:', room);
     },
     selectedRoom,
-    tasks: projectTasks  // Pasar las tareas filtradas del proyecto
+    tasks: projectTasks,  // Pasar las tareas filtradas del proyecto
+    spaceMapping // Pasar el diccionario de mapeo
   };
 
   return (
@@ -71,11 +86,10 @@ const PlansViewer = ({ project, selectedRoom, onRoomSelect, onClose, tasks }) =>
           <button
             key={plan.id}
             onClick={() => setSelectedPlan(plan.id)}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              selectedPlan === plan.id
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${selectedPlan === plan.id
                 ? 'bg-blue-600 text-white shadow'
                 : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-            }`}
+              }`}
           >
             {plan.label}
           </button>

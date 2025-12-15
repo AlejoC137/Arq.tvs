@@ -59,7 +59,7 @@ const CalendarView = () => {
           id: `task-${task.id}`,
           originalId: task.id,
           type: 'task',
-          title: task.task_description,
+          title: task.tema,
           date: new Date(taskDate),
           status: task.status,
           priority: task.priority,
@@ -104,7 +104,7 @@ const CalendarView = () => {
                   priority: 'Normal', // Actions don't have priority usually, default to Normal
                   executor: accion.ejecutor,
                   espacio: accion.espacio,
-                  parentTask: task.task_description
+                  parentTask: task.tema
                 });
               }
             });

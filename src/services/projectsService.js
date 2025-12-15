@@ -27,7 +27,7 @@ export const projectsService = {
         .from('projects')
         .select('*')
         .order('name');
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Projects loaded successfully');
     } catch (error) {
@@ -43,7 +43,7 @@ export const projectsService = {
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Project found');
     } catch (error) {
@@ -63,7 +63,7 @@ export const projectsService = {
         }])
         .select()
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Project created successfully');
     } catch (error) {
@@ -84,7 +84,7 @@ export const projectsService = {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Project updated successfully');
     } catch (error) {
@@ -99,7 +99,7 @@ export const projectsService = {
         .from('projects')
         .delete()
         .eq('id', id);
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(null, 'Project deleted successfully');
     } catch (error) {
@@ -116,7 +116,7 @@ export const projectsService = {
           *,
           tasks (
             id,
-            task_description,
+            tema,
             status,
             category,
             notes,
@@ -126,7 +126,7 @@ export const projectsService = {
         `)
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Project with tasks loaded');
     } catch (error) {
@@ -147,9 +147,9 @@ export const projectsService = {
           )
         `)
         .order('name');
-      
+
       if (error) return handleSupabaseError(error);
-      
+
       // Calculate stats for each project
       const projectsWithStats = data.map(project => ({
         ...project,
@@ -158,7 +158,7 @@ export const projectsService = {
         pendingTasks: project.tasks?.filter(task => task.status === 'Pendiente').length || 0,
         inProgressTasks: project.tasks?.filter(task => task.status === 'En Progreso').length || 0
       }));
-      
+
       return handleSupabaseSuccess(projectsWithStats, 'Projects with stats loaded');
     } catch (error) {
       return handleSupabaseError(error);

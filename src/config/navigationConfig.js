@@ -13,7 +13,9 @@ import {
   FolderKanban,
   BookOpen,
   Contact,
-  Calendar
+  Calendar,
+  Layers, // Added for Espacios tab
+  Box // Added for Componentes tab
 } from 'lucide-react';
 
 // Import de componentes (lazy loading para mejor performance)
@@ -29,6 +31,8 @@ const Directorio = lazy(() => import('../components/DirectorioSupabase'));
 const ProjectKanbanView = lazy(() => import('../components/ProjectKanbanView'));
 const ProjectExcelView = lazy(() => import('../components/ProjectExcelView'));
 const CalendarView = lazy(() => import('../components/CalendarView'));
+const SpacesManager = lazy(() => import('../pages/SpacesManager')); // Added lazy import
+const ComponentsManager = lazy(() => import('../pages/ComponentsManager')); // Added lazy import
 
 // ========================================
 // TAB CONFIGURATION
@@ -99,6 +103,27 @@ export const navigationTabs = [
     component: Protocolos,
     enabled: true,
     category: 'Documentos'
+  },
+  // Novedades: Espacios y Componentes
+  {
+    id: 'espacios',
+    path: '/espacios',
+    label: 'Espacios',
+    icon: Layers, // Changed to component reference
+    description: 'Gestión de espacios por proyecto',
+    component: SpacesManager, // Changed to component reference
+    enabled: true, // Added enabled property
+    category: 'Gestión' // Added category property
+  },
+  {
+    id: 'componentes',
+    path: '/componentes',
+    label: 'Componentes',
+    icon: Box, // Changed to component reference
+    description: 'Catálogo de componentes y acabados',
+    component: ComponentsManager, // Changed to component reference
+    enabled: true, // Added enabled property
+    category: 'Gestión' // Added category property
   },
   {
     id: 'Directorio',

@@ -2,12 +2,14 @@
 import React from 'react';
 import { FloorPlanC2P1 } from '../../FloorPlanC2P1';
 
-const P1C2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
+const P1C2 = ({ onRoomSelect, selectedRoom, tasks = [], spaceMapping = {} }) => {
   const handleRoomClick = (roomId) => {
     console.log('[P1C2] Habitación clickeada:', roomId);
-    console.log('[P1C2] onRoomSelect exists?', !!onRoomSelect);
     if (onRoomSelect) {
-      onRoomSelect(roomId);
+      const mapped = spaceMapping[roomId];
+      // Si está mapeado, enviar el UUID de la DB; si no, el ID del SVG
+      const valueToSend = mapped ? (mapped._id || mapped.id) : roomId;
+      onRoomSelect(valueToSend);
     } else {
       console.warn('[P1C2] onRoomSelect no está definido!');
     }
@@ -21,6 +23,7 @@ const P1C2 = ({ onRoomSelect, selectedRoom, tasks = [] }) => {
           selectedRoom={selectedRoom}
           onRoomClick={handleRoomClick}
           tasks={tasks}
+          spaceMapping={spaceMapping}
         />
       </div>
     </div>

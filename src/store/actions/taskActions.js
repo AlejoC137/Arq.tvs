@@ -18,10 +18,10 @@ const taskTransformer = (data) => {
       projectName: item.projects?.name || 'Sin proyecto',
       assigneeName: item.staff?.name || 'Sin asignar',
       stageName: item.stages?.name || 'Sin etapa',
-      taskDescription: item.task_description || item.description || '',
+      taskDescription: item.tema || item.description || '',
     }));
   }
-  
+
   return {
     ...transformers.addTimestamps(data),
     ...transformers.formatForDisplay(data),
@@ -31,7 +31,7 @@ const taskTransformer = (data) => {
     projectName: data.projects?.name || 'Sin proyecto',
     assigneeName: data.staff?.name || 'Sin asignar',
     stageName: data.stages?.name || 'Sin etapa',
-    taskDescription: data.task_description || data.description || '',
+    taskDescription: data.tema || data.description || '',
   };
 };
 
@@ -83,31 +83,31 @@ export const {
   // Fetch operations
   fetchAll: fetchTasks,
   fetchById: fetchTaskById,
-  
+
   // Create operations
   create: createTask,
-  
+
   // Update operations
   update: updateTask,
-  
+
   // Delete operations
   delete: deleteTask,
-  
+
   // Bulk operations
   bulkCreate: bulkCreateTasks,
   bulkUpdate: bulkUpdateTasks,
   bulkDelete: bulkDeleteTasks,
-  
+
   // Utility operations
   count: countTasks,
   search: searchTasks,
-  
+
   // State management
   setLoading: setTasksLoading,
   setError: setTasksError,
   clearError: clearTasksError,
   resetState: resetTasksState,
-  
+
   // Action types reference
   actionTypes: taskActionTypes,
 } = taskActions;
@@ -170,20 +170,20 @@ export const fetchTasksByPriority = (priority) => {
 export const fetchOverdueTasks = () => {
   return async (dispatch) => {
     dispatch(taskActions.fetchRequest());
-    
+
     try {
       const { data, error } = await supabase
         .from('Tareas')
-        .select(relationships.tasks.length > 0 ? 
-          `*, ${relationships.tasks.map(rel => `${rel.table}(${rel.fields})`).join(',')}` : 
+        .select(relationships.tasks.length > 0 ?
+          `*, ${relationships.tasks.map(rel => `${rel.table}(${rel.fields})`).join(',')}` :
           '*'
         )
         .lt('due_date', new Date().toISOString())
         .neq('status', 'Completo')
         .order('due_date', { ascending: true });
-      
+
       if (error) throw error;
-      
+
       dispatch(taskActions.fetchSuccess(taskTransformer(data || [])));
       return { success: true, data };
     } catch (error) {
@@ -198,25 +198,25 @@ export const fetchOverdueTasks = () => {
 export const fetchTasksDueThisWeek = () => {
   return async (dispatch) => {
     dispatch(taskActions.fetchRequest());
-    
+
     try {
       const today = new Date();
       const nextWeek = new Date();
       nextWeek.setDate(today.getDate() + 7);
-      
+
       const { data, error } = await supabase
         .from('Tareas')
-        .select(relationships.tasks.length > 0 ? 
-          `*, ${relationships.tasks.map(rel => `${rel.table}(${rel.fields})`).join(',')}` : 
+        .select(relationships.tasks.length > 0 ?
+          `*, ${relationships.tasks.map(rel => `${rel.table}(${rel.fields})`).join(',')}` :
           '*'
         )
         .gte('due_date', today.toISOString())
         .lte('due_date', nextWeek.toISOString())
         .neq('status', 'Completo')
         .order('due_date', { ascending: true });
-      
+
       if (error) throw error;
-      
+
       dispatch(taskActions.fetchSuccess(taskTransformer(data || [])));
       return { success: true, data };
     } catch (error) {
@@ -229,7 +229,7 @@ export const fetchTasksDueThisWeek = () => {
 
 // Complete task
 export const completeTask = (taskId) => {
-  return updateTask(taskId, { 
+  return updateTask(taskId, {
     status: 'Completo',
     completed_at: new Date().toISOString()
   });
@@ -237,7 +237,7 @@ export const completeTask = (taskId) => {
 
 // Reopen task
 export const reopenTask = (taskId) => {
-  return updateTask(taskId, { 
+  return updateTask(taskId, {
     status: 'Pendiente',
     completed_at: null
   });
@@ -252,13 +252,13 @@ export const duplicateTask = (taskId, newData = {}) => {
       if (!originalResult.success) {
         return originalResult;
       }
-      
+
       const original = originalResult.data;
-      
+
       // Create new task with modified data
       const duplicatedData = {
         category: original.category,
-        task_description: `${original.task_description} (Copia)`,
+        tema: `${original.tema} (Copia)`,
         status: 'Pendiente',
         notes: original.notes,
         project_id: original.project_id,
@@ -268,7 +268,7 @@ export const duplicateTask = (taskId, newData = {}) => {
         due_date: original.due_date,
         ...newData, // Allow overriding any fields
       };
-      
+
       return dispatch(createTask(duplicatedData));
     } catch (error) {
       return { success: false, error: error.message };

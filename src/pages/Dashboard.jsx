@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Building2, 
-  Users, 
-  Calendar, 
-  CheckSquare, 
-  Filter, 
-  Search, 
-  User, 
+import {
+  Building2,
+  Users,
+  Calendar,
+  CheckSquare,
+  Filter,
+  Search,
+  User,
   Clock,
   AlertCircle,
   FileText,
@@ -28,14 +28,14 @@ import { Badge } from '../components/ui/Badge.jsx';
 const TeamOverview = () => {
   const { members } = useSelector(state => state.staff);
   const { tasks } = useSelector(state => state.tasks);
-  
+
   // Calcular tareas por miembro
   const membersWithTasks = useMemo(() => {
     return members.map(member => {
       const memberTasks = tasks.filter(task => task.staff_id === member.id);
       const completedTasks = memberTasks.filter(t => t.status === 'Completado').length;
       const totalTasks = memberTasks.length;
-      
+
       return {
         ...member,
         totalTasks,
@@ -45,7 +45,7 @@ const TeamOverview = () => {
       };
     });
   }, [members, tasks]);
-  
+
   return (
     <Card className="mb-8">
       <CardHeader>
@@ -75,7 +75,7 @@ const TeamOverview = () => {
                   <p className="text-xs text-gray-500 truncate">{member.role_description}</p>
                 </div>
               </div>
-              
+
               {/* Contador de tareas */}
               <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-1">
@@ -85,11 +85,10 @@ const TeamOverview = () => {
                   </span>
                 </div>
                 {member.totalTasks > 0 && (
-                  <span className={`font-semibold ${
-                    member.completionRate === 100 ? 'text-green-600' :
-                    member.completionRate >= 50 ? 'text-blue-600' :
-                    'text-orange-600'
-                  }`}>
+                  <span className={`font-semibold ${member.completionRate === 100 ? 'text-green-600' :
+                      member.completionRate >= 50 ? 'text-blue-600' :
+                        'text-orange-600'
+                    }`}>
                     {member.completionRate}%
                   </span>
                 )}
@@ -112,14 +111,14 @@ const TeamOverview = () => {
 const ProjectStats = () => {
   const { projects } = useSelector(state => state.projects);
   const { tasks } = useSelector(state => state.tasks);
-  
+
   const stats = useMemo(() => {
     const totalProjects = projects.length;
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter(task => task.status === 'Completo').length;
     const pendingTasks = tasks.filter(task => task.status === 'Pendiente').length;
     const inProgressTasks = tasks.filter(task => task.status === 'En Progreso').length;
-    
+
     return {
       totalProjects,
       totalTasks,
@@ -129,7 +128,7 @@ const ProjectStats = () => {
       completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
     };
   }, [projects, tasks]);
-  
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <Card>
@@ -143,7 +142,7 @@ const ProjectStats = () => {
           </div>
         </CardContent>
       </Card>
-      
+
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
@@ -155,7 +154,7 @@ const ProjectStats = () => {
           </div>
         </CardContent>
       </Card>
-      
+
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
@@ -167,7 +166,7 @@ const ProjectStats = () => {
           </div>
         </CardContent>
       </Card>
-      
+
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
@@ -186,7 +185,7 @@ const ProjectStats = () => {
 // Recent Tasks Component
 const RecentTasks = () => {
   const { tasks, loading } = useSelector(state => state.tasks);
-  
+
   const recentTasks = useMemo(() => {
     return tasks
       .filter(task => task.status !== 'Completo')
@@ -234,7 +233,7 @@ const RecentTasks = () => {
           {recentTasks.map((task) => (
             <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{task.task_description}</p>
+                <p className="font-medium truncate">{task.tema}</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                   <span>{task.category}</span>
                   {task.projects?.name && (
@@ -265,13 +264,13 @@ const RecentTasks = () => {
 // Main Dashboard Component
 const Dashboard = () => {
   const dispatch = useDispatch();
-  
+
   useEffect(() => {
     dispatch(fetchProjects());
     dispatch(fetchTasks());
     dispatch(fetchStaff());
   }, [dispatch]);
-  
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -283,7 +282,7 @@ const Dashboard = () => {
           Seguimiento de proyectos, tareas y equipo de trabajo
         </p>
       </div>
-      
+
       <div className="space-y-8">
         <ProjectStats />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

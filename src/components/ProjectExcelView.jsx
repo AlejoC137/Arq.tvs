@@ -50,7 +50,7 @@ const getPriorityColor = (priority) => {
 const initialColumns = [
     { key: 'Priority', label: 'Prioridad', width: 75, sortable: true },
     { key: 'stage_id', label: 'Etapa', width: 75, sortable: true },
-    { key: 'task_description', label: 'Tarea / Espacio', width: 350, sortable: true },
+    { key: 'tema', label: 'Tarea / Espacio', width: 350, sortable: true },
     { key: 'inline_actions', label: 'Acciones de Tarea', width: 500, sortable: false },
     { key: 'status', label: 'Estado', width: 75, sortable: true },
     { key: 'Progress', label: 'Progreso', width: 100, sortable: true },
@@ -79,7 +79,7 @@ const ProjectExcelView = () => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [filters, setFilters] = useState({ project_id: '', stage_id: '', staff_id: '', status: '', search: '' });
     const [selectedRows, setSelectedRows] = useState(new Set());
-    const [sortConfig, setSortConfig] = useState({ key: 'task_description', direction: 'ascending' });
+    const [sortConfig, setSortConfig] = useState({ key: 'tema', direction: 'ascending' });
     const [collapsedGroups, setCollapsedGroups] = useState(new Set());
 
     // --- NUEVO: Estados y Refs para el redimensionamiento de columnas ---
@@ -229,7 +229,7 @@ const ProjectExcelView = () => {
             const { id, created_at, ...newTaskData } = task;
             return dispatch(addTask({
                 ...newTaskData,
-                task_description: `${task.task_description} (Copia)`,
+                tema: `${task.tema} (Copia)`,
                 status: ESTADOS.PENDIENTE,
                 Progress: 0
             }));
@@ -351,7 +351,7 @@ const ProjectExcelView = () => {
                 'Proyecto': proyectos.find(p => p.id === item.project_id)?.name || 'N/A',
                 'Prioridad': item.Priority || '-',
                 'Etapa': stages.find(s => s.id === item.stage_id)?.name || '-',
-                'Tarea': item.task_description,
+                'Tarea': item.tema,
                 'Estado': item.status,
                 'Progreso (%)': item.Progress || 0,
                 'Responsable': staff.find(s => s.id === item.staff_id)?.name || 'Sin Asignar',
@@ -442,7 +442,7 @@ const ProjectExcelView = () => {
                                                 <td className="px-4 py-2 border-r align-top"><input type="checkbox" checked={selectedRows.has(item.id)} onChange={() => handleSelectRow(item.id)} /></td>
                                                 <td className={`px-4 py-2 border-r text-center align-top ${getPriorityColor(item.Priority)}`}><EditableCell rowId={item.id} field="Priority" value={item.Priority} type="priority-select" options={Priorities} /></td>
                                                 <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="stage_id" value={item.stage_id} type="select" options={stages} /></td>
-                                                <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="task_description" value={item.task_description} type="textarea" /></td>
+                                                <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="tema" value={item.tema} type="textarea" /></td>
                                                 <td className="p-0 border-r align-top"><InlineActionsTask task={item} /></td>
                                                 <td className="px-4 py-2 border-r text-center align-top"><EditableCell rowId={item.id} field="status" value={item.status} type="status-select" options={Object.keys(ESTADOS).map(k => ({ id: ESTADOS[k], name: ESTADOS[k] }))} /></td>
                                                 <td className="px-4 py-2 border-r align-top"><EditableCell rowId={item.id} field="Progress" value={item.Progress} type="progress" /></td>

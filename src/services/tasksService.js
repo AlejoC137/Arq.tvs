@@ -40,8 +40,8 @@ export const tasksService = {
             name
           )
         `)
-        .order('task_description');
-      
+        .order('tema');
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Tasks loaded successfully');
     } catch (error) {
@@ -71,7 +71,7 @@ export const tasksService = {
         `)
         .eq('id', id)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Task found');
     } catch (error) {
@@ -86,7 +86,7 @@ export const tasksService = {
         .from('tasks')
         .insert([{
           category: taskData.category,
-          task_description: taskData.task_description,
+          tema: taskData.tema,
           status: taskData.status,
           notes: taskData.notes || '',
           project_id: taskData.project_id || null,
@@ -110,7 +110,7 @@ export const tasksService = {
           )
         `)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Task created successfully');
     } catch (error) {
@@ -125,7 +125,7 @@ export const tasksService = {
         .from('tasks')
         .update({
           category: taskData.category,
-          task_description: taskData.task_description,
+          tema: taskData.tema,
           status: taskData.status,
           notes: taskData.notes,
           project_id: taskData.project_id,
@@ -150,7 +150,7 @@ export const tasksService = {
           )
         `)
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Task updated successfully');
     } catch (error) {
@@ -165,7 +165,7 @@ export const tasksService = {
         .from('tasks')
         .delete()
         .eq('id', id);
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(null, 'Task deleted successfully');
     } catch (error) {
@@ -190,8 +190,8 @@ export const tasksService = {
           )
         `)
         .eq('project_id', projectId)
-        .order('task_description');
-      
+        .order('tema');
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Project tasks loaded');
     } catch (error) {
@@ -216,8 +216,8 @@ export const tasksService = {
           )
         `)
         .eq('staff_id', staffId)
-        .order('task_description');
-      
+        .order('tema');
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Staff tasks loaded');
     } catch (error) {
@@ -242,8 +242,8 @@ export const tasksService = {
           )
         `)
         .eq('stage_id', stageId)
-        .order('task_description');
-      
+        .order('tema');
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Stage tasks loaded');
     } catch (error) {
@@ -272,8 +272,8 @@ export const tasksService = {
           )
         `)
         .eq('status', status)
-        .order('task_description');
-      
+        .order('tema');
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, `Tasks with status ${status} loaded`);
     } catch (error) {
@@ -290,7 +290,7 @@ export const tasksService = {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) return handleSupabaseError(error);
       return handleSupabaseSuccess(data, 'Task status updated successfully');
     } catch (error) {

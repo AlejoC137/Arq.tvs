@@ -14,13 +14,14 @@ import { Button } from './ui/Button';
 import CrudForm from './CrudForm';
 import { Modal } from './ui/Modal';
 import { Plus, Trash2, Edit } from 'lucide-react';
+import ViewToggle from './common/ViewToggle';
 
 const TABLE_NAME = 'Entregables_template';
 
 // Opciones para los campos 'select' en el formulario
 const CATEGORIA_OPTIONS = ['2D', '3D', '2D/3D', 'Documento'];
 const VISTA_TIPO_OPTIONS = ['Planta', 'Alzado', 'Sección', 'Diagrama', 'Detalle', 'Isométrico', 'Perspectiva', 'Modelo 3D'];
-const SOFTWARE_OPTIONS = ['Revit',"AutoCAD" , 'Adobe Suite', 'SketchUp', 'Rhino', 'Office Suite'];
+const SOFTWARE_OPTIONS = ['Revit', "AutoCAD", 'Adobe Suite', 'SketchUp', 'Rhino', 'Office Suite'];
 
 const PlanosView = () => {
   const dispatch = useDispatch();
@@ -29,6 +30,7 @@ const PlanosView = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
 
   const fetchData = async () => {
     setLoading(true);
@@ -67,7 +69,7 @@ const PlanosView = () => {
         sanitizedData[key] = null;
       }
     }
-    
+
     const action = editingItem
       ? updateEntregableTemplate(editingItem.id, sanitizedData)
       : createEntregableTemplate(sanitizedData);
@@ -102,46 +104,105 @@ const PlanosView = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Gestión de Plantillas de Planos</h1>
-        <Button onClick={handleCreate} className="flex items-center gap-2">
-          <Plus size={16} />
-          Crear Nueva Plantilla
-        </Button>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Gestión de Plantillas</h1>
+          <p className="text-gray-600">Configuración de entregables y planos</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <ViewToggle viewMode={viewMode} onViewChange={setViewMode} />
+          <Button onClick={handleCreate} className="flex items-center gap-2">
+            <Plus size={16} />
+            <span className="hidden sm:inline">Nueva Plantilla</span>
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-white shadow-md rounded-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              {columns.map(col => (
-                <th key={col.Header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{col.Header}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {items.map(item => (
-              <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{item.entregable_nombre}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.Categoria}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.vistaTipo}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.escala_tipica}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{item.software_utilizado}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                        <button onClick={() => handleEdit(item)} className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-full" title="Editar">
-                            <Edit size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(item.id)} className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full" title="Eliminar">
-                            <Trash2 size={16} />
-                        </button>
-                    </div>
-                </td>
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {items.map(item => (
+            <div key={item.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all flex flex-col h-full">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-lg font-bold text-gray-800 line-clamp-2" title={item.entregable_nombre}>
+                  {item.entregable_nombre}
+                </h3>
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${item.Categoria === '2D' ? 'bg-blue-100 text-blue-800' :
+                    item.Categoria === '3D' ? 'bg-purple-100 text-purple-800' :
+                      item.Categoria === 'documento' ? 'bg-gray-100 text-gray-800' :
+                        'bg-green-100 text-green-800'
+                  }`}>
+                  {item.Categoria || 'N/A'}
+                </span>
+              </div>
+
+              <div className="text-sm text-gray-600 space-y-1 mb-4 flex-1">
+                <p className="flex justify-between border-b border-gray-100 py-1">
+                  <span className="font-medium text-gray-500">Vista:</span>
+                  <span>{item.vistaTipo}</span>
+                </p>
+                <p className="flex justify-between border-b border-gray-100 py-1">
+                  <span className="font-medium text-gray-500">Escala:</span>
+                  <span>{item.escala_tipica}</span>
+                </p>
+                <p className="flex justify-between border-b border-gray-100 py-1">
+                  <span className="font-medium text-gray-500">Software:</span>
+                  <span>{item.software_utilizado}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => handleEdit(item)}
+                  className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+                  title="Editar"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Eliminar"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                {columns.map(col => (
+                  <th key={col.Header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{col.Header}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {items.map(item => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{item.entregable_nombre}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{item.Categoria}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{item.vistaTipo}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{item.escala_tipica}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{item.software_utilizado}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <button onClick={() => handleEdit(item)} className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100 rounded-full" title="Editar">
+                        <Edit size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(item.id)} className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-full" title="Eliminar">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <h2 className="text-xl font-bold mb-4">

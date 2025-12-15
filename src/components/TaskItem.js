@@ -24,10 +24,10 @@ const TaskItem = ({ task, staff, stages, entregables, onUpdateCell, isSelected, 
     };
 
     const responsible = staff.find(s => s.id === task.staff_id);
-    
+
     // Aquí deberías tener el componente EditableCell que ya creamos.
     // Por ahora, solo simularé su presencia. Asegúrate de tenerlo importado y funcionando.
-    const EditableCell = ({value, type}) => <div className="p-1 min-h-[28px]">{value || '-'}</div>;
+    const EditableCell = ({ value, type }) => <div className="p-1 min-h-[28px]">{value || '-'}</div>;
 
     return (
         <div className={`relative ${isSelected ? 'bg-blue-50' : 'bg-white'}`}>
@@ -44,14 +44,14 @@ const TaskItem = ({ task, staff, stages, entregables, onUpdateCell, isSelected, 
                 />
 
                 <div className="flex-grow">
-                    <EditableCell 
-                        rowId={task.id} 
-                        field="task_description" 
-                        value={task.task_description} 
+                    <EditableCell
+                        rowId={task.id}
+                        field="tema"
+                        value={task.tema}
                         type="textarea"
                     />
                 </div>
-                
+
                 <div className="flex items-center gap-6 mx-6 text-sm text-gray-600">
                     <div className="flex items-center gap-2" title="Responsable">
                         <User size={16} />
@@ -76,7 +76,7 @@ const TaskItem = ({ task, staff, stages, entregables, onUpdateCell, isSelected, 
                 <div className="pl-16 pr-8 pb-4 pt-2 bg-gray-50/50 border-t border-gray-200">
                     <h4 className="font-semibold text-gray-700 mb-3">Detalles Adicionales</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
-                        
+
                         <div>
                             <label className="font-medium text-gray-500">Progreso</label>
                             <EditableCell rowId={task.id} field="Progress" value={task.Progress} type="progress" />
@@ -96,7 +96,7 @@ const TaskItem = ({ task, staff, stages, entregables, onUpdateCell, isSelected, 
                                 <span className="text-gray-700">{task.espacio || 'Sin asignar'}</span>
                             </div>
                         </div>
-                         <div className="md:col-span-2 lg:col-span-3">
+                        <div className="md:col-span-2 lg:col-span-3">
                             <label className="font-medium text-gray-500">Fechas</label>
                             {/* <DatesManager task={task} onSave={(rowId, data) => onUpdateCell(rowId, { dates: JSON.stringify(data) })} /> */}
                         </div>

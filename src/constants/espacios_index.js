@@ -19,7 +19,7 @@ const CASAS_REGISTRY = {
  */
 export function detectarCasa(input) {
   let textoParaAnalizar = '';
-  
+
   // Si es un objeto, extraer el nombre o campos relevantes
   if (typeof input === 'object' && input !== null) {
     textoParaAnalizar = [
@@ -27,7 +27,7 @@ export function detectarCasa(input) {
       input.nombre,
       input.project_name,
       input.proyecto,
-      input.task_description,
+      input.tema,
       input.descripcion
     ]
       .filter(Boolean)
@@ -35,16 +35,16 @@ export function detectarCasa(input) {
   } else if (typeof input === 'string') {
     textoParaAnalizar = input;
   }
-  
+
   if (!textoParaAnalizar) return null;
-  
+
   // Normalizar: lowercase y sin espacios
   const textoNormalizado = textoParaAnalizar.toLowerCase().replace(/\s+/g, '');
-  
+
   // Buscar coincidencias en los identificadores de cada casa
   for (const [casaNum, casaData] of Object.entries(CASAS_REGISTRY)) {
     const identificadores = casaData.metadata.identificadores;
-    
+
     for (const id of identificadores) {
       const idNormalizado = id.toLowerCase().replace(/\s+/g, '');
       if (textoNormalizado.includes(idNormalizado)) {
@@ -52,7 +52,7 @@ export function detectarCasa(input) {
       }
     }
   }
-  
+
   // Fallback: buscar patrón "casa" seguido de número
   const match = textoNormalizado.match(/casa(\d+)/);
   if (match) {
@@ -61,7 +61,7 @@ export function detectarCasa(input) {
       return num;
     }
   }
-  
+
   return null;
 }
 
@@ -73,20 +73,20 @@ export function detectarCasa(input) {
  */
 export function getEspaciosPorCasa(casaNumber, options = {}) {
   const { piso = null, includeMuebles = false } = options;
-  
+
   const casa = CASAS_REGISTRY[casaNumber];
   if (!casa) {
     console.warn(`❌ Casa ${casaNumber} no está registrada en el sistema`);
     return [];
   }
-  
+
   const result = [];
-  
+
   // Si se especifica piso, solo devolver ese piso
   if (piso !== null) {
     const pisoKey = `piso${piso}`;
     const pisoData = casa[pisoKey];
-    
+
     if (pisoData) {
       result.push(...pisoData.espacios);
       if (includeMuebles && pisoData.muebles) {
@@ -106,7 +106,7 @@ export function getEspaciosPorCasa(casaNumber, options = {}) {
       }
     });
   }
-  
+
   return result;
 }
 
@@ -118,12 +118,12 @@ export function getEspaciosPorCasa(casaNumber, options = {}) {
  */
 export function getEspaciosPorProyecto(input, options = {}) {
   const casaNumber = detectarCasa(input);
-  
+
   if (casaNumber === null) {
     console.warn('⚠️ No se pudo detectar la casa. Retornando todos los espacios.');
     return getTodosLosEspacios(options);
   }
-  
+
   return getEspaciosPorCasa(casaNumber, options);
 }
 
@@ -135,11 +135,11 @@ export function getEspaciosPorProyecto(input, options = {}) {
 export function getTodosLosEspacios(options = {}) {
   const { includeMuebles = false } = options;
   const result = [];
-  
+
   Object.keys(CASAS_REGISTRY).forEach(casaNum => {
     result.push(...getEspaciosPorCasa(parseInt(casaNum, 10), { includeMuebles }));
   });
-  
+
   return result;
 }
 
