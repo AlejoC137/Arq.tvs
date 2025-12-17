@@ -68,3 +68,66 @@ export const getMaterialCategories = async () => {
     const uniqueCategories = [...new Set(data.map(m => m.categoria).filter(Boolean))].sort();
     return uniqueCategories;
 };
+
+/**
+ * Actualiza un material existente.
+ * Asegura conversión de tipos estricta para campos numéricos.
+ * @param {number} materialId - ID del material a actualizar
+ * @param {object} updates - Objeto con las propiedades a actualizar
+ */
+export const updateMaterial = async (materialId, updates) => {
+    const updatePayload = {};
+
+    // Campos de texto
+    if (updates.Nombre !== undefined) {
+        updatePayload.Nombre = updates.Nombre;
+    }
+    if (updates.proveedor !== undefined) {
+        updatePayload.proveedor = updates.proveedor;
+    }
+    if (updates.categoria !== undefined) {
+        updatePayload.categoria = updates.categoria;
+    }
+    if (updates.tipo !== undefined) {
+        updatePayload.tipo = updates.tipo;
+    }
+    if (updates.unidad !== undefined) {
+        updatePayload.unidad = updates.unidad;
+    }
+    if (updates.notas !== undefined) {
+        updatePayload.notas = updates.notas;
+    }
+
+    // Campos numéricos - conversión estricta
+    if (updates.precio_COP !== undefined) {
+        updatePayload.precio_COP = updates.precio_COP === '' ? null : parseFloat(updates.precio_COP);
+    }
+    if (updates.precio_por_m2 !== undefined) {
+        updatePayload.precio_por_m2 = updates.precio_por_m2 === '' ? null : parseFloat(updates.precio_por_m2);
+    }
+    if (updates.stock !== undefined) {
+        updatePayload.stock = updates.stock === '' ? null : parseInt(updates.stock, 10);
+    }
+    if (updates.alto_mm !== undefined) {
+        updatePayload.alto_mm = updates.alto_mm === '' ? null : parseFloat(updates.alto_mm);
+    }
+    if (updates.ancho_mm !== undefined) {
+        updatePayload.ancho_mm = updates.ancho_mm === '' ? null : parseFloat(updates.ancho_mm);
+    }
+    if (updates.espesor_mm !== undefined) {
+        updatePayload.espesor_mm = updates.espesor_mm === '' ? null : parseFloat(updates.espesor_mm);
+    }
+
+    const { data, error } = await supabase
+        .from('Materiales')
+        .update(updatePayload)
+        .eq('id', materialId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating material:', error);
+        throw error;
+    }
+    return data;
+};

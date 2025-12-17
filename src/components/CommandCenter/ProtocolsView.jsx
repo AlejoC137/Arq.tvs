@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Search, User, Calendar, Tag, Edit } from 'lucide-react';
 import { getProtocols, getProtocolCategories } from '../../services/protocolsService';
+import ReactMarkdown from 'react-markdown';
 
 const ProtocolsView = () => {
     const [protocols, setProtocols] = useState([]);
@@ -163,12 +164,12 @@ const ProtocolsView = () => {
                             </div>
                         </div>
 
-                        {/* Content */}
+                        {/* Content - Rendered as Markdown */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            <div className="prose prose-sm max-w-none">
-                                <div className="whitespace-pre-wrap text-gray-700">
+                            <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-100 prose-pre:text-gray-800">
+                                <ReactMarkdown>
                                     {selectedProtocol.Contenido || 'Sin contenido'}
-                                </div>
+                                </ReactMarkdown>
                             </div>
                         </div>
                     </>
@@ -186,3 +187,4 @@ const ProtocolsView = () => {
 };
 
 export default ProtocolsView;
+

@@ -95,11 +95,15 @@ export const createAction = async (action) => {
 /**
  * Get all actions for a specific task
  */
+/**
+ * Get all actions for a specific task
+ */
 export const getTaskActions = async (taskId) => {
   const { data, error } = await supabase
     .from('Acciones')
     .select('*')
     .eq('tarea_id', taskId)
+    .order('orden', { ascending: true })
     .order('fecha_ejecucion', { ascending: true });
 
   if (error) {
@@ -108,4 +112,30 @@ export const getTaskActions = async (taskId) => {
   }
 
   return data || [];
+};
+
+/**
+ * Update order of multiple actions
+ * @param {Array<{id: string, orden: number}>} updates
+ */
+export const updateActionsOrder = async (updates) => {
+  if (!updates || updates.length === 0) return;
+
+  // Using upsert is risky if we don't have all fields, and we don't want to nullify others.
+  // Safest for reordering is a batch of updates or individual updates.
+  // Given low cardinality (actions per task), Promise.all is acceptable.
+
+  const promises = updates.map(({ id, orden }) =>
+    supabase.from('Acciones').update({ orden }).eq('id', id)
+  );
+
+  const results = await Promise.all(promises);
+  const errors = results.filter(r => r.error);
+
+  if (errors.length > 0) {
+    console.error('Errors updating order:', errors);
+    throw new Error('Failed to update some items');
+  }
+
+  return true;
 };

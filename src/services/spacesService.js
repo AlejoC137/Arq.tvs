@@ -49,13 +49,90 @@ export const updateSpace = async (espacioId, updates) => {
 };
 
 /**
+ * Crea un nuevo espacio o elemento
+ */
+export const createSpace = async (spaceData) => {
+    const { data, error } = await supabase
+        .from('Espacio_Elemento')
+        .insert([spaceData])
+        .select();
+
+    if (error) {
+        console.error('Error creating space:', error);
+        throw error;
+    }
+    return data[0];
+};
+
+/**
+ * Elimina un espacio o elemento
+ */
+export const deleteSpace = async (espacioId) => {
+    const { error } = await supabase
+        .from('Espacio_Elemento')
+        .delete()
+        .eq('_id', espacioId);
+
+    if (error) {
+        console.error('Error deleting space:', error);
+        throw error;
+    }
+    return true;
+};
+
+/**
+ * Obtiene todos los espacios y elementos (ambos tipos) con datos relacionados
+ */
+export const getAllSpacesAndElements = async () => {
+    const { data, error } = await supabase
+        .from('Espacio_Elemento')
+        .select(`
+            _id, nombre, tipo, apellido, piso, proyecto, etapa,
+            proyectoData:Proyectos!proyecto(id, name)
+        `)
+        .order('tipo', { ascending: true })
+        .order('nombre', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching spaces and elements:', error);
+        throw error;
+    }
+    return data || [];
+};
+
+/**
+ * Obtiene la lista de etapas (stages)
+ */
+export const getStages = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('Stage')
+            .select('id, name')
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching stages:', error);
+            if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+                console.warn('⚠️  Tabla "Stage" no existe en Supabase');
+                return [];
+            }
+            throw error;
+        }
+        return data || [];
+    } catch (err) {
+        console.error('Error inesperado al obtener stages:', err);
+        return [];
+    }
+};
+
+/**
  * Obtiene la lista de staffers/ejecutores
  */
 export const getStaffers = async () => {
     try {
         const { data, error } = await supabase
             .from('Staff')
-            .select('id, name, role_description, email, telefono, tasks')
+            .select('id, name, role_description')
             .order('name', { ascending: true });
 
         if (error) {

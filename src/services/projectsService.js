@@ -66,3 +66,57 @@ export const getParcels = async () => {
     }
     return data;
 };
+
+/**
+ * Actualiza un proyecto existente.
+ * Maneja la mezcla (merge) de la columna JSON 'Datos'.
+ * @param {number} projectId - ID del proyecto a actualizar
+ * @param {object} updates - Objeto con las propiedades a actualizar (name, responsable, status, Datos)
+ */
+export const updateProject = async (projectId, updates) => {
+    // Primero obtenemos el proyecto actual para hacer merge del JSON
+    const currentProject = await getProjectById(projectId);
+    if (!currentProject) {
+        throw new Error('Proyecto no encontrado');
+    }
+
+    // Preparar los datos a actualizar
+    const updatePayload = {};
+
+    // Campos directos
+    if (updates.name !== undefined) {
+        updatePayload.name = updates.name;
+    }
+    if (updates.responsable !== undefined) {
+        updatePayload.responsable = updates.responsable;
+    }
+    if (updates.status !== undefined) {
+        updatePayload.status = updates.status;
+    }
+
+    // Merge del campo JSON 'Datos'
+    if (updates.Datos !== undefined) {
+        const currentDatos = typeof currentProject.Datos === 'string'
+            ? JSON.parse(currentProject.Datos || '{}')
+            : (currentProject.Datos || {});
+
+        // Mezclar los datos existentes con los nuevos
+        updatePayload.Datos = {
+            ...currentDatos,
+            ...updates.Datos,
+        };
+    }
+
+    const { data, error } = await supabase
+        .from('Proyectos')
+        .update(updatePayload)
+        .eq('id', projectId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating project:', error);
+        throw error;
+    }
+    return data;
+};

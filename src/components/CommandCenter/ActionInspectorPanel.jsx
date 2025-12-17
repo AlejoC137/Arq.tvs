@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { clearSelection, setSelectedAction, setSelectedTask } from '../../store/actions/appActions';
-import { updateAction, createAction, getTaskActions } from '../../services/actionsService';
+import { updateAction, createAction, getTaskActions, updateActionsOrder } from '../../services/actionsService';
 import { getSpaceComponents, updateComponent } from '../../services/componentsService';
 import { getSpaces, getSpaceDetails, updateSpace, getStaffers } from '../../services/spacesService';
 import { createTask, updateTask, getProjects, deleteTask } from '../../services/tasksService';
-import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2 } from 'lucide-react';
+import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ActionInspectorPanel = ({ onActionUpdated }) => {
@@ -18,7 +18,7 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
     // Local state for Task form
     const [taskForm, setTaskForm] = useState({});
 
-    // Local state for Task Components
+    // Local state for Task Components (Actions)
     const [components, setComponents] = useState([]);
 
     // Dropdown options
@@ -32,6 +32,9 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // DnD State
+    const [draggedIndex, setDraggedIndex] = useState(null);
 
     // Load dropdown data on mount
     useEffect(() => {
@@ -72,10 +75,23 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
             setTaskForm({
                 ...selectedTask,
                 task_description: selectedTask.task_description || '',
+                acabado: selectedTask.acabado || '',
                 fecha_inicio: selectedTask.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
                 fecha_fin_estimada: selectedTask.fecha_fin_estimada || format(new Date(), 'yyyy-MM-dd'),
                 espacio_uuid: selectedTask.espacio_uuid || null,
                 proyecto_id: selectedTask.proyecto_id || null,
+            });
+        } else if (panelMode === 'task' && selectedTask) {
+            // Load existing task data into taskForm for editing
+            setTaskForm({
+                ...selectedTask,
+                task_description: selectedTask.task_description || '',
+                acabado: selectedTask.acabado || '', // Load acabado
+                fecha_inicio: selectedTask.fecha_inicio || (selectedTask.created_at ? selectedTask.created_at.split('T')[0] : format(new Date(), 'yyyy-MM-dd')),
+                fecha_fin_estimada: selectedTask.fecha_fin_estimada || format(new Date(), 'yyyy-MM-dd'),
+                espacio_uuid: selectedTask.espacio ? selectedTask.espacio.id : (selectedTask.espacio_uuid || null),
+                proyecto_id: selectedTask.proyecto ? selectedTask.proyecto.id : (selectedTask.proyecto_id || null),
+                fullActions: [] // We don't load actions into form state for edit mode, we use components state
             });
         }
     }, [selectedTask, panelMode]);
@@ -119,32 +135,97 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
         });
     };
 
-    const handleToggleComplete = async () => {
-        if (!selectedAction?.id) return;
+    // Drag and Drop Handlers
+    const handleDragStart = (e, index) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = "move";
+    };
 
-        const newStatus = !actionForm.completado;
-        setActionForm(prev => ({ ...prev, completado: newStatus }));
+    const handleDragOver = (e, index) => {
+        e.preventDefault(); // Necessary to allow dropping
+        e.dataTransfer.dropEffect = "move";
+    };
 
+    const handleDrop = async (e, targetIndex) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+        const newComponents = [...components];
+        const draggedItem = newComponents[draggedIndex];
+
+        // Remove from old pos
+        newComponents.splice(draggedIndex, 1);
+        // Insert at new pos
+        newComponents.splice(targetIndex, 0, draggedItem);
+
+        setComponents(newComponents);
+        setDraggedIndex(null);
+
+        // Batch update order
         try {
-            await updateAction(selectedAction.id, { completado: newStatus });
-            const updated = { ...selectedAction, completado: newStatus };
-            dispatch(setSelectedAction(updated));
-            if (onActionUpdated) onActionUpdated(updated);
+            const updates = newComponents.map((action, idx) => ({
+                id: action.id,
+                orden: idx
+            })).filter(a => a.id); // Only update existing actions (not _isNew ones yet)
+
+            if (updates.length > 0) {
+                await updateActionsOrder(updates);
+            }
         } catch (error) {
-            console.error("Error toggling status:", error);
-            setActionForm(prev => ({ ...prev, completado: !newStatus }));
-            alert("Error al actualizar estado: " + error.message);
+            console.error('Error reordering:', error);
+            alert('Error al guardar el nuevo orden');
         }
     };
 
     const handleSaveAction = async () => {
+        console.log("handleSaveAction CALLED - VERSION: FIX_APPLIED_V2"); // FORCE UPDATE LOG
         setSaving(true);
         try {
             if (panelMode === 'action' && selectedAction?.id) {
+                console.log("Mode: ACTION UPDATE"); // DEBUG
                 const { tarea, ...updates } = actionForm;
                 await updateAction(selectedAction.id, updates);
                 dispatch(setSelectedAction({ ...selectedAction, ...updates }));
                 if (onActionUpdated) onActionUpdated({ ...selectedAction, ...updates });
+            } else if (panelMode === 'task' && selectedTask?.id) {
+                console.log("Mode: TASK UPDATE"); // DEBUG
+                // Update Existing Task
+                const updates = {};
+
+                console.log("Comparing Description:", taskForm.task_description, selectedTask.task_description);
+                if (taskForm.task_description !== selectedTask.task_description) updates.task_description = taskForm.task_description;
+
+                console.log("Comparing Acabado:", taskForm.acabado, selectedTask.acabado);
+                if (taskForm.acabado !== selectedTask.acabado) updates.acabado = taskForm.acabado;
+
+                console.log("Comparing Fechas:", taskForm.fecha_inicio, selectedTask.fecha_inicio);
+                if (taskForm.fecha_inicio !== selectedTask.fecha_inicio) updates.fecha_inicio = taskForm.fecha_inicio;
+                if (taskForm.fecha_fin_estimada !== selectedTask.fecha_fin_estimada) updates.fecha_fin_estimada = taskForm.fecha_fin_estimada;
+
+                // Use loose equality (!=) to handle string/number mismatches
+                console.log("Comparing Project:", taskForm.proyecto_id, selectedTask.proyecto?.id || selectedTask.project_id);
+                if (taskForm.proyecto_id && taskForm.proyecto_id != (selectedTask.proyecto?.id || selectedTask.project_id)) updates.project_id = taskForm.proyecto_id;
+
+                console.log("Comparing Space:", taskForm.espacio_uuid, selectedTask.espacio?.id || selectedTask.espacio_uuid);
+                if (taskForm.espacio_uuid && taskForm.espacio_uuid != (selectedTask.espacio?._id || selectedTask.espacio_uuid)) updates.espacio_uuid = taskForm.espacio_uuid;
+
+                console.log("DETECTED UPDATES:", updates); // DEBUG
+
+                if (Object.keys(updates).length > 0) {
+                    const updatedTask = await updateTask(selectedTask.id, updates);
+                    // DEBUG: console.log("Update Result:", updatedTask);
+
+                    if (updatedTask) {
+                        // updatedTask is an object, not an array
+                        dispatch(setSelectedTask(updatedTask));
+                    }
+                } else {
+                    // console.warn("NO UPDATES DETECTED");
+                    alert("No hay cambios detectados para guardar.");
+                }
+
+                if (onActionUpdated) onActionUpdated(); // triggers refresh (no args to force reload)
+
             } else if (panelMode === 'create') {
                 const { id, ...createData } = actionForm;
                 const res = await createAction(createData);
@@ -152,8 +233,9 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                 if (onActionUpdated) onActionUpdated(newAction);
                 dispatch(setSelectedAction(newAction));
             } else if (panelMode === 'createTask') {
-                const { id, proyecto, espacio, quickActions, fullActions, ...createData } = taskForm;
-                const newTask = await createTask(createData);
+                const { id, proyecto, espacio, quickActions, fullActions, proyecto_id, ...createData } = taskForm;
+                const taskPayload = { ...createData, project_id: proyecto_id || null, espacio_uuid: taskForm.espacio_uuid || null };
+                const newTask = await createTask(taskPayload);
 
                 // Create full actions if any
                 if (fullActions && fullActions.length > 0) {
@@ -167,9 +249,9 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                             completado: false,
                             requiere_aprobacion_ronald: fa.requiere_aprobacion_ronald || false,
                             estado_aprobacion_ronald: false,
-                            requiere_aprobacion_wiet: fa.requiere_aprobacion_wiet || false,
+                            requiere_aprobacion_wiet: false,
                             estado_aprobacion_wiet: false,
-                            requiere_aprobacion_alejo: fa.requiere_aprobacion_alejo || false,
+                            requiere_aprobacion_alejo: false,
                             estado_aprobacion_alejo: false,
                         })
                     );
@@ -181,6 +263,7 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                 dispatch(clearSelection()); // Close panel after creation
             }
         } catch (error) {
+            console.error(error);
             alert("Error al guardar: " + error.message);
         } finally {
             setSaving(false);
@@ -196,20 +279,8 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
         }
     };
 
-    const handleSpacePropertyUpdate = async (field, value) => {
-        if (!selectedSpaceDetails?._id) return;
-
-        setSelectedSpaceDetails(prev => ({ ...prev, [field]: value }));
-        try {
-            await updateSpace(selectedSpaceDetails._id, { [field]: value });
-        } catch (error) {
-            console.error("Failed to update space", error);
-        }
-    };
-
     const handleDeleteTask = async () => {
         if (!selectedTask?.id) return;
-
         if (!confirm('¿Eliminar esta tarea y todas sus acciones asociadas?')) return;
 
         setSaving(true);
@@ -237,21 +308,11 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
                         {panelMode === 'createTask' ? 'Nueva Tarea' :
-                            panelMode === 'task' ? `Editar Tarea: ${selectedTask?.task_description || '...'}` : 'Detalles'}
+                            panelMode === 'task' ? `Editar Tarea: ${taskForm?.task_description || '...'}` : 'Detalles'}
                     </span>
                     {(loading || saving) && <span className="text-[9px] text-blue-500 animate-pulse">{saving ? 'Guardando...' : 'Cargando...'}</span>}
                 </div>
                 <div className="flex items-center gap-1.5">
-                    {panelMode === 'task' && selectedSpaceDetails && (
-                        <button
-                            onClick={() => setShowSpaceEditor(!showSpaceEditor)}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
-                        >
-                            <Edit3 size={12} />
-                            {showSpaceEditor ? 'Ocultar' : 'Editar'} Espacio
-                        </button>
-                    )}
-
                     {panelMode === 'task' && (
                         <button
                             onClick={handleDeleteTask}
@@ -301,6 +362,18 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                             onChange={(e) => handleTaskChange('task_description', e.target.value)}
                                             className="w-full text-[10px] bg-gray-50 border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500"
                                             placeholder="Ej: Pintura de sala..."
+                                        />
+                                    </div>
+
+                                    {/* Acabado */}
+                                    <div>
+                                        <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Acabado</label>
+                                        <input
+                                            type="text"
+                                            value={taskForm.acabado || ''}
+                                            onChange={(e) => handleTaskChange('acabado', e.target.value)}
+                                            className="w-full text-[10px] bg-gray-50 border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500"
+                                            placeholder="Detalles de acabados..."
                                         />
                                     </div>
 
@@ -389,8 +462,12 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                         {(taskForm.fullActions || []).map((action, idx) => (
                                             <FullActionRow
                                                 key={idx}
+                                                index={idx}
                                                 action={action}
                                                 staffers={staffers}
+                                                onDragStart={handleDragStart}
+                                                onDragOver={handleDragOver}
+                                                onDrop={handleDrop}
                                                 onChange={(field, value) => {
                                                     const newActions = [...(taskForm.fullActions || [])];
                                                     newActions[idx] = { ...newActions[idx], [field]: value };
@@ -402,13 +479,6 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                                 }}
                                             />
                                         ))}
-
-                                        {(!taskForm.fullActions || taskForm.fullActions.length === 0) && (
-                                            <div className="text-center py-6 text-[9px] text-gray-400">
-                                                <p>No hay acciones agregadas</p>
-                                                <p className="text-[8px] mt-0.5">Haz clic en "+ Agregar" para crear acciones</p>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -417,7 +487,7 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                         {/* MODE: EDIT TASK */}
                         {panelMode === 'task' && (
                             <div className="grid grid-cols-12 h-full text-xs">
-                                {/* LEFT: Task Form - MUY COMPACTO */}
+                                {/* LEFT: Task Form - NOW EDITABLE */}
                                 <div className="col-span-4 p-2 border-r border-gray-100 overflow-y-auto space-y-1.5">
                                     <h3 className="text-[9px] font-bold text-gray-900 mb-1 flex items-center gap-1">
                                         <Layers size={10} className="text-blue-600" /> Datos de la Tarea
@@ -428,9 +498,22 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                         <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Descripción</label>
                                         <input
                                             type="text"
-                                            value={selectedTask?.task_description || ''}
-                                            readOnly
-                                            className="w-full text-[10px] bg-gray-100 border border-gray-200 rounded px-1.5 py-1 text-gray-600"
+                                            value={taskForm.task_description || ''}
+                                            onChange={(e) => handleTaskChange('task_description', e.target.value)}
+                                            className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                            placeholder="Descripción..."
+                                        />
+                                    </div>
+
+                                    {/* Acabado - Editable */}
+                                    <div>
+                                        <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Acabado</label>
+                                        <input
+                                            type="text"
+                                            value={taskForm.acabado || ''}
+                                            onChange={(e) => handleTaskChange('acabado', e.target.value)}
+                                            className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                            placeholder="Detalles de acabado..."
                                         />
                                     </div>
 
@@ -438,22 +521,32 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                     <div className="grid grid-cols-2 gap-1.5">
                                         <div>
                                             <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Proyecto</label>
-                                            <input
-                                                type="text"
-                                                value={selectedTask?.proyecto?.name || '-'}
-                                                readOnly
-                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
-                                            />
+                                            <select
+                                                value={taskForm.proyecto_id || ''}
+                                                onChange={(e) => handleTaskChange('proyecto_id', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
+                                            >
+                                                <option value="">-</option>
+                                                {projects.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
 
                                         <div>
                                             <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Espacio</label>
-                                            <input
-                                                type="text"
-                                                value={selectedTask?.espacio?.nombre || '-'}
-                                                readOnly
-                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
-                                            />
+                                            <select
+                                                value={taskForm.espacio_uuid || ''}
+                                                onChange={(e) => handleTaskChange('espacio_uuid', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
+                                            >
+                                                <option value="">-</option>
+                                                {spaces.map(s => (
+                                                    <option key={s._id} value={s._id}>
+                                                        {s.nombre}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
 
@@ -463,24 +556,24 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                             <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Inicio</label>
                                             <input
                                                 type="date"
-                                                value={selectedTask?.fecha_inicio || ''}
-                                                readOnly
-                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
+                                                value={taskForm.fecha_inicio || ''}
+                                                onChange={(e) => handleTaskChange('fecha_inicio', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500"
                                             />
                                         </div>
                                         <div>
                                             <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Fin Est.</label>
                                             <input
                                                 type="date"
-                                                value={selectedTask?.fecha_fin_estimada || ''}
-                                                readOnly
-                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
+                                                value={taskForm.fecha_fin_estimada || ''}
+                                                onChange={(e) => handleTaskChange('fecha_fin_estimada', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="pt-1 text-[8px] text-gray-400 bg-gray-50 p-1.5 rounded">
-                                        <p>ℹ️ Los datos de la tarea son de solo lectura. Edita las acciones a la derecha →</p>
+                                        <p>ℹ️ Edita los datos y guarda para aplicar cambios.</p>
                                     </div>
                                 </div>
 
@@ -528,8 +621,14 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                             components.map((action, idx) => (
                                                 <FullActionRow
                                                     key={action.id || idx}
+                                                    index={idx}
                                                     action={action}
                                                     staffers={staffers}
+                                                    isFirst={idx === 0}
+                                                    isLast={idx === components.length - 1}
+                                                    onDragStart={handleDragStart}
+                                                    onDragOver={handleDragOver}
+                                                    onDrop={handleDrop}
                                                     onChange={(field, value) => {
                                                         if (action._isNew) {
                                                             // Update local state for new actions
@@ -595,15 +694,48 @@ const ApprovalRow = ({ label, reqField, statusField, data, onChange }) => {
 };
 
 // Componente de fila de acción completa (ULTRA COMPACTO)
-const FullActionRow = ({ action, onChange, onDelete, staffers = [] }) => {
+const FullActionRow = ({ action, onChange, onDelete, staffers = [], onMove, isFirst, isLast, onDragStart, onDragOver, onDrop, index }) => {
     return (
-        <div className="flex items-center gap-1 p-1 bg-white border border-gray-200 rounded hover:border-blue-300 transition-colors">
+        <div
+            draggable={!!onDragStart}
+            onDragStart={(e) => onDragStart && onDragStart(e, index)}
+            onDragOver={(e) => onDragOver && onDragOver(e, index)}
+            onDrop={(e) => onDrop && onDrop(e, index)}
+            className={`flex items-center gap-1 p-1 bg-white border border-gray-200 rounded hover:border-blue-300 transition-colors ${onDragStart ? 'cursor-move' : ''}`}
+        >
+            {/* Drag Handle or Arrows */}
+            {onDragStart ? (
+                <div className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing px-1" onMouseDown={(e) => {
+                }}>
+                    <GripVertical size={12} />
+                </div>
+            ) : (
+                <div className="flex flex-col gap-0.5">
+                    <button
+                        onClick={() => onMove && onMove(-1)}
+                        disabled={isFirst}
+                        className="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-default"
+                    >
+                        <ArrowUp size={8} />
+                    </button>
+                    <button
+                        onClick={() => onMove && onMove(1)}
+                        disabled={isLast}
+                        className="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-default"
+                    >
+                        <ArrowDown size={8} />
+                    </button>
+                </div>
+            )}
+
             {/* Descripción */}
             <input
                 type="text"
                 value={action.descripcion || ''}
                 onChange={(e) => onChange('descripcion', e.target.value)}
                 placeholder="Descripción..."
+                // Prevent drag when interacting with inputs
+                onMouseDown={(e) => e.stopPropagation()}
                 className="flex-1 text-[10px] bg-transparent border-0 focus:ring-0 px-1 py-0.5 min-w-0"
             />
 
@@ -611,11 +743,12 @@ const FullActionRow = ({ action, onChange, onDelete, staffers = [] }) => {
             <select
                 value={action.ejecutor_nombre || ''}
                 onChange={(e) => onChange('ejecutor_nombre', e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="w-24 text-[10px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5 appearance-none"
             >
                 <option value="">-</option>
                 {staffers.map((s, idx) => (
-                    <option key={idx} value={s.nombre}>{s.nombre}</option>
+                    <option key={s.id || idx} value={s.name}>{s.name}</option>
                 ))}
             </select>
 
@@ -624,6 +757,7 @@ const FullActionRow = ({ action, onChange, onDelete, staffers = [] }) => {
                 type="date"
                 value={action.fecha_ejecucion || ''}
                 onChange={(e) => onChange('fecha_ejecucion', e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="w-24 text-[9px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
             />
 
@@ -632,11 +766,12 @@ const FullActionRow = ({ action, onChange, onDelete, staffers = [] }) => {
                 type="date"
                 value={action.fecha_fin || ''}
                 onChange={(e) => onChange('fecha_fin', e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="w-24 text-[9px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
             />
 
             {/* Aprobaciones (checkboxes compactos) */}
-            <div className="flex items-center gap-0.5 px-1 border-l border-gray-200">
+            <div className="flex items-center gap-0.5 px-1 border-l border-gray-200" onMouseDown={(e) => e.stopPropagation()}>
                 <label className="flex items-center gap-0.5 cursor-pointer" title="Ronald">
                     <input
                         type="checkbox"

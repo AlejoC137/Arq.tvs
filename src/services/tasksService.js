@@ -43,11 +43,30 @@ export const getTaskById = async (taskId) => {
 
 /**
  * Crea una nueva tarea
+ * Column names from DATABASE_CONTEXT.md:
+ * - project_id, staff_id, stage_id, espacio_uuid
  */
 export const createTask = async (taskData) => {
+    // Build payload with ACTUAL database column names from DATABASE_CONTEXT.md
+    const payload = {
+        task_description: taskData.task_description,
+        project_id: taskData.proyecto || taskData.project_id || null,
+        staff_id: taskData.asignado_a || taskData.staff_id || null,
+        stage_id: taskData.etapa || taskData.stage_id || null,
+        espacio_uuid: taskData.espacio_uuid || null,
+        fecha_inicio: taskData.fecha_inicio,
+        fecha_fin_estimada: taskData.fecha_fin_estimada,
+        status: taskData.status || 'Pendiente'
+    };
+
+    // Remove null/undefined values to avoid sending nulls for optional fields
+    Object.keys(payload).forEach(key => {
+        if (payload[key] === undefined || payload[key] === null) delete payload[key];
+    });
+
     const { data, error } = await supabase
         .from('Tareas')
-        .insert([taskData])
+        .insert([payload])
         .select(`
             *,
             proyecto:Proyectos(id, name),

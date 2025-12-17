@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Box, Search, Plus, Edit2, Trash2 } from 'lucide-react';
-import { getSpaces } from '../../services/spacesService';
-import { getSpaceComponents } from '../../services/componentsService';
+import { Building2, Box, Search, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
+import { getSpaces, createSpace, updateSpace, deleteSpace, getAllSpacesAndElements, getStages, getSpaceDetails } from '../../services/spacesService';
+import { getSpaceComponents, createSpaceComponent, getComponents } from '../../services/componentsService';
+import { getProjects } from '../../services/projectsService';
+import AddComponentModal from './AddComponentModal';
 
 const SpacesView = () => {
     const [spaces, setSpaces] = useState([]);
@@ -10,10 +12,47 @@ const SpacesView = () => {
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all'); // 'all' | 'Espacio' | 'Elemento'
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // CRUD states for spaces
+    const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false);
+    const [editingSpace, setEditingSpace] = useState(null);
+    const [spaceFormData, setSpaceFormData] = useState({
+        nombre: '',
+        apellido: '',
+        tipo: 'Espacio',
+        piso: '',
+        proyecto: '',
+        etapa: '',
+        componentes: '',
+        tareas: ''
+    });
+    const [savingSpace, setSavingSpace] = useState(false);
+
+    // Dropdown options
+    const [projectOptions, setProjectOptions] = useState([]);
+    const [stageOptions, setStageOptions] = useState([]);
+    const [componentOptions, setComponentOptions] = useState([]);
 
     useEffect(() => {
         loadSpaces();
+        loadDropdownOptions();
     }, []);
+
+    const loadDropdownOptions = async () => {
+        try {
+            const [projects, stages, comps] = await Promise.all([
+                getProjects(),
+                getStages(),
+                getComponents()
+            ]);
+            setProjectOptions(projects || []);
+            setStageOptions(stages || []);
+            setComponentOptions(comps || []);
+        } catch (error) {
+            console.error('Error loading dropdown options:', error);
+        }
+    };
 
     useEffect(() => {
         if (selectedSpace) {
@@ -24,7 +63,7 @@ const SpacesView = () => {
     const loadSpaces = async () => {
         setLoading(true);
         try {
-            const data = await getSpaces();
+            const data = await getAllSpacesAndElements();
             setSpaces(data || []);
         } catch (error) {
             console.error('Error loading spaces:', error);
@@ -45,6 +84,153 @@ const SpacesView = () => {
         }
     };
 
+    const handleAddComponent = async (newComponentData) => {
+        const saved = await createSpaceComponent(newComponentData);
+        // Reload components after adding
+        if (selectedSpace) {
+            await loadComponents(selectedSpace._id);
+        }
+        return saved;
+    };
+
+    // Handle space selection - loads details for inline editing
+    const handleSelectSpace = async (space) => {
+        setSelectedSpace(space);
+        // Load full details for the inline editor
+        try {
+            const details = await getSpaceDetails(space._id);
+            setSpaceFormData({
+                nombre: details.nombre || '',
+                apellido: details.apellido || '',
+                tipo: details.tipo || 'Espacio',
+                piso: details.piso || '',
+                proyecto: details.proyecto || '',
+                etapa: details.etapa || '',
+                componentes: details.componentes || '',
+                tareas: details.tareas || ''
+            });
+            setEditingSpace(details);
+        } catch (error) {
+            console.error('Error loading space details:', error);
+        }
+    };
+
+    // CRUD handlers for spaces
+    const openSpaceModal = async (space = null) => {
+        // Load dropdown options if not loaded
+        if (projectOptions.length === 0 || stageOptions.length === 0) {
+            await loadDropdownOptions();
+        }
+
+        if (space) {
+            // Fetch full details for editing
+            try {
+                const details = await getSpaceDetails(space._id);
+                setEditingSpace(details);
+                setSpaceFormData({
+                    nombre: details.nombre || '',
+                    apellido: details.apellido || '',
+                    tipo: details.tipo || 'Espacio',
+                    piso: details.piso || '',
+                    proyecto: details.proyecto || '',
+                    etapa: details.etapa || '',
+                    componentes: details.componentes || '',
+                    tareas: details.tareas || ''
+                });
+            } catch (error) {
+                console.error('Error loading space details:', error);
+                setEditingSpace(space);
+                setSpaceFormData({
+                    nombre: space.nombre || '',
+                    apellido: space.apellido || '',
+                    tipo: space.tipo || 'Espacio',
+                    piso: '',
+                    proyecto: '',
+                    etapa: '',
+                    componentes: '',
+                    tareas: ''
+                });
+            }
+        } else {
+            setEditingSpace(null);
+            setSpaceFormData({
+                nombre: '',
+                apellido: '',
+                tipo: 'Espacio',
+                piso: '',
+                proyecto: '',
+                etapa: '',
+                componentes: '',
+                tareas: ''
+            });
+        }
+        setIsSpaceModalOpen(true);
+    };
+
+    const handleSaveSpace = async () => {
+        if (!spaceFormData.nombre.trim()) {
+            alert('El nombre es requerido');
+            return;
+        }
+
+        setSavingSpace(true);
+        try {
+            // Convert empty strings to null for UUID fields
+            const dataToSave = {
+                ...spaceFormData,
+                proyecto: spaceFormData.proyecto || null,
+                etapa: spaceFormData.etapa || null,
+            };
+
+            if (editingSpace) {
+                await updateSpace(editingSpace._id, dataToSave);
+            } else {
+                await createSpace(dataToSave);
+                // Only reset form when creating new (modal)
+                setIsSpaceModalOpen(false);
+                setEditingSpace(null);
+                setSpaceFormData({
+                    nombre: '',
+                    apellido: '',
+                    tipo: 'Espacio',
+                    piso: '',
+                    proyecto: '',
+                    etapa: '',
+                    componentes: '',
+                    tareas: ''
+                });
+            }
+            // Reload spaces list to update sidebar
+            await loadSpaces();
+            // Update selectedSpace with new data for inline view
+            if (editingSpace && selectedSpace) {
+                setSelectedSpace({ ...selectedSpace, ...dataToSave });
+            }
+        } catch (error) {
+            console.error('Error saving space:', error);
+            alert('Error al guardar');
+        } finally {
+            setSavingSpace(false);
+        }
+    };
+
+    const handleDeleteSpace = async (space, e) => {
+        e.stopPropagation();
+        if (!window.confirm(`¿Eliminar "${space.nombre}"?`)) return;
+
+        try {
+            await deleteSpace(space._id);
+            if (selectedSpace?._id === space._id) {
+                setSelectedSpace(null);
+                setComponents([]);
+            }
+            await loadSpaces();
+        } catch (error) {
+            console.error('Error deleting space:', error);
+            alert('Error al eliminar');
+        }
+    };
+
     const filteredSpaces = spaces.filter(space => {
         const matchesSearch = space.nombre?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = filterType === 'all' || space.tipo === filterType;
@@ -57,10 +243,19 @@ const SpacesView = () => {
             <div className="w-80 border-r border-gray-200 flex flex-col">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <Building2 size={20} className="text-blue-600" />
-                        Espacios y Elementos
-                    </h2>
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Building2 size={20} className="text-blue-600" />
+                            Espacios y Elementos
+                        </h2>
+                        <button
+                            onClick={() => openSpaceModal()}
+                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                            title="Agregar Espacio/Elemento"
+                        >
+                            <Plus size={14} />
+                        </button>
+                    </div>
 
                     {/* Search */}
                     <div className="relative mb-3">
@@ -102,62 +297,177 @@ const SpacesView = () => {
                         <div className="p-4 text-center text-sm text-gray-500">No hay espacios</div>
                     ) : (
                         filteredSpaces.map((space) => (
-                            <button
+                            <div
                                 key={space._id}
-                                onClick={() => setSelectedSpace(space)}
+                                onClick={() => handleSelectSpace(space)}
                                 className={`
-                                    w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-blue-50 transition-colors
+                                    w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer group
                                     ${selectedSpace?._id === space._id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
                                 `}
                             >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-start gap-2">
                                     {space.tipo === 'Espacio' ? (
-                                        <Building2 size={16} className="text-blue-600" />
+                                        <Building2 size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
                                     ) : (
-                                        <Box size={16} className="text-gray-600" />
+                                        <Box size={14} className="text-purple-600 flex-shrink-0 mt-0.5" />
                                     )}
                                     <div className="flex-1 min-w-0">
                                         <div className="font-medium text-sm text-gray-900 truncate">
-                                            {space.nombre}
+                                            {space.nombre}{space.apellido ? ` ${space.apellido}` : ''}
                                         </div>
-                                        <div className="text-xs text-gray-500">
-                                            {space.tipo}
+                                        <div className="flex flex-wrap gap-x-2 text-[10px] text-gray-500 mt-0.5">
+                                            <span className={`
+                                                ${space.tipo === 'Espacio' ? 'text-blue-600' : 'text-purple-600'}
+                                            `}>
+                                                {space.tipo}
+                                            </span>
+                                            {space.proyectoData?.name && (
+                                                <span className="text-green-600">🏠 {space.proyectoData.name}</span>
+                                            )}
+                                            {space.piso && (
+                                                <span>P{space.piso}</span>
+                                            )}
                                         </div>
                                     </div>
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={(e) => handleDeleteSpace(space, e)}
+                                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                                            title="Eliminar"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
                                 </div>
-                            </button>
+                            </div>
                         ))
                     )}
                 </div>
             </div>
 
-            {/* RIGHT: Components/Details */}
-            <div className="flex-1 flex flex-col">
+            {/* RIGHT: Inline Editor + Components */}
+            <div className="flex-1 flex flex-col overflow-hidden">
                 {selectedSpace ? (
                     <>
-                        {/* Header */}
-                        <div className="p-4 border-b border-gray-200 bg-gray-50">
-                            <h3 className="text-lg font-bold text-gray-900 mb-1">
-                                {selectedSpace.nombre}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                                Tipo: {selectedSpace.tipo}
-                            </p>
+                        {/* Inline Editor Section - Collapsible */}
+                        <div className="border-b border-gray-200 bg-gray-50">
+                            <div className="p-3 flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                    <Edit2 size={14} className="text-blue-600" />
+                                    {selectedSpace.nombre}{selectedSpace.apellido ? ` ${selectedSpace.apellido}` : ''}
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${selectedSpace.tipo === 'Espacio' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                        {selectedSpace.tipo}
+                                    </span>
+                                </h3>
+                                <button
+                                    onClick={handleSaveSpace}
+                                    disabled={savingSpace}
+                                    className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                >
+                                    {savingSpace ? 'Guardando...' : <><Check size={12} /> Guardar</>}
+                                </button>
+                            </div>
+
+                            {/* Compact Inline Form */}
+                            <div className="px-3 pb-3 grid grid-cols-4 gap-2 text-xs">
+                                <div>
+                                    <label className="block text-gray-600 mb-0.5">Nombre</label>
+                                    <input
+                                        type="text"
+                                        value={spaceFormData.nombre}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, nombre: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-gray-600 mb-0.5">Apellido</label>
+                                    <input
+                                        type="text"
+                                        value={spaceFormData.apellido}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, apellido: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-gray-600 mb-0.5">Tipo</label>
+                                    <select
+                                        value={spaceFormData.tipo}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, tipo: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                        <option value="Espacio">Espacio</option>
+                                        <option value="Elemento">Elemento</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-gray-600 mb-0.5">Piso</label>
+                                    <input
+                                        type="text"
+                                        value={spaceFormData.piso}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, piso: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="1, 2..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-gray-600 mb-0.5">Proyecto</label>
+                                    <select
+                                        value={spaceFormData.proyecto}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, proyecto: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                        <option value="">-- Ninguno --</option>
+                                        {projectOptions.map((proj) => (
+                                            <option key={proj.id} value={proj.id}>{proj.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-gray-600 mb-0.5">Etapa</label>
+                                    <select
+                                        value={spaceFormData.etapa}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, etapa: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                        <option value="">-- Ninguna --</option>
+                                        {stageOptions.map((stage) => (
+                                            <option key={stage.id} value={stage.id}>{stage.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-gray-600 mb-0.5">Tareas (IDs)</label>
+                                    <input
+                                        type="text"
+                                        value={spaceFormData.tareas}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, tareas: e.target.value })}
+                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="ID1, ID2..."
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Components */}
+                        {/* Components Section */}
                         <div className="flex-1 overflow-y-auto p-4">
-                            <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center justify-between mb-3">
                                 <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                    <Box size={16} />
+                                    <Box size={14} />
                                     Componentes ({components.length})
                                 </h4>
+                                <button
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                                >
+                                    <Plus size={12} />
+                                    Agregar
+                                </button>
                             </div>
 
                             {loading ? (
-                                <div className="text-center py-8 text-sm text-gray-500">Cargando componentes...</div>
+                                <div className="text-center py-8 text-xs text-gray-500">Cargando componentes...</div>
                             ) : components.length === 0 ? (
-                                <div className="text-center py-8 text-sm text-gray-500">
+                                <div className="text-center py-8 text-xs text-gray-500">
                                     No hay componentes en este espacio
                                 </div>
                             ) : (
@@ -165,24 +475,20 @@ const SpacesView = () => {
                                     {components.map((comp) => (
                                         <div
                                             key={comp.id}
-                                            className="p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
+                                            className="p-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1">
-                                                    <div className="font-medium text-sm text-gray-900">
-                                                        {comp.nombre || comp.componente?.nombre}
+                                                    <div className="font-medium text-xs text-gray-900">
+                                                        {comp.nombre || comp.componente?.nombre || `Componente ${comp.componente_id?.slice(0, 8)}`}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 mt-1">
+                                                    <div className="text-[10px] text-gray-500 mt-0.5">
                                                         Estado: <span className="font-medium text-blue-600">{comp.estado || 'Pendiente'}</span>
+                                                        {comp.cantidad && <span className="ml-2">Qty: {comp.cantidad}</span>}
                                                     </div>
-                                                    {comp.cantidad && (
-                                                        <div className="text-xs text-gray-500">
-                                                            Cantidad: {comp.cantidad}
-                                                        </div>
-                                                    )}
-                                                    {comp.nota && (
-                                                        <div className="text-xs text-gray-600 mt-1 italic">
-                                                            {comp.nota}
+                                                    {comp.notas && (
+                                                        <div className="text-[10px] text-gray-600 mt-1 italic truncate">
+                                                            {comp.notas}
                                                         </div>
                                                     )}
                                                 </div>
@@ -197,13 +503,215 @@ const SpacesView = () => {
                     <div className="flex-1 flex items-center justify-center text-gray-400">
                         <div className="text-center">
                             <Building2 size={48} className="mx-auto mb-3 opacity-50" />
-                            <p className="text-sm">Selecciona un espacio para ver sus componentes</p>
+                            <p className="text-sm">Selecciona un espacio para editar y ver sus componentes</p>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Add Component Modal */}
+            <AddComponentModal
+                espacioId={selectedSpace?._id}
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSave={handleAddComponent}
+            />
+
+            {/* Space/Element CRUD Modal */}
+            {isSpaceModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b border-gray-200 sticky top-0 bg-white flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-gray-900">
+                                {editingSpace ? 'Editar' : 'Agregar'} Espacio/Elemento
+                            </h3>
+                            <button
+                                onClick={() => { setIsSpaceModalOpen(false); setEditingSpace(null); }}
+                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {/* Nombre y Apellido en la misma fila */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Nombre *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={spaceFormData.nombre}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, nombre: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Ej: Cocina, Baño..."
+                                        autoFocus
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Apellido
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={spaceFormData.apellido}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, apellido: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Identificador adicional..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Tipo y Piso */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Tipo *
+                                    </label>
+                                    <select
+                                        value={spaceFormData.tipo}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, tipo: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                        <option value="Espacio">Espacio</option>
+                                        <option value="Elemento">Elemento</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Piso
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={spaceFormData.piso}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, piso: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Ej: 1, 2, Sótano..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Proyecto y Etapa (Dropdowns) */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Proyecto
+                                    </label>
+                                    <select
+                                        value={spaceFormData.proyecto}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, proyecto: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                        <option value="">-- Seleccionar proyecto --</option>
+                                        {projectOptions.map((proj) => (
+                                            <option key={proj.id} value={proj.id}>
+                                                {proj.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Etapa
+                                    </label>
+                                    <select
+                                        value={spaceFormData.etapa}
+                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, etapa: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                        <option value="">-- Seleccionar etapa --</option>
+                                        {stageOptions.map((stage) => (
+                                            <option key={stage.id} value={stage.id}>
+                                                {stage.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Componentes (Multi-select) */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Componentes
+                                </label>
+                                <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto bg-gray-50">
+                                    {componentOptions.length === 0 ? (
+                                        <p className="text-sm text-gray-500 italic">No hay componentes disponibles</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {componentOptions.map((comp) => {
+                                                const selectedIds = spaceFormData.componentes ? spaceFormData.componentes.split(',').filter(Boolean) : [];
+                                                const isSelected = selectedIds.includes(comp.id);
+                                                return (
+                                                    <label key={comp.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={(e) => {
+                                                                let newIds;
+                                                                if (e.target.checked) {
+                                                                    newIds = [...selectedIds, comp.id];
+                                                                } else {
+                                                                    newIds = selectedIds.filter(id => id !== comp.id);
+                                                                }
+                                                                setSpaceFormData({ ...spaceFormData, componentes: newIds.join(',') });
+                                                            }}
+                                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                                        />
+                                                        <span className="text-sm text-gray-700">{comp.nombre}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {(spaceFormData.componentes?.split(',').filter(Boolean).length || 0)} componente(s) seleccionado(s)
+                                </p>
+                            </div>
+
+                            {/* Tareas */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Tareas
+                                </label>
+                                <textarea
+                                    value={spaceFormData.tareas}
+                                    onChange={(e) => setSpaceFormData({ ...spaceFormData, tareas: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    rows={3}
+                                    placeholder="IDs de tareas separados por coma, o descripción de tareas..."
+                                />
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
+                            <button
+                                onClick={() => { setIsSpaceModalOpen(false); setEditingSpace(null); }}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveSpace}
+                                disabled={savingSpace}
+                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {savingSpace ? (
+                                    <>Guardando...</>
+                                ) : (
+                                    <>
+                                        <Check size={16} />
+                                        {editingSpace ? 'Guardar' : 'Crear'}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 export default SpacesView;
+

@@ -152,6 +152,7 @@ export default function WeeklyCalendar() {
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
     useEffect(() => { loadActions(); }, [currentDate]);
+    // Force reload fix
 
     const loadActions = async () => {
         setLoading(true);
@@ -181,7 +182,7 @@ export default function WeeklyCalendar() {
     };
 
     const handleActionUpdated = (updatedAction) => {
-        if (!updatedAction.tarea) loadActions();
+        if (!updatedAction || !updatedAction.tarea) loadActions();
         else {
             setActions(prev => {
                 const exists = prev.find(a => a.id === updatedAction.id);

@@ -85,6 +85,22 @@ export const getComponentById = async (componentId) => {
 };
 
 /**
+ * Crea una nueva instancia de componente en un espacio
+ */
+export const createSpaceComponent = async (componentData) => {
+    const { data, error } = await supabase
+        .from('Instancias_Componentes')
+        .insert([componentData])
+        .select();
+
+    if (error) {
+        console.error('Error creating space component:', error);
+        throw error;
+    }
+    return data[0];
+};
+
+/**
  * Actualiza un componente del catálogo
  */
 export const updateCatalogComponent = async (componentId, updates) => {

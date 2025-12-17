@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, DollarSign, Building2, Edit } from 'lucide-react';
 import { getMaterials, getMaterialCategories } from '../../services/materialsService';
+import MaterialEditModal from './MaterialEditModal';
 
 const MaterialsView = () => {
     const [materials, setMaterials] = useState([]);
@@ -10,6 +11,12 @@ const MaterialsView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedMaterial, setSelectedMaterial] = useState(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+    const handleMaterialSave = (updatedMaterial) => {
+        setMaterials(prev => prev.map(m => m.id === updatedMaterial.id ? updatedMaterial : m));
+        setSelectedMaterial(updatedMaterial);
+    };
 
     useEffect(() => {
         loadData();
@@ -162,7 +169,10 @@ const MaterialsView = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                <button
+                                    onClick={() => setIsEditModalOpen(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                                >
                                     <Edit size={16} />
                                     Editar
                                 </button>
@@ -251,6 +261,14 @@ const MaterialsView = () => {
                     </div>
                 )}
             </div>
+
+            {/* Material Edit Modal */}
+            <MaterialEditModal
+                material={selectedMaterial}
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={handleMaterialSave}
+            />
         </div>
     );
 };

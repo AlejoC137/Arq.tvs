@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Search, Edit, Plus } from 'lucide-react';
-import { getComponents } from '../../services/componentsService';
+import { Box, Search, Save, Loader2 } from 'lucide-react';
+import { getComponents, updateComponent } from '../../services/componentsService';
 
 const ComponentsView = () => {
     const [components, setComponents] = useState([]);
@@ -9,9 +9,34 @@ const ComponentsView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedComponent, setSelectedComponent] = useState(null);
 
+    // Inline editing state
+    const [formData, setFormData] = useState({
+        nombre: '',
+        acabado: '',
+        construcción: '',
+        descripcion: '',
+        espacio_elemento: ''
+    });
+    const [saving, setSaving] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
     useEffect(() => {
         loadComponents();
     }, []);
+
+    // Load form data when component is selected
+    useEffect(() => {
+        if (selectedComponent) {
+            setFormData({
+                nombre: selectedComponent.nombre || '',
+                acabado: selectedComponent.acabado || '',
+                construcción: selectedComponent.construcción || '',
+                descripcion: selectedComponent.descripcion || '',
+                espacio_elemento: selectedComponent.espacio_elemento || ''
+            });
+            setHasChanges(false);
+        }
+    }, [selectedComponent]);
 
     const loadComponents = async () => {
         setLoading(true);
@@ -19,14 +44,33 @@ const ComponentsView = () => {
         try {
             const data = await getComponents();
             setComponents(data || []);
-            if (data.length === 0) {
-                console.warn('⚠️  No se encontraron componentes en la base de datos');
-            }
         } catch (error) {
             console.error('Error loading components:', error);
             setError(error.message || 'Error al cargar componentes');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleFieldChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        setHasChanges(true);
+    };
+
+    const handleSave = async () => {
+        if (!selectedComponent?.id) return;
+
+        setSaving(true);
+        try {
+            const updated = await updateComponent(selectedComponent.id, formData);
+            setComponents(prev => prev.map(c => c.id === selectedComponent.id ? { ...c, ...formData } : c));
+            setSelectedComponent({ ...selectedComponent, ...formData });
+            setHasChanges(false);
+        } catch (error) {
+            console.error('Error saving:', error);
+            alert('Error al guardar: ' + error.message);
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -36,7 +80,7 @@ const ComponentsView = () => {
 
     return (
         <div className="h-full flex bg-white">
-            {/* LEFT: Components List */}
+            {/* LEFT: Components List - ENRICHED SIDEBAR */}
             <div className="w-80 border-r border-gray-200 flex flex-col">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200">
@@ -62,24 +106,20 @@ const ComponentsView = () => {
                     </p>
                 </div>
 
-                {/* Components List */}
+                {/* Components List - ENRICHED CARDS */}
                 <div className="flex-1 overflow-y-auto">
                     {loading ? (
                         <div className="p-4 text-center text-sm text-gray-500">Cargando...</div>
                     ) : error ? (
                         <div className="p-4 text-center">
-                            <div className="text-sm text-red-600 mb-2">❌ Error al cargar componentes</div>
-                            <div className="text-xs text-gray-500">{error}</div>
-                            <button
-                                onClick={loadComponents}
-                                className="mt-3 text-xs text-blue-600 hover:underline"
-                            >
+                            <div className="text-sm text-red-600 mb-2">❌ Error</div>
+                            <button onClick={loadComponents} className="text-xs text-blue-600 hover:underline">
                                 Reintentar
                             </button>
                         </div>
                     ) : filteredComponents.length === 0 ? (
                         <div className="p-4 text-center text-sm text-gray-500">
-                            {components.length === 0 ? '⚠️  No hay componentes en la base de datos' : 'No se encontraron componentes'}
+                            No hay componentes
                         </div>
                     ) : (
                         filteredComponents.map((component) => (
@@ -91,14 +131,27 @@ const ComponentsView = () => {
                                     ${selectedComponent?.id === component.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
                                 `}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
                                         <Box size={20} className="text-blue-600" />
                                     </div>
                                     <div className="flex-1 min-w-0">
+                                        {/* Name - Bold */}
                                         <div className="font-medium text-sm text-gray-900 truncate">
                                             {component.nombre}
                                         </div>
+                                        {/* Acabado - Secondary */}
+                                        {component.acabado && (
+                                            <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                {component.acabado}
+                                            </div>
+                                        )}
+                                        {/* Espacio badge */}
+                                        {component.espacio_elemento && (
+                                            <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700 rounded-full">
+                                                {component.espacio_elemento}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </button>
@@ -107,68 +160,110 @@ const ComponentsView = () => {
                 </div>
             </div>
 
-            {/* RIGHT: Component Details */}
+            {/* RIGHT: INLINE EDITOR PANEL */}
             <div className="flex-1 flex flex-col">
                 {selectedComponent ? (
                     <>
-                        {/* Header */}
-                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-start gap-4 flex-1">
-                                    <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center">
-                                        <Box size={32} className="text-blue-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-gray-900 mb-1">
-                                            {selectedComponent.nombre}
-                                        </h3>
-                                        <p className="text-sm text-gray-600">
-                                            Componente del catálogo
-                                        </p>
-                                    </div>
+                        {/* Header with Save Button */}
+                        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                                    <Box size={24} className="text-blue-600" />
                                 </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-                                    <Edit size={16} />
-                                    Editar
-                                </button>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">
+                                        {formData.nombre || 'Sin nombre'}
+                                    </h3>
+                                    <p className="text-xs text-gray-500">Componente del catálogo</p>
+                                </div>
                             </div>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving || !hasChanges}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${hasChanges
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                {saving ? (
+                                    <><Loader2 size={16} className="animate-spin" /> Guardando...</>
+                                ) : (
+                                    <><Save size={16} /> Guardar</>
+                                )}
+                            </button>
                         </div>
 
-                        {/* Details */}
+                        {/* Inline Edit Form */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            <div className="space-y-6">
-                                {/* Basic Info */}
+                            <div className="max-w-2xl space-y-5">
+                                {/* Nombre */}
                                 <div>
-                                    <h4 className="text-sm font-bold text-gray-700 mb-3">Información Básica</h4>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="text-sm">
-                                            <span className="text-gray-500">Nombre:</span>
-                                            <span className="ml-2 text-gray-900">{selectedComponent.nombre}</span>
-                                        </div>
-                                        {selectedComponent.acabado && (
-                                            <div className="text-sm">
-                                                <span className="text-gray-500">Acabado:</span>
-                                                <span className="ml-2 text-gray-900">{selectedComponent.acabado}</span>
-                                            </div>
-                                        )}
-                                        {selectedComponent.construcción && (
-                                            <div className="text-sm">
-                                                <span className="text-gray-500">Construcción:</span>
-                                                <span className="ml-2 text-gray-900">{selectedComponent.construcción}</span>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                                        Nombre
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.nombre}
+                                        onChange={(e) => handleFieldChange('nombre', e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
                                 </div>
 
-                                {/* Description */}
-                                {selectedComponent.descripcion && (
-                                    <div>
-                                        <h4 className="text-sm font-bold text-gray-700 mb-3">Descripción</h4>
-                                        <p className="text-sm text-gray-600">
-                                            {selectedComponent.descripcion}
-                                        </p>
-                                    </div>
-                                )}
+                                {/* Acabado */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                                        Acabado
+                                    </label>
+                                    <textarea
+                                        value={formData.acabado}
+                                        onChange={(e) => handleFieldChange('acabado', e.target.value)}
+                                        rows={3}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                        placeholder="Describe el acabado del componente..."
+                                    />
+                                </div>
+
+                                {/* Construcción */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                                        Construcción
+                                    </label>
+                                    <textarea
+                                        value={formData.construcción}
+                                        onChange={(e) => handleFieldChange('construcción', e.target.value)}
+                                        rows={3}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                        placeholder="Describe el método de construcción..."
+                                    />
+                                </div>
+
+                                {/* Descripción */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                                        Descripción
+                                    </label>
+                                    <textarea
+                                        value={formData.descripcion}
+                                        onChange={(e) => handleFieldChange('descripcion', e.target.value)}
+                                        rows={4}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                        placeholder="Descripción detallada del componente..."
+                                    />
+                                </div>
+
+                                {/* Espacio/Elemento */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
+                                        Espacio / Elemento
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.espacio_elemento}
+                                        onChange={(e) => handleFieldChange('espacio_elemento', e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Ej: Habitación, Baño, Cocina..."
+                                    />
+                                </div>
                             </div>
                         </div>
                     </>
@@ -176,7 +271,7 @@ const ComponentsView = () => {
                     <div className="flex-1 flex items-center justify-center text-gray-400">
                         <div className="text-center">
                             <Box size={48} className="mx-auto mb-3 opacity-50" />
-                            <p className="text-sm">Selecciona un componente para ver detalles</p>
+                            <p className="text-sm">Selecciona un componente para editar</p>
                         </div>
                     </div>
                 )}
