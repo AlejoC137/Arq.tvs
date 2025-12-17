@@ -161,7 +161,7 @@ const MonthlyCalendar = () => {
             </div>
 
             {/* Calendar Grid */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto pb-[300px]">
                 {/* Weekday Headers */}
                 <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
                     {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (

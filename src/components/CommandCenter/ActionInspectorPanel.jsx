@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 const ActionInspectorPanel = ({ onActionUpdated }) => {
     const dispatch = useDispatch();
     const { selectedAction, selectedTask, panelMode } = useSelector(state => state.app);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     // Local state for Action form
     const [actionForm, setActionForm] = useState({});
@@ -302,12 +303,27 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
 
     const handleClose = () => {
         dispatch(clearSelection());
+        setIsCollapsed(false);
     };
 
-    const showPanel = ['task', 'createTask'].includes(panelMode);
+    const showPanel = ['action', 'task', 'create', 'createTask'].includes(panelMode);
+
+    // Determine visibility and height classes
+    // If not showing panel (no selection): translate-y-full (hidden)
+    // If showing but collapsed: h-10 (header only)
+    // If showing and open: h-[300px] 
+    const isHidden = !showPanel;
+
+    const containerClasses = `
+        fixed bottom-0 left-0 right-0 
+        bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] 
+        z-50 flex flex-col transition-all duration-300 ease-in-out
+        ${isHidden ? 'translate-y-full' : 'translate-y-0'}
+        ${isCollapsed ? 'h-9' : 'h-[300px]'}
+    `;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 h-[300px] bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 flex flex-col transition-transform duration-300">
+        <div className={containerClasses}>
             {/* Header - COMPACTO */}
             <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50">
                 <div className="flex items-center gap-2">
@@ -318,6 +334,13 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                     {(loading || saving) && <span className="text-[9px] text-blue-500 animate-pulse">{saving ? 'Guardando...' : 'Cargando...'}</span>}
                 </div>
                 <div className="flex items-center gap-1.5">
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 rounded transition-colors mr-1"
+                        title={isCollapsed ? "Expandir" : "Contraer"}
+                    >
+                        {isCollapsed ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                    </button>
                     {panelMode === 'task' && (
                         <button
                             onClick={handleDeleteTask}

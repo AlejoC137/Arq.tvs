@@ -599,7 +599,7 @@ export default function WeeklyCalendar() {
                                     return (
                                         <div
                                             key={day.toString()}
-                                            className={`relative p-1 transition-colors ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/30'}`}
+                                            className={`relative p-1 transition-colors group/cell ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/30'}`}
                                             onMouseDown={() => handleMouseDown(day, colIndex)}
                                             onMouseEnter={() => handleMouseEnter(day, colIndex)}
                                         >
@@ -615,7 +615,25 @@ export default function WeeklyCalendar() {
                                             })}
 
                                             {/* Row-specific Add Button (Hidden by default, show on hover/empty) */}
-                                            {/* Logic simplified for "Add Task to this Project" context could be added here later */}
+                                            <div className="absolute bottom-1 right-1 opacity-0 group-hover/cell:opacity-100 transition-opacity z-20">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // Pass date and project_id
+                                                        dispatch(initCreateTask({
+                                                            task_description: '',
+                                                            fecha_inicio: format(day, 'yyyy-MM-dd'),
+                                                            fecha_fin_estimada: format(day, 'yyyy-MM-dd'),
+                                                            proyecto_id: group.project.id !== 'orphan' ? group.project.id : null,
+                                                            espacio_uuid: null,
+                                                        }));
+                                                    }}
+                                                    className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded shadow-sm hover:scale-110 transition-transform"
+                                                    title="Agregar Tarea"
+                                                >
+                                                    <Plus size={12} strokeWidth={3} />
+                                                </button>
+                                            </div>
                                         </div>
                                     );
                                 })}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
     Calendar,
@@ -9,8 +9,10 @@ import {
     Users,
     FileText,
     Package,
-    BookOpen
+    BookOpen,
+    Upload
 } from 'lucide-react';
+import JsonImporterModal from './JsonImporterModal';
 import {
     setCalendarView,
     setPropertyView,
@@ -23,6 +25,7 @@ const TopNavigation = () => {
     const activeView = navigation?.activeView || 'calendar';
     const calendarView = navigation?.calendarView || 'week';
     const propertyView = navigation?.propertyView || 'houses';
+    const [showImporter, setShowImporter] = useState(false);
 
     const handleButtonClick = (view, additionalAction = null) => {
         dispatch(setActiveView(view));
@@ -146,7 +149,21 @@ const TopNavigation = () => {
                     <BookOpen size={14} />
                     <span>directorio</span>
                 </button>
+
+                {/* Importer */}
+                <button
+                    onClick={() => setShowImporter(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border bg-gray-900 text-white border-gray-900 hover:bg-gray-800 shadow-sm ml-2"
+                >
+                    <Upload size={14} />
+                    <span>Importador</span>
+                </button>
             </div>
+
+            <JsonImporterModal
+                isOpen={showImporter}
+                onClose={() => setShowImporter(false)}
+            />
         </div>
     );
 };
