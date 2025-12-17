@@ -1,0 +1,713 @@
+import React, { useEffect, useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { clearSelection, setSelectedAction, setSelectedTask } from '../../store/actions/appActions';
+import { updateAction, createAction, getTaskActions } from '../../services/actionsService';
+import { getSpaceComponents, updateComponent } from '../../services/componentsService';
+import { getSpaces, getSpaceDetails, updateSpace, getStaffers } from '../../services/spacesService';
+import { createTask, updateTask, getProjects, deleteTask } from '../../services/tasksService';
+import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+
+const ActionInspectorPanel = ({ onActionUpdated }) => {
+    const dispatch = useDispatch();
+    const { selectedAction, selectedTask, panelMode } = useSelector(state => state.app);
+
+    // Local state for Action form
+    const [actionForm, setActionForm] = useState({});
+
+    // Local state for Task form
+    const [taskForm, setTaskForm] = useState({});
+
+    // Local state for Task Components
+    const [components, setComponents] = useState([]);
+
+    // Dropdown options
+    const [spaces, setSpaces] = useState([]);
+    const [projects, setProjects] = useState([]);
+    const [staffers, setStaffers] = useState([]);
+
+    // Space editor state
+    const [selectedSpaceDetails, setSelectedSpaceDetails] = useState(null);
+    const [showSpaceEditor, setShowSpaceEditor] = useState(false);
+
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    // Load dropdown data on mount
+    useEffect(() => {
+        getSpaces().then(setSpaces).catch(console.error);
+        getProjects().then(setProjects).catch(console.error);
+        getStaffers().then(setStaffers).catch(console.error);
+    }, []);
+
+    // Load Action Data
+    useEffect(() => {
+        if (panelMode === 'action' && selectedAction) {
+            setActionForm({
+                ...selectedAction,
+                fecha_fin: selectedAction.fecha_fin || selectedAction.fecha_ejecucion,
+                ejecutor_nombre: selectedAction.ejecutor_nombre || ''
+            });
+        } else if (panelMode === 'create') {
+            const today = format(new Date(), 'yyyy-MM-dd');
+            setActionForm({
+                descripcion: '',
+                fecha_ejecucion: today,
+                fecha_fin: today,
+                ejecutor_nombre: '',
+                completado: false,
+                requiere_aprobacion_ronald: false,
+                estado_aprobacion_ronald: false,
+                requiere_aprobacion_wiet: false,
+                estado_aprobacion_wiet: false,
+                requiere_aprobacion_alejo: false,
+                estado_aprobacion_alejo: false,
+            });
+        }
+    }, [selectedAction, panelMode]);
+
+    // Load Task Form Data
+    useEffect(() => {
+        if (panelMode === 'createTask' && selectedTask) {
+            setTaskForm({
+                ...selectedTask,
+                task_description: selectedTask.task_description || '',
+                fecha_inicio: selectedTask.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                fecha_fin_estimada: selectedTask.fecha_fin_estimada || format(new Date(), 'yyyy-MM-dd'),
+                espacio_uuid: selectedTask.espacio_uuid || null,
+                proyecto_id: selectedTask.proyecto_id || null,
+            });
+        }
+    }, [selectedTask, panelMode]);
+
+    // Load Task Data (Actions)
+    useEffect(() => {
+        if (panelMode === 'task' && selectedTask?.id) {
+            setLoading(true);
+            getTaskActions(selectedTask.id)
+                .then(data => setComponents(data || []))
+                .catch(err => console.error(err))
+                .finally(() => setLoading(false));
+        } else {
+            setComponents([]);
+        }
+    }, [selectedTask, panelMode]);
+
+    const handleActionChange = (field, value) => {
+        setActionForm(prev => {
+            const updates = { ...prev, [field]: value };
+            if (field === 'fecha_ejecucion' && updates.fecha_fin < value) {
+                updates.fecha_fin = value;
+            }
+            if (field === 'fecha_fin' && updates.fecha_ejecucion > value) {
+                updates.fecha_ejecucion = value;
+            }
+            return updates;
+        });
+    };
+
+    const handleTaskChange = (field, value) => {
+        setTaskForm(prev => {
+            const updates = { ...prev, [field]: value };
+            if (field === 'fecha_inicio' && updates.fecha_fin_estimada < value) {
+                updates.fecha_fin_estimada = value;
+            }
+            if (field === 'fecha_fin_estimada' && updates.fecha_inicio > value) {
+                updates.fecha_inicio = value;
+            }
+            return updates;
+        });
+    };
+
+    const handleToggleComplete = async () => {
+        if (!selectedAction?.id) return;
+
+        const newStatus = !actionForm.completado;
+        setActionForm(prev => ({ ...prev, completado: newStatus }));
+
+        try {
+            await updateAction(selectedAction.id, { completado: newStatus });
+            const updated = { ...selectedAction, completado: newStatus };
+            dispatch(setSelectedAction(updated));
+            if (onActionUpdated) onActionUpdated(updated);
+        } catch (error) {
+            console.error("Error toggling status:", error);
+            setActionForm(prev => ({ ...prev, completado: !newStatus }));
+            alert("Error al actualizar estado: " + error.message);
+        }
+    };
+
+    const handleSaveAction = async () => {
+        setSaving(true);
+        try {
+            if (panelMode === 'action' && selectedAction?.id) {
+                const { tarea, ...updates } = actionForm;
+                await updateAction(selectedAction.id, updates);
+                dispatch(setSelectedAction({ ...selectedAction, ...updates }));
+                if (onActionUpdated) onActionUpdated({ ...selectedAction, ...updates });
+            } else if (panelMode === 'create') {
+                const { id, ...createData } = actionForm;
+                const res = await createAction(createData);
+                const newAction = res && res[0] ? res[0] : res;
+                if (onActionUpdated) onActionUpdated(newAction);
+                dispatch(setSelectedAction(newAction));
+            } else if (panelMode === 'createTask') {
+                const { id, proyecto, espacio, quickActions, fullActions, ...createData } = taskForm;
+                const newTask = await createTask(createData);
+
+                // Create full actions if any
+                if (fullActions && fullActions.length > 0) {
+                    const actionPromises = fullActions.map(fa =>
+                        createAction({
+                            tarea_id: newTask.id,
+                            descripcion: fa.descripcion,
+                            fecha_ejecucion: fa.fecha_ejecucion,
+                            fecha_fin: fa.fecha_fin,
+                            ejecutor_nombre: fa.ejecutor_nombre || '',
+                            completado: false,
+                            requiere_aprobacion_ronald: fa.requiere_aprobacion_ronald || false,
+                            estado_aprobacion_ronald: false,
+                            requiere_aprobacion_wiet: fa.requiere_aprobacion_wiet || false,
+                            estado_aprobacion_wiet: false,
+                            requiere_aprobacion_alejo: fa.requiere_aprobacion_alejo || false,
+                            estado_aprobacion_alejo: false,
+                        })
+                    );
+                    await Promise.all(actionPromises);
+                }
+
+                dispatch(setSelectedTask(newTask));
+                if (onActionUpdated) onActionUpdated(); // Trigger calendar refresh
+                dispatch(clearSelection()); // Close panel after creation
+            }
+        } catch (error) {
+            alert("Error al guardar: " + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleActionUpdate = async (id, field, value) => {
+        setComponents(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+        try {
+            await updateAction(id, { [field]: value });
+        } catch (error) {
+            console.error("Failed to update action", error);
+        }
+    };
+
+    const handleSpacePropertyUpdate = async (field, value) => {
+        if (!selectedSpaceDetails?._id) return;
+
+        setSelectedSpaceDetails(prev => ({ ...prev, [field]: value }));
+        try {
+            await updateSpace(selectedSpaceDetails._id, { [field]: value });
+        } catch (error) {
+            console.error("Failed to update space", error);
+        }
+    };
+
+    const handleDeleteTask = async () => {
+        if (!selectedTask?.id) return;
+
+        if (!confirm('¿Eliminar esta tarea y todas sus acciones asociadas?')) return;
+
+        setSaving(true);
+        try {
+            await deleteTask(selectedTask.id);
+            dispatch(clearSelection());
+            if (onActionUpdated) onActionUpdated(); // Refresh calendar
+        } catch (error) {
+            alert('Error al eliminar tarea: ' + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleClose = () => {
+        dispatch(clearSelection());
+    };
+
+    const showPanel = ['task', 'createTask'].includes(panelMode);
+
+    return (
+        <div className="fixed bottom-0 left-0 right-0 h-[300px] bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 flex flex-col transition-transform duration-300">
+            {/* Header - COMPACTO */}
+            <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        {panelMode === 'createTask' ? 'Nueva Tarea' :
+                            panelMode === 'task' ? `Editar Tarea: ${selectedTask?.task_description || '...'}` : 'Detalles'}
+                    </span>
+                    {(loading || saving) && <span className="text-[9px] text-blue-500 animate-pulse">{saving ? 'Guardando...' : 'Cargando...'}</span>}
+                </div>
+                <div className="flex items-center gap-1.5">
+                    {panelMode === 'task' && selectedSpaceDetails && (
+                        <button
+                            onClick={() => setShowSpaceEditor(!showSpaceEditor)}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors"
+                        >
+                            <Edit3 size={12} />
+                            {showSpaceEditor ? 'Ocultar' : 'Editar'} Espacio
+                        </button>
+                    )}
+
+                    {panelMode === 'task' && (
+                        <button
+                            onClick={handleDeleteTask}
+                            disabled={saving}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
+                            title="Eliminar Tarea"
+                        >
+                            <Trash2 size={12} />
+                            Eliminar
+                        </button>
+                    )}
+
+                    {showPanel && (
+                        <button onClick={handleSaveAction} disabled={saving} className="p-1 hover:bg-green-50 text-green-600 rounded transition-colors disabled:opacity-50" title="Guardar">
+                            <Save size={14} />
+                        </button>
+                    )}
+                    <button onClick={handleClose} className="p-1 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded transition-colors">
+                        <X size={14} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Content - COMPACTO */}
+            <div className="flex-1 overflow-hidden">
+                {!showPanel ? (
+                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">
+                        Selecciona una acción o tarea
+                    </div>
+                ) : (
+                    <>
+                        {/* MODE: CREATE TASK */}
+                        {panelMode === 'createTask' && (
+                            <div className="grid grid-cols-12 h-full text-xs">
+                                {/* LEFT: Task Form - MUY COMPACTO */}
+                                <div className="col-span-4 p-2 border-r border-gray-100 overflow-y-auto space-y-1.5">
+                                    <h3 className="text-[9px] font-bold text-gray-900 mb-1 flex items-center gap-1">
+                                        <Layers size={10} className="text-blue-600" /> Datos de la Tarea
+                                    </h3>
+
+                                    {/* Task Description */}
+                                    <div>
+                                        <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Descripción</label>
+                                        <input
+                                            type="text"
+                                            value={taskForm.task_description || ''}
+                                            onChange={(e) => handleTaskChange('task_description', e.target.value)}
+                                            className="w-full text-[10px] bg-gray-50 border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500"
+                                            placeholder="Ej: Pintura de sala..."
+                                        />
+                                    </div>
+
+                                    {/* Project & Space in same row */}
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Proyecto</label>
+                                            <select
+                                                value={taskForm.proyecto_id || ''}
+                                                onChange={(e) => handleTaskChange('proyecto_id', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
+                                            >
+                                                <option value="">-</option>
+                                                {projects.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Espacio</label>
+                                            <select
+                                                value={taskForm.espacio_uuid || ''}
+                                                onChange={(e) => handleTaskChange('espacio_uuid', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
+                                            >
+                                                <option value="">-</option>
+                                                {spaces.map(s => (
+                                                    <option key={s._id} value={s._id}>
+                                                        {s.nombre}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Dates */}
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Inicio</label>
+                                            <input
+                                                type="date"
+                                                value={taskForm.fecha_inicio || ''}
+                                                onChange={(e) => handleTaskChange('fecha_inicio', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Fin Est.</label>
+                                            <input
+                                                type="date"
+                                                value={taskForm.fecha_fin_estimada || ''}
+                                                onChange={(e) => handleTaskChange('fecha_fin_estimada', e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* RIGHT: Full Actions */}
+                                <div className="col-span-8 p-2 bg-gray-50/50 overflow-y-auto">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <h3 className="text-[9px] font-bold text-gray-900 flex items-center gap-1">
+                                            <Box size={10} className="text-gray-400" /> Acciones (Opcional)
+                                        </h3>
+                                        <button
+                                            onClick={() => {
+                                                const newActions = taskForm.fullActions || [];
+                                                handleTaskChange('fullActions', [...newActions, {
+                                                    descripcion: '',
+                                                    ejecutor_nombre: '',
+                                                    fecha_ejecucion: taskForm.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                    fecha_fin: taskForm.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                    requiere_aprobacion_ronald: false,
+                                                    requiere_aprobacion_wiet: false,
+                                                    requiere_aprobacion_alejo: false,
+                                                }]);
+                                            }}
+                                            className="px-2 py-0.5 bg-blue-600 text-white rounded text-[9px] font-bold hover:bg-blue-700 transition-colors"
+                                        >
+                                            + Agregar
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        {(taskForm.fullActions || []).map((action, idx) => (
+                                            <FullActionRow
+                                                key={idx}
+                                                action={action}
+                                                staffers={staffers}
+                                                onChange={(field, value) => {
+                                                    const newActions = [...(taskForm.fullActions || [])];
+                                                    newActions[idx] = { ...newActions[idx], [field]: value };
+                                                    handleTaskChange('fullActions', newActions);
+                                                }}
+                                                onDelete={() => {
+                                                    const newActions = (taskForm.fullActions || []).filter((_, i) => i !== idx);
+                                                    handleTaskChange('fullActions', newActions);
+                                                }}
+                                            />
+                                        ))}
+
+                                        {(!taskForm.fullActions || taskForm.fullActions.length === 0) && (
+                                            <div className="text-center py-6 text-[9px] text-gray-400">
+                                                <p>No hay acciones agregadas</p>
+                                                <p className="text-[8px] mt-0.5">Haz clic en "+ Agregar" para crear acciones</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* MODE: EDIT TASK */}
+                        {panelMode === 'task' && (
+                            <div className="grid grid-cols-12 h-full text-xs">
+                                {/* LEFT: Task Form - MUY COMPACTO */}
+                                <div className="col-span-4 p-2 border-r border-gray-100 overflow-y-auto space-y-1.5">
+                                    <h3 className="text-[9px] font-bold text-gray-900 mb-1 flex items-center gap-1">
+                                        <Layers size={10} className="text-blue-600" /> Datos de la Tarea
+                                    </h3>
+
+                                    {/* Task Description */}
+                                    <div>
+                                        <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Descripción</label>
+                                        <input
+                                            type="text"
+                                            value={selectedTask?.task_description || ''}
+                                            readOnly
+                                            className="w-full text-[10px] bg-gray-100 border border-gray-200 rounded px-1.5 py-1 text-gray-600"
+                                        />
+                                    </div>
+
+                                    {/* Project & Space */}
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Proyecto</label>
+                                            <input
+                                                type="text"
+                                                value={selectedTask?.proyecto?.name || '-'}
+                                                readOnly
+                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Espacio</label>
+                                            <input
+                                                type="text"
+                                                value={selectedTask?.espacio?.nombre || '-'}
+                                                readOnly
+                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Dates */}
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Inicio</label>
+                                            <input
+                                                type="date"
+                                                value={selectedTask?.fecha_inicio || ''}
+                                                readOnly
+                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Fin Est.</label>
+                                            <input
+                                                type="date"
+                                                value={selectedTask?.fecha_fin_estimada || ''}
+                                                readOnly
+                                                className="w-full bg-gray-100 border border-gray-200 rounded px-1 py-0.5 text-[10px] text-gray-600"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-1 text-[8px] text-gray-400 bg-gray-50 p-1.5 rounded">
+                                        <p>ℹ️ Los datos de la tarea son de solo lectura. Edita las acciones a la derecha →</p>
+                                    </div>
+                                </div>
+
+                                {/* RIGHT: Task Actions (Editable) */}
+                                <div className="col-span-8 p-2 bg-gray-50/50 overflow-y-auto">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <h3 className="text-[9px] font-bold text-gray-900 flex items-center gap-1">
+                                            <Box size={10} className="text-gray-400" /> Acciones de esta Tarea
+                                        </h3>
+                                        <button
+                                            onClick={() => {
+                                                // Add new action to task
+                                                const newAction = {
+                                                    descripcion: '',
+                                                    ejecutor_nombre: '',
+                                                    fecha_ejecucion: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                    fecha_fin: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                    requiere_aprobacion_ronald: false,
+                                                    requiere_aprobacion_wiet: false,
+                                                    requiere_aprobacion_alejo: false,
+                                                    completado: false,
+                                                    tarea_id: selectedTask?.id,
+                                                    _isNew: true
+                                                };
+                                                setComponents(prev => [...prev, newAction]);
+                                            }}
+                                            className="px-2 py-0.5 bg-blue-600 text-white rounded text-[9px] font-bold hover:bg-blue-700 transition-colors"
+                                        >
+                                            + Agregar Acción
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        {/* Show existing actions from the task */}
+                                        {loading ? (
+                                            <div className="text-center py-6 text-[9px] text-gray-400">
+                                                <p>Cargando acciones...</p>
+                                            </div>
+                                        ) : components.length === 0 ? (
+                                            <div className="text-center py-6 text-[9px] text-gray-400">
+                                                <p>No hay acciones en esta tarea</p>
+                                                <p className="text-[8px] mt-0.5">Haz clic en "+ Agregar Acción" para crear</p>
+                                            </div>
+                                        ) : (
+                                            components.map((action, idx) => (
+                                                <FullActionRow
+                                                    key={action.id || idx}
+                                                    action={action}
+                                                    staffers={staffers}
+                                                    onChange={(field, value) => {
+                                                        if (action._isNew) {
+                                                            // Update local state for new actions
+                                                            setComponents(prev => prev.map((a, i) =>
+                                                                i === idx ? { ...a, [field]: value } : a
+                                                            ));
+                                                        } else {
+                                                            // Update existing action directly
+                                                            handleActionUpdate(action.id, field, value);
+                                                        }
+                                                    }}
+                                                    onDelete={async () => {
+                                                        if (action._isNew) {
+                                                            // Remove from local state
+                                                            setComponents(prev => prev.filter((_, i) => i !== idx));
+                                                        } else {
+                                                            // Delete from database
+                                                            if (confirm('¿Eliminar esta acción?')) {
+                                                                try {
+                                                                    await updateAction(action.id, { deleted: true });
+                                                                    setComponents(prev => prev.filter(a => a.id !== action.id));
+                                                                } catch (error) {
+                                                                    alert('Error al eliminar: ' + error.message);
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+// Componente de fila de aprobación COMPACTO
+const ApprovalRow = ({ label, reqField, statusField, data, onChange }) => {
+    const isRequired = data[reqField];
+    const isApproved = data[statusField];
+    return (
+        <div className={`p-1.5 rounded border transition-all ${isRequired ? 'bg-white border-gray-200' : 'border-gray-100 bg-gray-50/50 opacity-70'}`}>
+            <div className="flex items-center justify-between">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input type="checkbox" checked={!!isRequired} onChange={(e) => onChange(reqField, e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-3 w-3" />
+                    <span className="text-[10px] font-medium text-gray-700">{label}</span>
+                </label>
+                {isRequired && (
+                    <label className="flex items-center gap-1 cursor-pointer select-none bg-green-50 px-2 py-0.5 rounded-full border border-green-100 hover:bg-green-100 transition-colors">
+                        <input type="checkbox" checked={!!isApproved} onChange={(e) => onChange(statusField, e.target.checked)} className="rounded border-green-400 text-green-600 focus:ring-green-500 h-3 w-3" />
+                        <span className="text-[9px] font-bold text-green-700 uppercase">{isApproved ? 'OK' : 'Pend'}</span>
+                    </label>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Componente de fila de acción completa (ULTRA COMPACTO)
+const FullActionRow = ({ action, onChange, onDelete, staffers = [] }) => {
+    return (
+        <div className="flex items-center gap-1 p-1 bg-white border border-gray-200 rounded hover:border-blue-300 transition-colors">
+            {/* Descripción */}
+            <input
+                type="text"
+                value={action.descripcion || ''}
+                onChange={(e) => onChange('descripcion', e.target.value)}
+                placeholder="Descripción..."
+                className="flex-1 text-[10px] bg-transparent border-0 focus:ring-0 px-1 py-0.5 min-w-0"
+            />
+
+            {/* Ejecutor - SELECT */}
+            <select
+                value={action.ejecutor_nombre || ''}
+                onChange={(e) => onChange('ejecutor_nombre', e.target.value)}
+                className="w-24 text-[10px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5 appearance-none"
+            >
+                <option value="">-</option>
+                {staffers.map((s, idx) => (
+                    <option key={idx} value={s.nombre}>{s.nombre}</option>
+                ))}
+            </select>
+
+            {/* Fecha Inicio */}
+            <input
+                type="date"
+                value={action.fecha_ejecucion || ''}
+                onChange={(e) => onChange('fecha_ejecucion', e.target.value)}
+                className="w-24 text-[9px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
+            />
+
+            {/* Fecha Fin */}
+            <input
+                type="date"
+                value={action.fecha_fin || ''}
+                onChange={(e) => onChange('fecha_fin', e.target.value)}
+                className="w-24 text-[9px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
+            />
+
+            {/* Aprobaciones (checkboxes compactos) */}
+            <div className="flex items-center gap-0.5 px-1 border-l border-gray-200">
+                <label className="flex items-center gap-0.5 cursor-pointer" title="Ronald">
+                    <input
+                        type="checkbox"
+                        checked={action.requiere_aprobacion_ronald || false}
+                        onChange={(e) => onChange('requiere_aprobacion_ronald', e.target.checked)}
+                        className="h-3 w-3 rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-[8px] text-gray-500">R</span>
+                </label>
+                <label className="flex items-center gap-0.5 cursor-pointer" title="Wiet">
+                    <input
+                        type="checkbox"
+                        checked={action.requiere_aprobacion_wiet || false}
+                        onChange={(e) => onChange('requiere_aprobacion_wiet', e.target.checked)}
+                        className="h-3 w-3 rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-[8px] text-gray-500">W</span>
+                </label>
+                <label className="flex items-center gap-0.5 cursor-pointer" title="Alejo">
+                    <input
+                        type="checkbox"
+                        checked={action.requiere_aprobacion_alejo || false}
+                        onChange={(e) => onChange('requiere_aprobacion_alejo', e.target.checked)}
+                        className="h-3 w-3 rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-[8px] text-gray-500">A</span>
+                </label>
+            </div>
+
+            {/* Delete button */}
+            <button
+                onClick={onDelete}
+                className="text-red-500 hover:text-red-700 p-0.5 hover:bg-red-50 rounded transition-colors"
+                title="Eliminar"
+            >
+                <X size={12} />
+            </button>
+        </div>
+    );
+};
+
+// Componente para agregar acciones rápidas
+const QuickActionInput = ({ placeholder, onAdd }) => {
+    const [value, setValue] = React.useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (value.trim()) {
+            onAdd(value.trim());
+            setValue('');
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 text-[11px] bg-white border border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 placeholder-gray-300"
+            />
+            <button
+                type="submit"
+                disabled={!value.trim()}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded text-[10px] font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+                + Agregar
+            </button>
+        </form>
+    );
+};
+
+export default ActionInspectorPanel;

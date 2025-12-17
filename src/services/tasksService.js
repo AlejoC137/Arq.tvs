@@ -1,300 +1,114 @@
-import supabase from '../config/supabaseClient.js';
+import supabase from '../config/supabaseClient';
 
-// Helper function to handle Supabase errors
-const handleSupabaseError = (error) => {
-  console.error('Supabase error:', error);
-  return {
-    success: false,
-    error: error?.message || 'An error occurred',
-    details: error
-  };
+/**
+ * Obtiene todas las tareas con sus relaciones
+ */
+export const getTasks = async () => {
+    const { data, error } = await supabase
+        .from('Tareas')
+        .select(`
+            *,
+            proyecto:Proyectos(id, name),
+            espacio:Espacio_Elemento(nombre, tipo)
+        `)
+        .order('fecha_inicio', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching tasks:', error);
+        throw error;
+    }
+    return data || [];
 };
 
-// Helper function to handle successful responses
-const handleSupabaseSuccess = (data, message = 'Operation successful') => {
-  return {
-    success: true,
-    data,
-    message
-  };
+/**
+ * Obtiene una tarea específica por ID
+ */
+export const getTaskById = async (taskId) => {
+    const { data, error } = await supabase
+        .from('Tareas')
+        .select(`
+            *,
+            proyecto:Proyectos(id, name),
+            espacio:Espacio_Elemento(nombre, tipo)
+        `)
+        .eq('id', taskId)
+        .single();
+
+    if (error) {
+        console.error('Error fetching task:', error);
+        throw error;
+    }
+    return data;
 };
 
-export const tasksService = {
-  // Get all tasks
-  async getAll() {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
+/**
+ * Crea una nueva tarea
+ */
+export const createTask = async (taskData) => {
+    const { data, error } = await supabase
+        .from('Tareas')
+        .insert([taskData])
         .select(`
-          *,
-          projects (
-            id,
-            name
-          ),
-          staff (
-            id,
-            name
-          ),
-          stages (
-            id,
-            name
-          )
-        `)
-        .order('tema');
+            *,
+            proyecto:Proyectos(id, name),
+            espacio:Espacio_Elemento(nombre, tipo)
+        `);
 
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Tasks loaded successfully');
-    } catch (error) {
-      return handleSupabaseError(error);
+    if (error) {
+        console.error('Error creating task:', error);
+        throw error;
     }
-  },
+    return data[0];
+};
 
-  // Get task by ID
-  async getById(id) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
+/**
+ * Actualiza una tarea existente
+ */
+export const updateTask = async (taskId, updates) => {
+    const { data, error } = await supabase
+        .from('Tareas')
+        .update(updates)
+        .eq('id', taskId)
         .select(`
-          *,
-          projects (
-            id,
-            name
-          ),
-          staff (
-            id,
-            name
-          ),
-          stages (
-            id,
-            name
-          )
-        `)
-        .eq('id', id)
-        .single();
+            *,
+            proyecto:Proyectos(id, name),
+            espacio:Espacio_Elemento(nombre, tipo)
+        `);
 
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Task found');
-    } catch (error) {
-      return handleSupabaseError(error);
+    if (error) {
+        console.error('Error updating task:', error);
+        throw error;
     }
-  },
+    return data[0];
+};
 
-  // Create new task
-  async create(taskData) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert([{
-          category: taskData.category,
-          tema: taskData.tema,
-          status: taskData.status,
-          notes: taskData.notes || '',
-          project_id: taskData.project_id || null,
-          staff_id: taskData.staff_id || null,
-          stage_id: taskData.stage_id || null,
-          espacio: taskData.espacio || null
-        }])
-        .select(`
-          *,
-          projects (
-            id,
-            name
-          ),
-          staff (
-            id,
-            name
-          ),
-          stages (
-            id,
-            name
-          )
-        `)
-        .single();
-
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Task created successfully');
-    } catch (error) {
-      return handleSupabaseError(error);
-    }
-  },
-
-  // Update task
-  async update(id, taskData) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .update({
-          category: taskData.category,
-          tema: taskData.tema,
-          status: taskData.status,
-          notes: taskData.notes,
-          project_id: taskData.project_id,
-          staff_id: taskData.staff_id,
-          stage_id: taskData.stage_id,
-          espacio: taskData.espacio
-        })
-        .eq('id', id)
-        .select(`
-          *,
-          projects (
-            id,
-            name
-          ),
-          staff (
-            id,
-            name
-          ),
-          stages (
-            id,
-            name
-          )
-        `)
-        .single();
-
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Task updated successfully');
-    } catch (error) {
-      return handleSupabaseError(error);
-    }
-  },
-
-  // Delete task
-  async delete(id) {
-    try {
-      const { error } = await supabase
-        .from('tasks')
+/**
+ * Elimina una tarea
+ */
+export const deleteTask = async (taskId) => {
+    const { error } = await supabase
+        .from('Tareas')
         .delete()
-        .eq('id', id);
+        .eq('id', taskId);
 
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(null, 'Task deleted successfully');
-    } catch (error) {
-      return handleSupabaseError(error);
+    if (error) {
+        console.error('Error deleting task:', error);
+        throw error;
     }
-  },
+};
 
-  // Get tasks by project
-  async getByProject(projectId) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          *,
-          staff (
-            id,
-            name
-          ),
-          stages (
-            id,
-            name
-          )
-        `)
-        .eq('project_id', projectId)
-        .order('tema');
+/**
+ * Obtiene proyectos disponibles para asignar a tareas
+ */
+export const getProjects = async () => {
+    const { data, error } = await supabase
+        .from('Proyectos')
+        .select('id, name, status')
+        .order('name', { ascending: true });
 
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Project tasks loaded');
-    } catch (error) {
-      return handleSupabaseError(error);
+    if (error) {
+        console.error('Error fetching projects:', error);
+        throw error;
     }
-  },
-
-  // Get tasks by staff member
-  async getByStaff(staffId) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          *,
-          projects (
-            id,
-            name
-          ),
-          stages (
-            id,
-            name
-          )
-        `)
-        .eq('staff_id', staffId)
-        .order('tema');
-
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Staff tasks loaded');
-    } catch (error) {
-      return handleSupabaseError(error);
-    }
-  },
-
-  // Get tasks by stage
-  async getByStage(stageId) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          *,
-          projects (
-            id,
-            name
-          ),
-          staff (
-            id,
-            name
-          )
-        `)
-        .eq('stage_id', stageId)
-        .order('tema');
-
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Stage tasks loaded');
-    } catch (error) {
-      return handleSupabaseError(error);
-    }
-  },
-
-  // Get tasks by status
-  async getByStatus(status) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          *,
-          projects (
-            id,
-            name
-          ),
-          staff (
-            id,
-            name
-          ),
-          stages (
-            id,
-            name
-          )
-        `)
-        .eq('status', status)
-        .order('tema');
-
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, `Tasks with status ${status} loaded`);
-    } catch (error) {
-      return handleSupabaseError(error);
-    }
-  },
-
-  // Update task status only
-  async updateStatus(id, status) {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .update({ status })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) return handleSupabaseError(error);
-      return handleSupabaseSuccess(data, 'Task status updated successfully');
-    } catch (error) {
-      return handleSupabaseError(error);
-    }
-  }
+    return data || [];
 };
