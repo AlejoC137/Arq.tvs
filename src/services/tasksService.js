@@ -1,4 +1,5 @@
 import supabase from '../config/supabaseClient';
+import { startOfWeek, endOfWeek, format } from 'date-fns';
 
 /**
  * Obtiene todas las tareas con sus relaciones
@@ -9,7 +10,7 @@ export const getTasks = async () => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo)
         `)
         .order('fecha_inicio', { ascending: false });
 
@@ -29,7 +30,7 @@ export const getTaskById = async (taskId) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo)
         `)
         .eq('id', taskId)
         .single();
@@ -70,7 +71,7 @@ export const createTask = async (taskData) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo)
         `);
 
     if (error) {
@@ -91,7 +92,7 @@ export const updateTask = async (taskId, updates) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo)
         `);
 
     if (error) {
@@ -127,6 +128,32 @@ export const getProjects = async () => {
 
     if (error) {
         console.error('Error fetching projects:', error);
+        throw error;
+    }
+    return data || [];
+};
+
+/**
+ * Obtiene tareas que inician o terminan en la semana actual
+ */
+export const getWeeklyTasks = async (currentDate = new Date()) => {
+    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+
+    const startStr = format(start, 'yyyy-MM-dd');
+    const endStr = format(end, 'yyyy-MM-dd');
+
+    const { data, error } = await supabase
+        .from('Tareas')
+        .select(`
+          *,
+          proyecto:Proyectos(id, name),
+          espacio:Espacio_Elemento(_id, nombre, tipo)
+      `)
+        .or(`and(fecha_inicio.gte.${startStr},fecha_inicio.lte.${endStr}),and(fecha_fin_estimada.gte.${startStr},fecha_fin_estimada.lte.${endStr})`);
+
+    if (error) {
+        console.error('Error fetching weekly tasks:', error);
         throw error;
     }
     return data || [];

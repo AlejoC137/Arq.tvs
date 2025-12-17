@@ -35,6 +35,7 @@ export const getWeeklyActions = async (currentDate = new Date()) => {
           status
         ),
         espacio:Espacio_Elemento (
+          _id,
           nombre
         )
       )
@@ -135,6 +136,23 @@ export const updateActionsOrder = async (updates) => {
   if (errors.length > 0) {
     console.error('Errors updating order:', errors);
     throw new Error('Failed to update some items');
+  }
+
+  return true;
+};
+
+/**
+ * Elimina una acción (Hard Delete)
+ */
+export const deleteAction = async (id) => {
+  const { error } = await supabase
+    .from('Acciones')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting action:', error);
+    throw error;
   }
 
   return true;

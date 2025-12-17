@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { clearSelection, setSelectedAction, setSelectedTask } from '../../store/actions/appActions';
-import { updateAction, createAction, getTaskActions, updateActionsOrder } from '../../services/actionsService';
+import { updateAction, createAction, getTaskActions, updateActionsOrder, deleteAction } from '../../services/actionsService';
 import { getSpaceComponents, updateComponent } from '../../services/componentsService';
 import { getSpaces, getSpaceDetails, updateSpace, getStaffers } from '../../services/spacesService';
 import { createTask, updateTask, getProjects, deleteTask } from '../../services/tasksService';
@@ -25,10 +25,6 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
     const [spaces, setSpaces] = useState([]);
     const [projects, setProjects] = useState([]);
     const [staffers, setStaffers] = useState([]);
-
-    // Space editor state
-    const [selectedSpaceDetails, setSelectedSpaceDetails] = useState(null);
-    const [showSpaceEditor, setShowSpaceEditor] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -75,7 +71,6 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
             setTaskForm({
                 ...selectedTask,
                 task_description: selectedTask.task_description || '',
-                acabado: selectedTask.acabado || '',
                 fecha_inicio: selectedTask.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
                 fecha_fin_estimada: selectedTask.fecha_fin_estimada || format(new Date(), 'yyyy-MM-dd'),
                 espacio_uuid: selectedTask.espacio_uuid || null,
@@ -86,10 +81,9 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
             setTaskForm({
                 ...selectedTask,
                 task_description: selectedTask.task_description || '',
-                acabado: selectedTask.acabado || '', // Load acabado
                 fecha_inicio: selectedTask.fecha_inicio || (selectedTask.created_at ? selectedTask.created_at.split('T')[0] : format(new Date(), 'yyyy-MM-dd')),
                 fecha_fin_estimada: selectedTask.fecha_fin_estimada || format(new Date(), 'yyyy-MM-dd'),
-                espacio_uuid: selectedTask.espacio ? selectedTask.espacio.id : (selectedTask.espacio_uuid || null),
+                espacio_uuid: selectedTask.espacio ? (selectedTask.espacio._id || selectedTask.espacio.id) : (selectedTask.espacio_uuid || null),
                 proyecto_id: selectedTask.proyecto ? selectedTask.proyecto.id : (selectedTask.proyecto_id || null),
                 fullActions: [] // We don't load actions into form state for edit mode, we use components state
             });
@@ -161,70 +155,91 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
         setComponents(newComponents);
         setDraggedIndex(null);
 
-        // Batch update order
+        // Optimistically update order visually. 
         try {
             const updates = newComponents.map((action, idx) => ({
                 id: action.id,
                 orden: idx
-            })).filter(a => a.id); // Only update existing actions (not _isNew ones yet)
+            })).filter(a => a.id); // Only update existing actions
 
             if (updates.length > 0) {
                 await updateActionsOrder(updates);
             }
         } catch (error) {
             console.error('Error reordering:', error);
-            alert('Error al guardar el nuevo orden');
         }
     };
 
-    const handleSaveAction = async () => {
-        console.log("handleSaveAction CALLED - VERSION: FIX_APPLIED_V2"); // FORCE UPDATE LOG
+    const handleSaveAction = async (e) => {
+        if (e) e.preventDefault();
+
+        console.log("handleSaveAction CALLED - VERSION: REFACTORED_CLEAN_V1");
         setSaving(true);
+
         try {
             if (panelMode === 'action' && selectedAction?.id) {
-                console.log("Mode: ACTION UPDATE"); // DEBUG
+                console.log("Mode: ACTION UPDATE");
                 const { tarea, ...updates } = actionForm;
                 await updateAction(selectedAction.id, updates);
                 dispatch(setSelectedAction({ ...selectedAction, ...updates }));
                 if (onActionUpdated) onActionUpdated({ ...selectedAction, ...updates });
+
             } else if (panelMode === 'task' && selectedTask?.id) {
-                console.log("Mode: TASK UPDATE"); // DEBUG
-                // Update Existing Task
+                console.log("Mode: TASK & ACTIONS UPDATE");
+
+                // 1. UPDATE TASK
                 const updates = {};
-
-                console.log("Comparing Description:", taskForm.task_description, selectedTask.task_description);
                 if (taskForm.task_description !== selectedTask.task_description) updates.task_description = taskForm.task_description;
-
-                console.log("Comparing Acabado:", taskForm.acabado, selectedTask.acabado);
-                if (taskForm.acabado !== selectedTask.acabado) updates.acabado = taskForm.acabado;
-
-                console.log("Comparing Fechas:", taskForm.fecha_inicio, selectedTask.fecha_inicio);
                 if (taskForm.fecha_inicio !== selectedTask.fecha_inicio) updates.fecha_inicio = taskForm.fecha_inicio;
                 if (taskForm.fecha_fin_estimada !== selectedTask.fecha_fin_estimada) updates.fecha_fin_estimada = taskForm.fecha_fin_estimada;
 
-                // Use loose equality (!=) to handle string/number mismatches
-                console.log("Comparing Project:", taskForm.proyecto_id, selectedTask.proyecto?.id || selectedTask.project_id);
+                // Loose equality for IDs (string vs number)
                 if (taskForm.proyecto_id && taskForm.proyecto_id != (selectedTask.proyecto?.id || selectedTask.project_id)) updates.project_id = taskForm.proyecto_id;
-
-                console.log("Comparing Space:", taskForm.espacio_uuid, selectedTask.espacio?.id || selectedTask.espacio_uuid);
                 if (taskForm.espacio_uuid && taskForm.espacio_uuid != (selectedTask.espacio?._id || selectedTask.espacio_uuid)) updates.espacio_uuid = taskForm.espacio_uuid;
 
-                console.log("DETECTED UPDATES:", updates); // DEBUG
+                console.log("Task Updates:", updates);
 
+                let updatedTaskData = selectedTask;
                 if (Object.keys(updates).length > 0) {
-                    const updatedTask = await updateTask(selectedTask.id, updates);
-                    // DEBUG: console.log("Update Result:", updatedTask);
-
-                    if (updatedTask) {
-                        // updatedTask is an object, not an array
-                        dispatch(setSelectedTask(updatedTask));
-                    }
-                } else {
-                    // console.warn("NO UPDATES DETECTED");
-                    alert("No hay cambios detectados para guardar.");
+                    updatedTaskData = await updateTask(selectedTask.id, updates);
                 }
 
-                if (onActionUpdated) onActionUpdated(); // triggers refresh (no args to force reload)
+                // 2. UPDATE/CREATE ACTIONS
+                // We iterate over 'components' state which holds the actions
+                const actionPromises = components.map(async (action, index) => {
+                    const actionPayload = {
+                        descripcion: action.descripcion,
+                        ejecutor_nombre: action.ejecutor_nombre,
+                        ejecutor_texto: action.ejecutor_texto,
+                        fecha_ejecucion: action.fecha_ejecucion,
+                        fecha_fin: action.fecha_fin,
+                        requiere_aprobacion_ronald: action.requiere_aprobacion_ronald,
+                        requiere_aprobacion_wiet: action.requiere_aprobacion_wiet,
+                        requiere_aprobacion_alejo: action.requiere_aprobacion_alejo,
+                        // Ensure orden is correct based on current list index
+                        orden: index
+                    };
+
+                    if (action._isNew) {
+                        // INSERT
+                        return createAction({
+                            ...actionPayload,
+                            tarea_id: selectedTask.id,
+                            completado: false
+                        });
+                    } else {
+                        // UPDATE
+                        // We update all potential fields to ensure they are in sync
+                        return updateAction(action.id, actionPayload);
+                    }
+                });
+
+                await Promise.all(actionPromises);
+
+                // Reload data implies fetching fresh state or just updating Redux
+                dispatch(setSelectedTask(updatedTaskData));
+                if (onActionUpdated) onActionUpdated();
+                alert("Guardado correctamente");
 
             } else if (panelMode === 'create') {
                 const { id, ...createData } = actionForm;
@@ -232,6 +247,7 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                 const newAction = res && res[0] ? res[0] : res;
                 if (onActionUpdated) onActionUpdated(newAction);
                 dispatch(setSelectedAction(newAction));
+
             } else if (panelMode === 'createTask') {
                 const { id, proyecto, espacio, quickActions, fullActions, proyecto_id, ...createData } = taskForm;
                 const taskPayload = { ...createData, project_id: proyecto_id || null, espacio_uuid: taskForm.espacio_uuid || null };
@@ -239,7 +255,7 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
 
                 // Create full actions if any
                 if (fullActions && fullActions.length > 0) {
-                    const actionPromises = fullActions.map(fa =>
+                    const actionPromises = fullActions.map((fa, index) =>
                         createAction({
                             tarea_id: newTask.id,
                             descripcion: fa.descripcion,
@@ -248,11 +264,9 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                             ejecutor_nombre: fa.ejecutor_nombre || '',
                             completado: false,
                             requiere_aprobacion_ronald: fa.requiere_aprobacion_ronald || false,
-                            estado_aprobacion_ronald: false,
                             requiere_aprobacion_wiet: false,
-                            estado_aprobacion_wiet: false,
                             requiere_aprobacion_alejo: false,
-                            estado_aprobacion_alejo: false,
+                            orden: index
                         })
                     );
                     await Promise.all(actionPromises);
@@ -267,15 +281,6 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
             alert("Error al guardar: " + error.message);
         } finally {
             setSaving(false);
-        }
-    };
-
-    const handleActionUpdate = async (id, field, value) => {
-        setComponents(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
-        try {
-            await updateAction(id, { [field]: value });
-        } catch (error) {
-            console.error("Failed to update action", error);
         }
     };
 
@@ -365,18 +370,6 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                         />
                                     </div>
 
-                                    {/* Acabado */}
-                                    <div>
-                                        <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Acabado</label>
-                                        <input
-                                            type="text"
-                                            value={taskForm.acabado || ''}
-                                            onChange={(e) => handleTaskChange('acabado', e.target.value)}
-                                            className="w-full text-[10px] bg-gray-50 border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500"
-                                            placeholder="Detalles de acabados..."
-                                        />
-                                    </div>
-
                                     {/* Project & Space in same row */}
                                     <div className="grid grid-cols-2 gap-1.5">
                                         <div>
@@ -434,8 +427,8 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                 </div>
 
                                 {/* RIGHT: Full Actions */}
-                                <div className="col-span-8 p-2 bg-gray-50/50 overflow-y-auto">
-                                    <div className="flex items-center justify-between mb-1.5">
+                                <div className="col-span-8 bg-gray-50/50 overflow-y-auto relative">
+                                    <div className="flex items-center justify-between p-2 sticky top-0 bg-gray-50 z-10 border-b border-gray-200 shadow-sm">
                                         <h3 className="text-[9px] font-bold text-gray-900 flex items-center gap-1">
                                             <Box size={10} className="text-gray-400" /> Acciones (Opcional)
                                         </h3>
@@ -458,7 +451,7 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                         </button>
                                     </div>
 
-                                    <div className="space-y-1">
+                                    <div className="space-y-1 p-2">
                                         {(taskForm.fullActions || []).map((action, idx) => (
                                             <FullActionRow
                                                 key={idx}
@@ -502,18 +495,6 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                             onChange={(e) => handleTaskChange('task_description', e.target.value)}
                                             className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                                             placeholder="Descripción..."
-                                        />
-                                    </div>
-
-                                    {/* Acabado - Editable */}
-                                    <div>
-                                        <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Acabado</label>
-                                        <input
-                                            type="text"
-                                            value={taskForm.acabado || ''}
-                                            onChange={(e) => handleTaskChange('acabado', e.target.value)}
-                                            className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                                            placeholder="Detalles de acabado..."
                                         />
                                     </div>
 
@@ -578,8 +559,8 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                 </div>
 
                                 {/* RIGHT: Task Actions (Editable) */}
-                                <div className="col-span-8 p-2 bg-gray-50/50 overflow-y-auto">
-                                    <div className="flex items-center justify-between mb-1.5">
+                                <div className="col-span-8 bg-gray-50/50 overflow-y-auto relative">
+                                    <div className="flex items-center justify-between p-2 sticky top-0 bg-gray-50 z-10 border-b border-gray-200 shadow-sm">
                                         <h3 className="text-[9px] font-bold text-gray-900 flex items-center gap-1">
                                             <Box size={10} className="text-gray-400" /> Acciones de esta Tarea
                                         </h3>
@@ -606,7 +587,7 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                         </button>
                                     </div>
 
-                                    <div className="space-y-1">
+                                    <div className="space-y-1 p-2">
                                         {/* Show existing actions from the task */}
                                         {loading ? (
                                             <div className="text-center py-6 text-[9px] text-gray-400">
@@ -630,25 +611,22 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                                                     onDragOver={handleDragOver}
                                                     onDrop={handleDrop}
                                                     onChange={(field, value) => {
-                                                        if (action._isNew) {
-                                                            // Update local state for new actions
-                                                            setComponents(prev => prev.map((a, i) =>
-                                                                i === idx ? { ...a, [field]: value } : a
-                                                            ));
-                                                        } else {
-                                                            // Update existing action directly
-                                                            handleActionUpdate(action.id, field, value);
-                                                        }
+                                                        // STRICTLY UPDATE STATE ONLY - PERSISTENCE ON SAVE
+                                                        setComponents(prev => prev.map((a, i) =>
+                                                            i === idx ? { ...a, [field]: value } : a
+                                                        ));
                                                     }}
                                                     onDelete={async () => {
                                                         if (action._isNew) {
                                                             // Remove from local state
                                                             setComponents(prev => prev.filter((_, i) => i !== idx));
                                                         } else {
-                                                            // Delete from database
+                                                            // For deletions, user might expect immediate feedback, but given the "Save" context
+                                                            // we could defer. However, deletion is rarely deferred in this UI.
+                                                            // Let's stick to immediate delete for existing items for now, to ensure DB consistency.
                                                             if (confirm('¿Eliminar esta acción?')) {
                                                                 try {
-                                                                    await updateAction(action.id, { deleted: true });
+                                                                    await deleteAction(action.id);
                                                                     setComponents(prev => prev.filter(a => a.id !== action.id));
                                                                 } catch (error) {
                                                                     alert('Error al eliminar: ' + error.message);
@@ -739,18 +717,30 @@ const FullActionRow = ({ action, onChange, onDelete, staffers = [], onMove, isFi
                 className="flex-1 text-[10px] bg-transparent border-0 focus:ring-0 px-1 py-0.5 min-w-0"
             />
 
-            {/* Ejecutor - SELECT */}
+            {/* Ejecutor - SELECT (Staff) */}
             <select
                 value={action.ejecutor_nombre || ''}
                 onChange={(e) => onChange('ejecutor_nombre', e.target.value)}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-24 text-[10px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5 appearance-none"
+                className="w-20 text-[10px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5 appearance-none"
+                title="Seleccionar Staff"
             >
-                <option value="">-</option>
+                <option value="">- Prof -</option>
                 {staffers.map((s, idx) => (
                     <option key={s.id || idx} value={s.name}>{s.name}</option>
                 ))}
             </select>
+
+            {/* Ejecutor - FREE TEXT */}
+            <input
+                type="text"
+                value={action.ejecutor_texto || ''}
+                onChange={(e) => onChange('ejecutor_texto', e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="w-24 text-[10px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
+                placeholder="Ejecutor (Ext)..."
+                title="Ejecutor Externo/Texto"
+            />
 
             {/* Fecha Inicio */}
             <input
@@ -801,47 +791,10 @@ const FullActionRow = ({ action, onChange, onDelete, staffers = [], onMove, isFi
                 </label>
             </div>
 
-            {/* Delete button */}
-            <button
-                onClick={onDelete}
-                className="text-red-500 hover:text-red-700 p-0.5 hover:bg-red-50 rounded transition-colors"
-                title="Eliminar"
-            >
-                <X size={12} />
+            <button onClick={onDelete} className="p-1 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded transition-colors" title="Eliminar Acción">
+                <X size={10} />
             </button>
         </div>
-    );
-};
-
-// Componente para agregar acciones rápidas
-const QuickActionInput = ({ placeholder, onAdd }) => {
-    const [value, setValue] = React.useState('');
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (value.trim()) {
-            onAdd(value.trim());
-            setValue('');
-        }
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-                type="text"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={placeholder}
-                className="flex-1 text-[11px] bg-white border border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 placeholder-gray-300"
-            />
-            <button
-                type="submit"
-                disabled={!value.trim()}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded text-[10px] font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-                + Agregar
-            </button>
-        </form>
     );
 };
 
