@@ -68,3 +68,53 @@ export const getContactRoles = async () => {
     const uniqueRoles = [...new Set(data.map(c => c.Cargo).filter(Boolean))].sort();
     return uniqueRoles;
 };
+/**
+ * Crea un nuevo contacto
+ */
+export const createContact = async (contactData) => {
+    const { data, error } = await supabase
+        .from('Directorio')
+        .insert([contactData])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating contact:', error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Actualiza un contacto existente
+ */
+export const updateContact = async (contactId, contactData) => {
+    const { data, error } = await supabase
+        .from('Directorio')
+        .update(contactData)
+        .eq('id', contactId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating contact:', error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Elimina un contacto
+ */
+export const deleteContact = async (contactId) => {
+    const { error } = await supabase
+        .from('Directorio')
+        .delete()
+        .eq('id', contactId);
+
+    if (error) {
+        console.error('Error deleting contact:', error);
+        throw error;
+    }
+    return true;
+};

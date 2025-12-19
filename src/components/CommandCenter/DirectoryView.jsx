@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, User, Phone, Briefcase, Search, Edit } from 'lucide-react';
+import { BookOpen, User, Phone, Briefcase, Search, Edit, Plus } from 'lucide-react';
 import { getContacts } from '../../services/directoryService';
+import ContactModal from './ContactModal';
 
 const DirectoryView = () => {
     const [contacts, setContacts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedContact, setSelectedContact] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingContact, setEditingContact] = useState(null);
 
     useEffect(() => {
         loadContacts();
@@ -33,16 +36,42 @@ const DirectoryView = () => {
         );
     });
 
+    const handleAddContact = () => {
+        setEditingContact(null);
+        setIsModalOpen(true);
+    };
+
+    const handleEditContact = (contact) => {
+        setEditingContact(contact);
+        setIsModalOpen(true);
+    };
+
+    const handleSaveContact = (savedContact) => {
+        loadContacts(); // Recargar la lista completa
+        if (selectedContact?.id === savedContact.id) {
+            setSelectedContact(savedContact);
+        }
+    };
+
     return (
         <div className="h-full flex bg-white">
             {/* LEFT: Contacts List */}
             <div className="w-80 border-r border-gray-200 flex flex-col">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <BookOpen size={20} className="text-blue-600" />
-                        Directorio de Contactos
-                    </h2>
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <BookOpen size={20} className="text-blue-600" />
+                            Directorio
+                        </h2>
+                        <button
+                            onClick={handleAddContact}
+                            className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                            title="Nuevo Contacto"
+                        >
+                            <Plus size={18} />
+                        </button>
+                    </div>
 
                     {/* Search */}
                     <div className="relative mb-3">
@@ -123,7 +152,10 @@ const DirectoryView = () => {
                                         )}
                                     </div>
                                 </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                <button
+                                    onClick={() => handleEditContact(selectedContact)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                                >
                                     <Edit size={16} />
                                     Editar
                                 </button>
@@ -178,6 +210,13 @@ const DirectoryView = () => {
                     </div>
                 )}
             </div>
+
+            <ContactModal
+                isOpen={isModalOpen}
+                contact={editingContact}
+                onClose={() => setIsModalOpen(false)}
+                onSave={handleSaveContact}
+            />
         </div>
     );
 };
