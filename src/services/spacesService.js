@@ -173,3 +173,36 @@ export const createStaff = async (staffData) => {
     }
     return data[0];
 };
+
+/**
+ * Actualiza los datos de un miembro del staff
+ */
+export const updateStaff = async (staffId, staffData) => {
+    const { data, error } = await supabase
+        .from('Staff')
+        .update(staffData)
+        .eq('id', staffId)
+        .select();
+
+    if (error) {
+        console.error('Error updating staff:', error);
+        throw error;
+    }
+    return data[0];
+};
+
+/**
+ * Elimina un miembro del staff
+ */
+export const deleteStaff = async (staffId) => {
+    const { error } = await supabase
+        .from('Staff')
+        .delete()
+        .eq('id', staffId);
+
+    if (error) {
+        console.error('Error deleting staff:', error);
+        throw error;
+    }
+    return true;
+};

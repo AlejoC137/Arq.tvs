@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Users, User, Briefcase, Plus, X, Save, Loader2, Calendar, UserPlus } from 'lucide-react';
-import { getStaffers } from '../../services/spacesService';
+import { Users, User, Briefcase, Plus, X, Save, Loader2, Calendar, UserPlus, Pencil, Trash2 } from 'lucide-react';
+import { getStaffers, deleteStaff } from '../../services/spacesService';
 import { getTasks, getProjects } from '../../services/tasksService';
 import { format } from 'date-fns';
 import { setSelectedTask, initCreateTask } from '../../store/actions/appActions';
@@ -15,6 +15,7 @@ const TeamView = () => {
     // UI State for Panel
     const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
     const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+    const [editingMember, setEditingMember] = useState(null);
 
     const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
     const paddingBottom = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
@@ -40,6 +41,13 @@ const TeamView = () => {
             setStaffers(staffData || []);
             setTasks(tasksData || []);
             setProjects(projectsData || []);
+
+            // Re-select staffer if we were editing
+            if (selectedStaffer) {
+                const updated = (staffData || []).find(s => s.id === selectedStaffer.id);
+                if (updated) setSelectedStaffer(updated);
+                else setSelectedStaffer(null);
+            }
         } catch (error) {
             console.error('Error loading team data:', error);
         } finally {
@@ -67,6 +75,26 @@ const TeamView = () => {
             staff_id: selectedStaffer.id,
             asignado_a: selectedStaffer.name // Legacy support
         }));
+    };
+
+    const handleEditStaffer = () => {
+        setEditingMember(selectedStaffer);
+        setIsAddMemberModalOpen(true);
+    };
+
+    const handleDeleteStaffer = async () => {
+        if (!selectedStaffer) return;
+
+        const confirmed = window.confirm(`¿Estás seguro de que deseas eliminar a ${selectedStaffer.name}? Esta acción no se puede deshacer.`);
+        if (!confirmed) return;
+
+        try {
+            await deleteStaff(selectedStaffer.id);
+            setSelectedStaffer(null);
+            loadData();
+        } catch (error) {
+            alert('Error al eliminar integrante: ' + error.message);
+        }
     };
 
     // Filter tasks for selected staffer
@@ -103,7 +131,10 @@ const TeamView = () => {
                             </p>
                         </div>
                         <button
-                            onClick={() => setIsAddMemberModalOpen(true)}
+                            onClick={() => {
+                                setEditingMember(null);
+                                setIsAddMemberModalOpen(true);
+                            }}
                             className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                             title="Agregar Integrante"
                         >
@@ -165,9 +196,27 @@ const TeamView = () => {
                                             <User size={32} className="text-blue-600" />
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className="text-xl font-bold text-gray-900 mb-1">
-                                                {selectedStaffer.name}
-                                            </h3>
+                                            <div className="flex items-center gap-3">
+                                                <h3 className="text-xl font-bold text-gray-900 mb-1">
+                                                    {selectedStaffer.name}
+                                                </h3>
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={handleEditStaffer}
+                                                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                        title="Editar Integrante"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={handleDeleteStaffer}
+                                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                        title="Eliminar Integrante"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
                                             {selectedStaffer.role_description && (
                                                 <p className="text-sm text-gray-600 flex items-center gap-2">
                                                     <Briefcase size={14} />
@@ -326,8 +375,12 @@ const TeamView = () => {
             {/* ADD MEMBER MODAL */}
             <AddMemberModal
                 isOpen={isAddMemberModalOpen}
-                onClose={() => setIsAddMemberModalOpen(false)}
+                onClose={() => {
+                    setIsAddMemberModalOpen(false);
+                    setEditingMember(null);
+                }}
                 onMemberAdded={loadData}
+                member={editingMember}
             />
         </div>
     );

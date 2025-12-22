@@ -1,14 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Loader2, User, Briefcase } from 'lucide-react';
-import { createStaff } from '../../services/spacesService';
+import { createStaff, updateStaff } from '../../services/spacesService';
 
-const AddMemberModal = ({ isOpen, onClose, onMemberAdded }) => {
+const AddMemberModal = ({ isOpen, onClose, onMemberAdded, member = null }) => {
     const [formData, setFormData] = useState({
         name: '',
         role_description: ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    const isEditing = !!member;
+
+    useEffect(() => {
+        if (member) {
+            setFormData({
+                name: member.name || '',
+                role_description: member.role_description || ''
+            });
+        } else {
+            setFormData({ name: '', role_description: '' });
+        }
+    }, [member, isOpen]);
 
     if (!isOpen) return null;
 
@@ -24,15 +37,22 @@ const AddMemberModal = ({ isOpen, onClose, onMemberAdded }) => {
         setError(null);
 
         try {
-            await createStaff({
-                name: formData.name,
-                role_description: formData.role_description
-            });
+            if (isEditing) {
+                await updateStaff(member.id, {
+                    name: formData.name,
+                    role_description: formData.role_description
+                });
+            } else {
+                await createStaff({
+                    name: formData.name,
+                    role_description: formData.role_description
+                });
+            }
             onMemberAdded();
             onClose();
-            setFormData({ name: '', role_description: '' });
+            if (!isEditing) setFormData({ name: '', role_description: '' });
         } catch (err) {
-            setError(err.message || 'Error al crear integrante');
+            setError(err.message || `Error al ${isEditing ? 'actualizar' : 'crear'} integrante`);
         } finally {
             setLoading(false);
         }
@@ -45,7 +65,7 @@ const AddMemberModal = ({ isOpen, onClose, onMemberAdded }) => {
                 <div className="flex items-center justify-between p-5 border-b border-gray-100">
                     <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <User size={20} className="text-blue-600" />
-                        Nuevo Integrante del Equipo
+                        {isEditing ? 'Editar Integrante' : 'Nuevo Integrante del Equipo'}
                     </h2>
                     <button
                         onClick={onClose}
@@ -115,12 +135,12 @@ const AddMemberModal = ({ isOpen, onClose, onMemberAdded }) => {
                         {loading ? (
                             <>
                                 <Loader2 size={16} className="animate-spin" />
-                                Guardando...
+                                {isEditing ? 'Actualizando...' : 'Guardando...'}
                             </>
                         ) : (
                             <>
                                 <Save size={16} />
-                                Guardar Integrante
+                                {isEditing ? 'Guardar Cambios' : 'Guardar Integrante'}
                             </>
                         )}
                     </button>

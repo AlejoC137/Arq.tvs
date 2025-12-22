@@ -156,7 +156,7 @@ const MonthlyCalendar = () => {
             }
         });
         return map;
-    }, [tasks]);
+    }, [tasks, filters]);
 
     const handleTaskClick = (task) => {
         dispatch(setSelectedTask(task));
@@ -264,7 +264,7 @@ const MonthlyCalendar = () => {
                                 key={idx}
                                 onClick={() => handleDayClick(day)}
                                 className={`
-                                    min-h-[100px] border-r border-b border-gray-200 p-2 cursor-pointer
+                                    min-h-[80px] border-r border-b border-gray-200 p-2 cursor-pointer
                                     hover:bg-blue-50 transition-colors group relative
                                     ${isTaskInRange ? 'bg-blue-100' : (!isCurrentMonth ? 'bg-gray-50/50 text-gray-400' : 'bg-white')}
                                     ${isCurrentDay && !isTaskInRange ? 'bg-blue-50/50' : ''}
@@ -298,8 +298,8 @@ const MonthlyCalendar = () => {
                                     </button>
                                 </div>
 
-                                {/* Tasks/Actions for this day */}
-                                <div className="space-y-1">
+                                {/* Tasks/Actions for this day - Scrollable Container */}
+                                <div className="max-h-[80px] overflow-y-auto pr-0.5 space-y-0.5 custom-scrollbar">
                                     {(() => {
                                         const dateKey = format(day, 'yyyy-MM-dd');
                                         const dayEvents = eventsByDate[dateKey] || [];
