@@ -157,3 +157,19 @@ export const getStaffers = async () => {
         return [];
     }
 };
+
+/**
+ * Crea un nuevo miembro del staff
+ */
+export const createStaff = async (staffData) => {
+    const { data, error } = await supabase
+        .from('Staff')
+        .insert([staffData])
+        .select();
+
+    if (error) {
+        console.error('Error creating staff:', error);
+        throw error;
+    }
+    return data[0];
+};

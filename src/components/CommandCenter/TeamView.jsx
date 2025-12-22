@@ -1,363 +1,334 @@
-import React, { useState, useEffect } from 'react';
-import { Users, User, Briefcase, Plus, X, Save, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Users, User, Briefcase, Plus, X, Save, Loader2, Calendar, UserPlus } from 'lucide-react';
 import { getStaffers } from '../../services/spacesService';
-import { createTask } from '../../services/tasksService';
-import { getProjects } from '../../services/tasksService';
-import { getSpaces } from '../../services/spacesService';
+import { getTasks, getProjects } from '../../services/tasksService';
 import { format } from 'date-fns';
+import { setSelectedTask, initCreateTask } from '../../store/actions/appActions';
+import ActionInspectorPanel from './ActionInspectorPanel';
+import AddMemberModal from './AddMemberModal';
 
 const TeamView = () => {
+    const dispatch = useDispatch();
+    const { panelMode } = useSelector(state => state.app);
+
+    // UI State for Panel
+    const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
+    const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+
+    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
+    const paddingBottom = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
+
     const [staffers, setStaffers] = useState([]);
+    const [tasks, setTasks] = useState([]);
+    const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedStaffer, setSelectedStaffer] = useState(null);
 
-    // Task creation modal state
-    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-    const [projects, setProjects] = useState([]);
-    const [spaces, setSpaces] = useState([]);
-    const [taskForm, setTaskForm] = useState({
-        task_description: '',
-        proyecto_id: '',
-        espacio_uuid: '',
-        fecha_inicio: format(new Date(), 'yyyy-MM-dd'),
-        fecha_fin_estimada: format(new Date(), 'yyyy-MM-dd'),
-    });
-    const [savingTask, setSavingTask] = useState(false);
-    const [taskError, setTaskError] = useState(null);
-
     useEffect(() => {
-        loadStaffers();
+        loadData();
     }, []);
 
-    const loadStaffers = async () => {
+    const loadData = async () => {
         setLoading(true);
         try {
-            const data = await getStaffers();
-            setStaffers(data || []);
+            const [staffData, tasksData, projectsData] = await Promise.all([
+                getStaffers(),
+                getTasks(),
+                getProjects()
+            ]);
+            setStaffers(staffData || []);
+            setTasks(tasksData || []);
+            setProjects(projectsData || []);
         } catch (error) {
-            console.error('Error loading staffers:', error);
+            console.error('Error loading team data:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleOpenTaskModal = async () => {
-        setTaskForm({
+    const handleActionUpdated = () => {
+        loadData();
+    };
+
+    const handleTaskClick = (task) => {
+        dispatch(setSelectedTask(task));
+    };
+
+    const handleCreateTask = () => {
+        if (!selectedStaffer) return;
+
+        dispatch(initCreateTask({
             task_description: '',
-            proyecto_id: '',
-            espacio_uuid: '',
+            proyecto_id: null,
+            espacio_uuid: null,
             fecha_inicio: format(new Date(), 'yyyy-MM-dd'),
             fecha_fin_estimada: format(new Date(), 'yyyy-MM-dd'),
-        });
-        setTaskError(null);
-
-        // Load projects and spaces for dropdowns
-        try {
-            const [projectsData, spacesData] = await Promise.all([
-                getProjects(),
-                getSpaces()
-            ]);
-            setProjects(projectsData || []);
-            setSpaces(spacesData || []);
-        } catch (error) {
-            console.error('Error loading data for task modal:', error);
-        }
-
-        setIsTaskModalOpen(true);
+            staff_id: selectedStaffer.id,
+            asignado_a: selectedStaffer.name // Legacy support
+        }));
     };
 
-    const handleTaskFormChange = (field, value) => {
-        setTaskForm(prev => ({ ...prev, [field]: value }));
-    };
+    // Filter tasks for selected staffer
+    const staffTasks = useMemo(() => {
+        if (!selectedStaffer) return [];
+        return tasks.filter(t =>
+            t.staff_id === selectedStaffer.id ||
+            t.asignado_a === selectedStaffer.name ||
+            (t.asignado_a && t.asignado_a.includes(selectedStaffer.name)) // Loose match
+        ).sort((a, b) => new Date(b.created_at || b.fecha_inicio) - new Date(a.created_at || a.fecha_inicio));
+    }, [tasks, selectedStaffer]);
 
-    const handleSaveTask = async () => {
-        if (!taskForm.task_description.trim()) {
-            setTaskError('La descripción es requerida');
-            return;
-        }
-
-        setSavingTask(true);
-        setTaskError(null);
-
-        try {
-            await createTask({
-                task_description: taskForm.task_description,
-                proyecto: taskForm.proyecto_id || null,
-                espacio_uuid: taskForm.espacio_uuid || null,
-                fecha_inicio: taskForm.fecha_inicio,
-                fecha_fin_estimada: taskForm.fecha_fin_estimada,
-                asignado_a: selectedStaffer?.name || null,
-            });
-            setIsTaskModalOpen(false);
-            // Could trigger a reload or show success message
-        } catch (error) {
-            setTaskError(error.message || 'Error al crear la tarea');
-        } finally {
-            setSavingTask(false);
-        }
-    };
+    // Stats
+    const stats = useMemo(() => {
+        const active = staffTasks.filter(t => !t.terminado).length;
+        const completed = staffTasks.filter(t => t.terminado).length;
+        return { active, completed, total: staffTasks.length };
+    }, [staffTasks]);
 
     return (
-        <div className="h-full flex bg-white">
-            {/* LEFT: Team List */}
-            <div className="w-80 border-r border-gray-200 flex flex-col">
-                {/* Header */}
-                <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <Users size={20} className="text-blue-600" />
-                        Equipo de Trabajo
-                    </h2>
-                    <p className="text-xs text-gray-600">
-                        {staffers.length} miembros del equipo
-                    </p>
+        <div className="h-full flex flex-col bg-white overflow-hidden">
+            <div className="flex-1 flex overflow-hidden">
+                {/* LEFT: Team List */}
+                <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50/30">
+                    {/* Header */}
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+                                <Users size={20} className="text-blue-600" />
+                                Equipo
+                            </h2>
+                            <p className="text-xs text-gray-500">
+                                {staffers.length} integrantes
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setIsAddMemberModalOpen(true)}
+                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                            title="Agregar Integrante"
+                        >
+                            <Plus size={16} strokeWidth={3} />
+                        </button>
+                    </div>
+
+                    {/* Team Members List */}
+                    <div className="flex-1 overflow-y-auto">
+                        {loading && staffers.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-gray-500">Cargando...</div>
+                        ) : staffers.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-gray-500">
+                                No hay integrantes del equipo
+                            </div>
+                        ) : (
+                            staffers.map((staffer, idx) => (
+                                <button
+                                    key={staffer.id || idx}
+                                    onClick={() => setSelectedStaffer(staffer)}
+                                    className={`
+                                        w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-white transition-all
+                                        ${selectedStaffer?.id === staffer.id ? 'bg-white border-l-4 border-l-blue-600 shadow-sm z-10' : 'border-l-4 border-l-transparent'}
+                                    `}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${selectedStaffer?.id === staffer.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                                            <User size={20} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className={`font-medium text-sm truncate ${selectedStaffer?.id === staffer.id ? 'text-blue-700' : 'text-gray-700'}`}>
+                                                {staffer.name}
+                                            </div>
+                                            {staffer.role_description && (
+                                                <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                    {staffer.role_description}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+                            ))
+                        )}
+                    </div>
                 </div>
 
-                {/* Team Members List */}
-                <div className="flex-1 overflow-y-auto">
-                    {loading ? (
-                        <div className="p-4 text-center text-sm text-gray-500">Cargando...</div>
-                    ) : staffers.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-gray-500">
-                            No hay miembros del equipo
-                        </div>
-                    ) : (
-                        staffers.map((staffer, idx) => (
-                            <button
-                                key={staffer.id || idx}
-                                onClick={() => setSelectedStaffer(staffer)}
-                                className={`
-                                    w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-blue-50 transition-colors
-                                    ${selectedStaffer?.id === staffer.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
-                                `}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                        <User size={20} className="text-blue-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-sm text-gray-900 truncate">
-                                            {staffer.name}
+                {/* RIGHT: Member Details */}
+                <div
+                    className="flex-1 flex flex-col bg-white overflow-hidden relative"
+                    style={{ paddingBottom: paddingBottom, transition: 'padding-bottom 0.3s ease' }}
+                >
+                    {selectedStaffer ? (
+                        <div className="flex-1 overflow-y-auto">
+                            {/* Header Banner */}
+                            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50/50 to-white">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-16 h-16 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center">
+                                            <User size={32} className="text-blue-600" />
                                         </div>
-                                        {staffer.role_description && (
-                                            <div className="text-xs text-gray-500 truncate">
-                                                {staffer.role_description}
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-bold text-gray-900 mb-1">
+                                                {selectedStaffer.name}
+                                            </h3>
+                                            {selectedStaffer.role_description && (
+                                                <p className="text-sm text-gray-600 flex items-center gap-2">
+                                                    <Briefcase size={14} />
+                                                    {selectedStaffer.role_description}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleCreateTask}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm hover:shadow-md"
+                                    >
+                                        <Plus size={16} />
+                                        Agregar Tarea
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-6 space-y-8">
+                                {/* Details Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Role Info */}
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                            <User size={14} className="text-gray-500" />
+                                            Información del Integrante
+                                        </h4>
+                                        <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl">
+                                            <p className="text-sm text-gray-600">
+                                                <span className="font-semibold text-gray-700">Rol:</span> {selectedStaffer.role_description || 'Sin rol asignado'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Stats */}
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                            <Calendar size={14} className="text-gray-500" />
+                                            Estadísticas
+                                        </h4>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                                                <div className="text-2xl font-bold text-blue-600">{stats.active}</div>
+                                                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Tareas Activas</div>
                                             </div>
-                                        )}
+                                            <div className="p-3 bg-green-50 border border-green-100 rounded-xl">
+                                                <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+                                                <div className="text-[10px] font-bold text-green-500 uppercase tracking-wide">Completadas</div>
+                                            </div>
+                                            <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                                                <div className="text-2xl font-bold text-gray-600">{stats.total}</div>
+                                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Total</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </button>
-                        ))
+
+                                {/* Tasks List */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                            <Briefcase size={14} className="text-gray-500" />
+                                            Tareas Asignadas
+                                        </h4>
+                                    </div>
+
+                                    {staffTasks.length === 0 ? (
+                                        <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
+                                            <p className="text-sm text-gray-500 mb-2">No hay tareas asignadas</p>
+                                            <button
+                                                onClick={handleCreateTask}
+                                                className="text-xs text-blue-600 font-medium hover:underline"
+                                            >
+                                                Crear primera tarea
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase font-bold border-b border-gray-100">
+                                                        <tr>
+                                                            <th className="px-4 py-3">Descripción</th>
+                                                            <th className="px-4 py-3 w-32">Proyecto</th>
+                                                            <th className="px-4 py-3 w-32">Fecha Fin</th>
+                                                            <th className="px-4 py-3 w-24">Estado</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {staffTasks.map(task => {
+                                                            const isOverdue = !task.terminado && new Date(task.fecha_fin_estimada) < new Date();
+                                                            const project = projects.find(p => p.id === task.proyecto_id);
+
+                                                            return (
+                                                                <tr
+                                                                    key={task.id}
+                                                                    onClick={() => handleTaskClick(task)}
+                                                                    className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
+                                                                >
+                                                                    <td className="px-4 py-3">
+                                                                        <div className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors">
+                                                                            {task.task_description}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 truncate max-w-[120px]">
+                                                                            {project?.name || task.proyecto?.name || '-'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-gray-600 text-xs">
+                                                                        {task.fecha_fin_estimada ? (
+                                                                            <span className={isOverdue ? 'text-red-500 font-bold' : ''}>
+                                                                                {format(new Date(task.fecha_fin_estimada), 'dd/MM/yyyy')}
+                                                                            </span>
+                                                                        ) : '-'}
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        {task.terminado ? (
+                                                                            <span className="inline-flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                                                Completada
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                                                Activa
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center text-gray-400">
+                            <div className="text-center">
+                                <Users size={48} className="mx-auto mb-3 opacity-20" />
+                                <p className="text-sm font-medium">Selecciona un integrante para ver detalles</p>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
 
-            {/* RIGHT: Member Details */}
-            <div className="flex-1 flex flex-col">
-                {selectedStaffer ? (
-                    <>
-                        {/* Header */}
-                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-                                        <User size={32} className="text-blue-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-gray-900 mb-1">
-                                            {selectedStaffer.name}
-                                        </h3>
-                                        {selectedStaffer.role_description && (
-                                            <p className="text-sm text-gray-600 flex items-center gap-2">
-                                                <Briefcase size={14} />
-                                                {selectedStaffer.role_description}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={handleOpenTaskModal}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                                >
-                                    <Plus size={16} />
-                                    Agregar Tarea
-                                </button>
-                            </div>
-                        </div>
+            {/* SHARED TASK INSPECTOR PANEL */}
+            <ActionInspectorPanel
+                onActionUpdated={handleActionUpdated}
+                onCollapseChange={setIsInspectorCollapsed}
+            />
 
-                        {/* Details */}
-                        <div className="flex-1 overflow-y-auto p-6">
-                            <div className="space-y-6">
-                                {/* Role Info */}
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-700 mb-3">Información del Miembro</h4>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                        <p className="text-sm text-gray-600">
-                                            <span className="font-medium">Rol:</span> {selectedStaffer.role_description || 'Sin rol asignado'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Stats/Tasks */}
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-700 mb-3">Estadísticas</h4>
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="p-3 bg-blue-50 rounded-lg">
-                                            <div className="text-2xl font-bold text-blue-600">-</div>
-                                            <div className="text-xs text-gray-600">Tareas Activas</div>
-                                        </div>
-                                        <div className="p-3 bg-green-50 rounded-lg">
-                                            <div className="text-2xl font-bold text-green-600">-</div>
-                                            <div className="text-xs text-gray-600">Completadas</div>
-                                        </div>
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                            <div className="text-2xl font-bold text-gray-600">-</div>
-                                            <div className="text-xs text-gray-600">Total</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-400">
-                        <div className="text-center">
-                            <Users size={48} className="mx-auto mb-3 opacity-50" />
-                            <p className="text-sm">Selecciona un miembro del equipo para ver detalles</p>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Task Creation Modal */}
-            {isTaskModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-5 border-b border-gray-200">
-                            <h2 className="text-xl font-bold text-gray-900">
-                                Nueva Tarea para {selectedStaffer?.name}
-                            </h2>
-                            <button
-                                onClick={() => setIsTaskModalOpen(false)}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <X size={20} className="text-gray-500" />
-                            </button>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-5 space-y-4">
-                            {taskError && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                                    {taskError}
-                                </div>
-                            )}
-
-                            {/* Descripción */}
-                            <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">
-                                    Descripción de la Tarea *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={taskForm.task_description}
-                                    onChange={(e) => handleTaskFormChange('task_description', e.target.value)}
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Ej: Pintura de sala principal..."
-                                />
-                            </div>
-
-                            {/* Proyecto y Espacio */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                                        Proyecto
-                                    </label>
-                                    <select
-                                        value={taskForm.proyecto_id}
-                                        onChange={(e) => handleTaskFormChange('proyecto_id', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">Seleccionar...</option>
-                                        {projects.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                                        Espacio
-                                    </label>
-                                    <select
-                                        value={taskForm.espacio_uuid}
-                                        onChange={(e) => handleTaskFormChange('espacio_uuid', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">Seleccionar...</option>
-                                        {spaces.map(s => (
-                                            <option key={s._id} value={s._id}>{s.nombre}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Fechas */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                                        Fecha Inicio
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={taskForm.fecha_inicio}
-                                        onChange={(e) => handleTaskFormChange('fecha_inicio', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                                        Fecha Fin Estimada
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={taskForm.fecha_fin_estimada}
-                                        onChange={(e) => handleTaskFormChange('fecha_fin_estimada', e.target.value)}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-200 bg-gray-50">
-                            <button
-                                onClick={() => setIsTaskModalOpen(false)}
-                                disabled={savingTask}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleSaveTask}
-                                disabled={savingTask}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                            >
-                                {savingTask ? (
-                                    <>
-                                        <Loader2 size={16} className="animate-spin" />
-                                        Guardando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save size={16} />
-                                        Crear Tarea
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* ADD MEMBER MODAL */}
+            <AddMemberModal
+                isOpen={isAddMemberModalOpen}
+                onClose={() => setIsAddMemberModalOpen(false)}
+                onMemberAdded={loadData}
+            />
         </div>
     );
 };
