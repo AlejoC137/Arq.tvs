@@ -44,6 +44,11 @@ export const clearSelection = () => ({
     type: 'CLEAR_SELECTION'
 });
 
+export const setDayMode = (date) => ({
+    type: 'SET_DAY_MODE',
+    payload: date
+});
+
 // Navigation Actions
 export const setCalendarView = (view) => ({
     type: 'SET_CALENDAR_VIEW',

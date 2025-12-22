@@ -16,7 +16,8 @@ import JsonImporterModal from './JsonImporterModal';
 import {
     setCalendarView,
     setPropertyView,
-    setActiveView
+    setActiveView,
+    setSelectedTask
 } from '../../store/actions/appActions';
 
 const TopNavigation = () => {
@@ -152,7 +153,10 @@ const TopNavigation = () => {
 
                 {/* Importer */}
                 <button
-                    onClick={() => setShowImporter(true)}
+                    onClick={() => {
+                        setShowImporter(true);
+                        dispatch(setSelectedTask(null));
+                    }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border bg-gray-900 text-white border-gray-900 hover:bg-gray-800 shadow-sm ml-2"
                 >
                     <Upload size={14} />

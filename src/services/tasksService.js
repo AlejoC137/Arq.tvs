@@ -57,7 +57,11 @@ export const createTask = async (taskData) => {
         espacio_uuid: taskData.espacio_uuid || null,
         fecha_inicio: taskData.fecha_inicio,
         fecha_fin_estimada: taskData.fecha_fin_estimada,
-        status: taskData.status || 'Pendiente'
+        status: taskData.status || 'Pendiente',
+        terminado: taskData.terminado || false,
+        RonaldPass: taskData.RonaldPass || false,
+        WietPass: taskData.WietPass || false,
+        AlejoPass: taskData.AlejoPass || false
     };
 
     // Remove null/undefined values to avoid sending nulls for optional fields
@@ -134,6 +138,41 @@ export const getProjects = async () => {
 };
 
 /**
+ * Obtiene las etapas disponibles (Stages)
+ */
+export const getStages = async () => {
+    const { data, error } = await supabase
+        .from('Stage')
+        .select('id, name') // Assuming 'name' exists, if not I might need to check columns or just select *
+        .order('name', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching stages:', error);
+        return []; // Fail gracefully
+    }
+    return data || [];
+};
+
+/**
+ * Obtiene tareas por fecha específica (para Day View)
+ */
+export const getTasksByDate = async (dateStr) => {
+    const { data, error } = await supabase
+        .from('Tareas')
+        .select(`
+            *,
+            staff:Staff(id, name)
+        `)
+        .or(`fecha_inicio.eq.${dateStr},fecha_fin_estimada.eq.${dateStr}`); // Simple logic: starts or ends on that day
+
+    if (error) {
+        console.error('Error fetching tasks by date:', error);
+        throw error;
+    }
+    return data || [];
+};
+
+/**
  * Obtiene tareas que inician o terminan en la semana actual
  */
 export const getWeeklyTasks = async (currentDate = new Date()) => {
@@ -148,7 +187,8 @@ export const getWeeklyTasks = async (currentDate = new Date()) => {
         .select(`
           *,
           proyecto:Proyectos(id, name),
-          espacio:Espacio_Elemento(_id, nombre, tipo)
+          espacio:Espacio_Elemento(_id, nombre, tipo),
+          staff:Staff(id, name)
       `)
         .or(`and(fecha_inicio.gte.${startStr},fecha_inicio.lte.${endStr}),and(fecha_fin_estimada.gte.${startStr},fecha_fin_estimada.lte.${endStr})`);
 

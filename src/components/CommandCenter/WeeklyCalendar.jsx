@@ -6,7 +6,7 @@ import { useDispatch } from 'react-redux';
 import { getWeeklyActions, toggleActionStatus, getTaskActions } from '../../services/actionsService';
 import { getWeeklyTasks, getProjects } from '../../services/tasksService';
 import { getProjectColor } from '../../utils/projectColors';
-import { setSelectedAction, setSelectedTask, clearSelection, initCreateAction, initCreateTask } from '../../store/actions/appActions';
+import { setSelectedAction, setSelectedTask, clearSelection, initCreateAction, initCreateTask, setDayMode } from '../../store/actions/appActions';
 import ActionInspectorPanel from './ActionInspectorPanel';
 
 // === HELPER: Height Calculation ===
@@ -16,13 +16,9 @@ const MAX_ACTIONS = 3;
 
 const getCardHeight = (item) => {
     if (item.type === 'task_group') {
-        const count = Math.min(item.actions.length, MAX_ACTIONS);
-        // Base + items + optional footer if truncated?
-        // Let's keep it simple: Base + (count * itemHeight) + padding
-        // Actually, let's just make it content-based, but we need a specific pixel value for the Spacer.
-        // Let's approximate: 
-        // Header (approx 20px) + Padding (12px) + Items * 18px
-        return 34 + (count * 18) + (item.actions.length > MAX_ACTIONS ? 14 : 0);
+        // Compact summary view: Title + Meta Row
+        // Height: ~50px
+        return 50;
     }
     return 44; // Default ActionCard height
 };
@@ -176,14 +172,10 @@ const ActionCard = ({ action, layoutStyle, onToggle, onClick, onTaskClick }) => 
     );
 };
 
-// === COMPONENT: Task Group Card ===
 const TaskGroupCard = ({ group, layoutStyle, onClick, onTaskClick, isStart, isEnd }) => {
     const { tarea, actions } = group;
     const colors = getProjectColor(tarea?.proyecto?.id || 'default');
-
-    // Sort actions? maybe by index or creation?
-    // Assuming they are loosely sorted by execution date from backend
-
+    const isTerminado = tarea?.terminado;
     const height = getCardHeight(group);
 
     const widthStyle = {
@@ -197,47 +189,46 @@ const TaskGroupCard = ({ group, layoutStyle, onClick, onTaskClick, isStart, isEn
         <div
             style={widthStyle}
             className={`
-                group relative pl-3 pr-2 py-2 mb-1.5 rounded bg-white border border-gray-200 
-                hover:shadow-md hover:border-blue-400 transition-all duration-150 flex flex-col
+                group relative pl-3 pr-2 py-1.5 mb-1.5 rounded bg-white border border-gray-200 
+                hover:shadow-md hover:border-blue-400 transition-all duration-150 flex flex-col justify-between
                 shadow-sm overflow-hidden
+                ${isTerminado ? 'opacity-60 grayscale bg-gray-50' : ''}
             `}
             onClick={(e) => {
                 e.stopPropagation();
-                // Select Task
                 onTaskClick(tarea);
             }}
         >
             {/* Barra de Color del Proyecto */}
             <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l ${colors.bar}`} />
 
-            <div className="flex items-center justify-between mb-1.5 gap-2">
-                {/* Task Title */}
-                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide truncate">
-                    {tarea?.task_description || 'Tarea Sin Nombre'}
+            {/* Row 1: Title */}
+            <div className={`text-[10px] font-bold text-gray-700 uppercase tracking-wide truncate leading-tight ${isTerminado ? 'line-through' : ''}`}>
+                {tarea?.task_description || 'Tarea Sin Nombre'}
+            </div>
+
+            {/* Row 2: Metadata (Count + Responsible + Start/End) */}
+            <div className="flex items-center justify-between mt-1">
+                {/* Action Count & Responsible */}
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="flex items-center gap-1 text-gray-400 shrink-0">
+                        <Layers size={10} />
+                        <span className="text-[9px] font-bold">{actions.length}</span>
+                    </div>
+
+                    {/* Responsible Name */}
+                    {tarea?.staff?.name && (
+                        <div className="flex items-center gap-1 text-gray-500 truncate border-l border-gray-200 pl-2">
+                            <span className="text-[9px] font-semibold truncate">{tarea.staff.name.split(' ')[0]}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Start/End Labels */}
                 <div className="flex shrink-0 gap-1">
-                    {isStart && <span className="text-[9px] font-extrabold text-red-500">INICIO</span>}
-                    {isEnd && <span className="text-[9px] font-extrabold text-red-500">FINAL</span>}
+                    {isStart && <span className="text-[9px] font-extrabold text-red-500 bg-red-50 px-1 rounded-sm">INICIO</span>}
+                    {isEnd && <span className="text-[9px] font-extrabold text-red-500 bg-red-50 px-1 rounded-sm">FINAL</span>}
                 </div>
-            </div>
-
-            {/* Actions List */}
-            <div className="flex flex-col gap-0.5">
-                {actions.slice(0, MAX_ACTIONS).map((action, i) => (
-                    <div key={action.id} className="flex items-center gap-1.5 text-[10px] text-gray-700">
-                        <span className="font-mono text-gray-400 text-[9px] w-3">{i + 1}.</span>
-                        <span className={`truncate ${action.completado ? 'line-through text-gray-400' : ''}`}>
-                            {action.descripcion}
-                        </span>
-                    </div>
-                ))}
-                {actions.length > MAX_ACTIONS && (
-                    <div className="text-[9px] text-gray-400 italic pl-4.5 mt-0.5">
-                        (solo mostrar las primeras {MAX_ACTIONS})
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -465,17 +456,24 @@ export default function WeeklyCalendar() {
         if (isDragging && dragStart && dragEnd) {
             const start = dragStart.date < dragEnd.date ? dragStart.date : dragEnd.date;
             const end = dragStart.date < dragEnd.date ? dragEnd.date : dragStart.date;
-            dispatch(initCreateAction({
-                descripcion: '',
-                fecha_ejecucion: format(start, 'yyyy-MM-dd'),
-                fecha_fin: format(end, 'yyyy-MM-dd'),
-                requiere_aprobacion_ronald: false,
-                estado_aprobacion_ronald: false,
-                requiere_aprobacion_wiet: false,
-                estado_aprobacion_wiet: false,
-                requiere_aprobacion_alejo: false,
-                estado_aprobacion_alejo: false,
-            }));
+
+            if (isSameDay(start, end)) {
+                // Click on empty cell -> Show Day Task List
+                dispatch(setDayMode(format(start, 'yyyy-MM-dd')));
+            } else {
+                // Drag range -> Create Action
+                dispatch(initCreateAction({
+                    descripcion: '',
+                    fecha_ejecucion: format(start, 'yyyy-MM-dd'),
+                    fecha_fin: format(end, 'yyyy-MM-dd'),
+                    requiere_aprobacion_ronald: false,
+                    estado_aprobacion_ronald: false,
+                    requiere_aprobacion_wiet: false,
+                    estado_aprobacion_wiet: false,
+                    requiere_aprobacion_alejo: false,
+                    estado_aprobacion_alejo: false,
+                }));
+            }
         }
         setIsDragging(false); setDragStart(null); setDragEnd(null);
     };

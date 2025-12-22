@@ -178,6 +178,17 @@ const MonthlyCalendar = () => {
                         const isCurrentDay = isToday(day);
                         const dayNumber = format(day, 'd');
 
+                        // Check if day is within selectedTask range
+                        let isTaskInRange = false;
+                        if (selectedTask?.fecha_inicio && selectedTask?.fecha_fin_estimada) {
+                            const dayStr = format(day, 'yyyy-MM-dd');
+                            const startStr = selectedTask.fecha_inicio.split('T')[0];
+                            const endStr = selectedTask.fecha_fin_estimada.split('T')[0];
+                            if (dayStr >= startStr && dayStr <= endStr) {
+                                isTaskInRange = true;
+                            }
+                        }
+
                         return (
                             <div
                                 key={idx}
@@ -185,8 +196,8 @@ const MonthlyCalendar = () => {
                                 className={`
                                     min-h-[100px] border-r border-b border-gray-200 p-2 cursor-pointer
                                     hover:bg-blue-50 transition-colors
-                                    ${!isCurrentMonth ? 'bg-gray-50/50 text-gray-400' : 'bg-white'}
-                                    ${isCurrentDay ? 'bg-blue-50/50' : ''}
+                                    ${isTaskInRange ? 'bg-blue-100' : (!isCurrentMonth ? 'bg-gray-50/50 text-gray-400' : 'bg-white')}
+                                    ${isCurrentDay && !isTaskInRange ? 'bg-blue-50/50' : ''}
                                 `}
                             >
                                 {/* Day Number */}

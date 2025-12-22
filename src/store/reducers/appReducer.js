@@ -4,7 +4,8 @@ const initialState = {
     connectionStatus: 'Unknown',
     selectedAction: null, // Para el Inspector Panel (Mode: Action)
     selectedTask: null,   // Para el Inspector Panel (Mode: Task)
-    panelMode: 'view', // 'view' | 'create' | 'edit' | 'task' | 'action' | 'createTask'
+    selectedDate: null,   // Para el Inspector Panel (Mode: Day)
+    panelMode: 'view', // 'view' | 'create' | 'edit' | 'task' | 'action' | 'createTask' | 'day'
     navigation: {
         calendarView: 'week', // 'week' | 'month'
         propertyView: 'houses', // 'houses' | 'parcels'
@@ -34,8 +35,10 @@ export const appReducer = (state = initialState, action) => {
             return { ...state, selectedAction: action.payload, selectedTask: null, panelMode: 'create' };
         case 'INIT_CREATE_TASK':
             return { ...state, selectedTask: action.payload, selectedAction: null, panelMode: 'createTask' };
+        case 'SET_DAY_MODE':
+            return { ...state, selectedDate: action.payload, selectedAction: null, selectedTask: null, panelMode: 'day' };
         case 'CLEAR_SELECTION':
-            return { ...state, selectedAction: null, selectedTask: null, panelMode: 'create' };
+            return { ...state, selectedAction: null, selectedTask: null, selectedDate: null, panelMode: 'view' };
         case 'SET_CALENDAR_VIEW':
             return { ...state, navigation: { ...state.navigation, calendarView: action.payload } };
         case 'SET_PROPERTY_VIEW':
