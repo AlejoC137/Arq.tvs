@@ -10,7 +10,8 @@ export const getTasks = async () => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo),
+            staff:Staff(id, name)
         `)
         .order('fecha_inicio', { ascending: false });
 
@@ -30,7 +31,8 @@ export const getTaskById = async (taskId) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo),
+            staff:Staff(id, name)
         `)
         .eq('id', taskId)
         .single();

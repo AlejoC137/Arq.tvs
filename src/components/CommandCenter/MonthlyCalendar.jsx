@@ -15,7 +15,7 @@ import {
     isSameDay
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Plus } from 'lucide-react';
 import { setSelectedTask, clearSelection, initCreateTask } from '../../store/actions/appActions';
 import { getWeeklyTasks } from '../../services/tasksService'; // Reusing this as it's date based, or create monthly?
 // Actually getWeeklyTasks takes a date and calculates week range. I should probably modify it or create getMonthlyTasks.
@@ -27,9 +27,11 @@ import { getWeeklyTasks } from '../../services/tasksService'; // Reusing this as
 // The user previously wanted "Weekly". Now "Monthly". 
 // I will create `getTasksByDateRange` in `tasksService` or just use `getTasks` (which fetches ALL active tasks usually).
 // `getTasks` in `tasksService` fetches EVERYTHING.
-import { getTasks } from '../../services/tasksService';
+import { getTasks, getProjects } from '../../services/tasksService';
+import { getStaffers } from '../../services/spacesService';
 import { getProjectColor } from '../../utils/projectColors';
 import ActionInspectorPanel from './ActionInspectorPanel';
+import CalendarFilterBar from './CalendarFilterBar';
 
 const TaskEventCard = ({ task, type, onClick }) => {
     const colors = getProjectColor(task.proyecto?.id || 'default');
@@ -71,23 +73,69 @@ const MonthlyCalendar = () => {
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     const [tasks, setTasks] = useState([]);
+    const [staffers, setStaffers] = useState([]);
+    const [projects, setProjects] = useState([]);
+    const [filters, setFilters] = useState({
+        staffId: '',
+        projectId: '',
+        alejoPass: false,
+        ronaldPass: false,
+        wietPass: false
+    });
 
-    // Load tasks using general getTasks and filter client side for calendar
-    // or improve service later. 
+    // Load tasks & metadata
     React.useEffect(() => {
-        getTasks().then(allTasks => {
-            // Filter tasks relevant to this view (visible month range)
-            // Just keep them all for now and filter in render for simplicity unless massive
-            setTasks(allTasks);
-        });
+        const loadJava = async () => {
+            const [allTasks, allStaff, allProjects] = await Promise.all([
+                getTasks(),
+                getStaffers(),
+                getProjects()
+            ]);
+            setTasks(allTasks || []);
+            setStaffers(allStaff || []);
+            setProjects(allProjects || []);
+        };
+        loadJava();
     }, [currentDate]);
+
+    const handleFilterChange = (key, value) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleClearFilters = () => {
+        setFilters({
+            staffId: '',
+            projectId: '',
+            alejoPass: false,
+            ronaldPass: false,
+            wietPass: false
+        });
+    };
 
     // Derived: Tasks events per day
     // We iterate days and find tasks.
     // Optimization: Create a map date -> events
     const eventsByDate = useMemo(() => {
         const map = {};
-        tasks.forEach(task => {
+
+        // FILTER TASKS
+        const filteredTasks = tasks.filter(t => {
+            // Responsible Filter
+            if (filters.staffId && t.staff_id != filters.staffId && t.asignado_a != filters.staffId) return false;
+            // Project Filter
+            if (filters.projectId && t.proyecto_id != filters.projectId && t.proyecto?.id != filters.projectId) return false;
+            // Approvals Filter (OR logic or AND logic? Usually AND if checked)
+            // If checkbox is checked, task MUST require/have that pass? 
+            // "Filtra por Alejo Paz..." usually means show items related to that.
+            // Let's assume: Show tasks where THAT condition is true. 
+            if (filters.alejoPass && !t.AlejoPass) return false;
+            if (filters.ronaldPass && !t.RonaldPass) return false;
+            if (filters.wietPass && !t.WietPass) return false;
+
+            return true;
+        });
+
+        filteredTasks.forEach(task => {
             if (task.fecha_inicio) {
                 const start = task.fecha_inicio.split('T')[0]; // Simple ISO date string
                 if (!map[start]) map[start] = [];
@@ -138,6 +186,18 @@ const MonthlyCalendar = () => {
                 <h2 className="text-xl font-bold text-gray-900">
                     {format(currentDate, 'MMMM yyyy', { locale: es }).toUpperCase()}
                 </h2>
+
+                {/* Filters Relocated to Header */}
+                <div className="flex-1 px-4">
+                    <CalendarFilterBar
+                        staffers={staffers}
+                        projects={projects}
+                        filters={filters}
+                        onFilterChange={handleFilterChange}
+                        onClear={handleClearFilters}
+                    />
+                </div>
+
                 <div className="flex bg-gray-100 rounded-lg p-0.5">
                     <button
                         onClick={handlePrevMonth}
@@ -159,6 +219,8 @@ const MonthlyCalendar = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Filters Relocated - Removed */}
 
             {/* Calendar Grid */}
             <div className="flex-1 overflow-auto pb-[300px]">
@@ -195,7 +257,7 @@ const MonthlyCalendar = () => {
                                 onClick={() => handleDayClick(day)}
                                 className={`
                                     min-h-[100px] border-r border-b border-gray-200 p-2 cursor-pointer
-                                    hover:bg-blue-50 transition-colors
+                                    hover:bg-blue-50 transition-colors group relative
                                     ${isTaskInRange ? 'bg-blue-100' : (!isCurrentMonth ? 'bg-gray-50/50 text-gray-400' : 'bg-white')}
                                     ${isCurrentDay && !isTaskInRange ? 'bg-blue-50/50' : ''}
                                 `}
@@ -206,6 +268,26 @@ const MonthlyCalendar = () => {
                                     ${isCurrentDay ? 'text-blue-600' : isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
                                 `}>
                                     {dayNumber}
+                                </div>
+
+                                {/* Add Task Button (Visible on Hover) */}
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            dispatch(initCreateTask({
+                                                task_description: '',
+                                                fecha_inicio: format(day, 'yyyy-MM-dd'),
+                                                fecha_fin_estimada: format(day, 'yyyy-MM-dd'),
+                                                proyecto_id: null,
+                                                espacio_uuid: null,
+                                            }));
+                                        }}
+                                        className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded shadow-sm hover:scale-110 transition-transform"
+                                        title="Agregar Tarea"
+                                    >
+                                        <Plus size={12} strokeWidth={3} />
+                                    </button>
                                 </div>
 
                                 {/* Tasks/Actions for this day */}

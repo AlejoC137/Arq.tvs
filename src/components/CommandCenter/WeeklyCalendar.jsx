@@ -5,9 +5,11 @@ import { ChevronLeft, ChevronRight, Plus, Box, Layers } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { getWeeklyActions, toggleActionStatus, getTaskActions } from '../../services/actionsService';
 import { getWeeklyTasks, getProjects } from '../../services/tasksService';
+import { getStaffers } from '../../services/spacesService';
 import { getProjectColor } from '../../utils/projectColors';
 import { setSelectedAction, setSelectedTask, clearSelection, initCreateAction, initCreateTask, setDayMode } from '../../store/actions/appActions';
 import ActionInspectorPanel from './ActionInspectorPanel';
+import CalendarFilterBar from './CalendarFilterBar';
 
 // === HELPER: Height Calculation ===
 const CARD_BASE_HEIGHT = 28; // Header + padding
@@ -242,7 +244,14 @@ export default function WeeklyCalendar() {
     const [actions, setActions] = useState([]);
     const [weekTasks, setWeekTasks] = useState([]);
     const [projects, setProjects] = useState([]);
-    const [selectedProjectFilter, setSelectedProjectFilter] = useState('all');
+    const [staffers, setStaffers] = useState([]);
+    const [filters, setFilters] = useState({
+        staffId: '',
+        projectId: '',
+        alejoPass: false,
+        ronaldPass: false,
+        wietPass: false
+    });
     const [loading, setLoading] = useState(true);
 
     const [dragStart, setDragStart] = useState(null);
@@ -282,7 +291,13 @@ export default function WeeklyCalendar() {
     };
 
     useEffect(() => {
-        getProjects().then(setProjects).catch(console.error);
+        Promise.all([
+            getProjects(),
+            getStaffers()
+        ]).then(([projs, staff]) => {
+            setProjects(projs || []);
+            setStaffers(staff || []);
+        });
     }, []);
 
     // === GROUPING & EXPANSION LOGIC ===
@@ -293,8 +308,20 @@ export default function WeeklyCalendar() {
         const expanded = [];
         const weekEnd = addDays(weekStart, 6);
 
+        // --- FILTERING LOGIC ---
+        const activeFilters = filters;
+        const passFilter = (t) => {
+            if (activeFilters.staffId && t.staff_id != activeFilters.staffId && t.asignado_a != activeFilters.staffId) return false;
+            if (activeFilters.projectId && t.proyecto_id != activeFilters.projectId && t.proyecto?.id != activeFilters.projectId) return false;
+            if (activeFilters.alejoPass && !t.AlejoPass) return false;
+            if (activeFilters.ronaldPass && !t.RonaldPass) return false;
+            if (activeFilters.wietPass && !t.WietPass) return false;
+            return true;
+        };
+
         // 1. Initialize Groups from Week Tasks (Source of Truth for Tasks)
         weekTasks.forEach(task => {
+            if (!passFilter(task)) return;
             groups[task.id] = {
                 type: 'task_group',
                 id: `task_group_${task.id}`,
@@ -304,10 +331,13 @@ export default function WeeklyCalendar() {
         });
 
         // 2. Distribute Actions
+        // 2. Distribute Actions
         actions.forEach(action => {
             if (action.tarea && action.tarea.id) {
-                // If group doesn't exist (e.g. task not in getWeeklyTasks but action is? Should likely not happen often if logic matches)
-                // But let's be safe and create it.
+                // Check if task passes filter (even if not in weekTasks list)
+                if (!passFilter(action.tarea)) return; // SKIP action if parent task fails filter
+
+                // If group doesn't exist etc...
                 if (!groups[action.tarea.id]) {
                     groups[action.tarea.id] = {
                         type: 'task_group',
@@ -316,10 +346,16 @@ export default function WeeklyCalendar() {
                         actions: []
                     };
                 }
-                // Avoid duplicates if we fetched same actions twice?
-                // keys should be unique usually.
                 groups[action.tarea.id].actions.push(action);
             } else {
+                // Orphan action? Apply filters?
+                // Probably minimal filters since it has no parent task metadata usually?
+                // Skip filtering for pure orphans or try best effort?
+                // Let's assume we filter orphans if they have embedded metadata matching filters.
+                // But usually orphans in this system are rare or have partial data.
+                // For safety: if filters are active, maybe hide orphans?
+                // Or try to match if fields exist.
+                // For now allow orphans unless strictly filtered.
                 if (action.fecha_ejecucion) {
                     orphans.push({
                         type: 'action',
@@ -378,7 +414,21 @@ export default function WeeklyCalendar() {
         });
 
         return [...expanded, ...orphans];
-    }, [actions, weekTasks, weekStart]); // Re-calc when actions, weekTasks or week changes
+    }, [actions, weekTasks, weekStart, filters]); // Added filters dependency
+
+    const handleFilterChange = (key, value) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleClearFilters = () => {
+        setFilters({
+            staffId: '',
+            projectId: '',
+            alejoPass: false,
+            ronaldPass: false,
+            wietPass: false
+        });
+    };
 
     // No longer a single global layout. We calculate layout per project row during render or memoize it grouped.
     // Let's Group items by project, then calculate layout for each project.
@@ -388,7 +438,9 @@ export default function WeeklyCalendar() {
         // But better to just group present items and maybe fill gaps with known projects
 
         // 1. Create buckets for all projects (or filtered)
-        const visibleProjects = projects.filter(p => selectedProjectFilter === 'all' || p.id === selectedProjectFilter);
+        // If Project Filter is active, ONLY show that project bucket.
+        const visibleProjects = projects.filter(p => !filters.projectId || p.id === filters.projectId);
+
         visibleProjects.forEach(p => {
             groups[p.id] = { project: p, items: [] };
         });
@@ -410,7 +462,7 @@ export default function WeeklyCalendar() {
         // Let's keep empty project rows so the user sees them.
 
         return groups;
-    }, [expandedItems, projects, selectedProjectFilter]);
+    }, [expandedItems, projects, filters.projectId]);
 
     // Calculate layout for EACH project group
     const projectLayouts = useMemo(() => {
@@ -514,28 +566,24 @@ export default function WeeklyCalendar() {
     return (
         <div className="h-screen flex flex-col bg-white dark:bg-zinc-950 font-sans overflow-hidden" onMouseUp={handleMouseUp}>
             <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-zinc-800 shrink-0 bg-white z-10">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                        {format(weekStart, 'MMMM yyyy', { locale: es }).toUpperCase()}
-                    </h2>
-                    <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-0.5">
-                        <button onClick={() => setCurrentDate(addDays(currentDate, -7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronLeft size={16} /></button>
-                        <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs font-medium hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-all">Hoy</button>
-                        <button onClick={() => setCurrentDate(addDays(currentDate, 7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronRight size={16} /></button>
-                    </div>
+                <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent transform translate-y-[-2px]">
+                    {format(weekStart, 'MMMM yyyy', { locale: es }).toUpperCase()}
+                </h2>
 
-                    {/* Project Filter */}
-                    <div className="flex items-center gap-2 border-l pl-4 ml-2 border-gray-200">
-                        <span className="text-xs font-bold text-gray-400 uppercase">Filtrar:</span>
-                        <select
-                            value={selectedProjectFilter}
-                            onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                            className="text-xs border-gray-200 rounded-md py-1 pr-8 pl-2 shadow-sm focus:ring-blue-500 max-w-[200px]"
-                        >
-                            <option value="all">Todos los Proyectos</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                    </div>
+                <div className="flex-1 px-4">
+                    <CalendarFilterBar
+                        staffers={staffers}
+                        projects={projects}
+                        filters={filters}
+                        onFilterChange={handleFilterChange}
+                        onClear={handleClearFilters}
+                    />
+                </div>
+
+                <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                    <button onClick={() => setCurrentDate(addDays(currentDate, -7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronLeft size={16} /></button>
+                    <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs font-medium hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-all">Hoy</button>
+                    <button onClick={() => setCurrentDate(addDays(currentDate, 7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronRight size={16} /></button>
                 </div>
             </div>
 
