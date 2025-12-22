@@ -62,7 +62,7 @@ const TaskEventCard = ({ task, type, onClick }) => {
 const MonthlyCalendar = () => {
     const dispatch = useDispatch();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const { selectedTask } = useSelector(state => state.app);
+    const { selectedTask, panelMode } = useSelector(state => state.app);
 
     // Get all days to display (including padding days from prev/next month)
     const monthStart = startOfMonth(currentDate);
@@ -82,6 +82,11 @@ const MonthlyCalendar = () => {
         ronaldPass: false,
         wietPass: false
     });
+
+    // UI State for Panel
+    const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
+    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
+    const paddingBottom = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
 
     // Load tasks & metadata
     React.useEffect(() => {
@@ -223,7 +228,10 @@ const MonthlyCalendar = () => {
             {/* Filters Relocated - Removed */}
 
             {/* Calendar Grid */}
-            <div className="flex-1 overflow-auto pb-[300px]">
+            <div
+                className="flex-1 overflow-auto"
+                style={{ paddingBottom: paddingBottom, transition: 'padding-bottom 0.3s ease' }}
+            >
                 {/* Weekday Headers */}
                 <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
                     {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (
@@ -310,7 +318,10 @@ const MonthlyCalendar = () => {
                     })}
                 </div>
             </div>
-            <ActionInspectorPanel onActionUpdated={handleActionUpdated} />
+            <ActionInspectorPanel
+                onActionUpdated={handleActionUpdated}
+                onCollapseChange={setIsInspectorCollapsed}
+            />
         </div>
     );
 };

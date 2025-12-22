@@ -8,7 +8,7 @@ import { createTask, updateTask, getProjects, deleteTask, getTasksByDate, getSta
 import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check } from 'lucide-react';
 import { format } from 'date-fns';
 
-const ActionInspectorPanel = ({ onActionUpdated }) => {
+const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const dispatch = useDispatch();
     const { selectedAction, selectedTask, selectedDate, panelMode } = useSelector(state => state.app);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -511,7 +511,11 @@ const ActionInspectorPanel = ({ onActionUpdated }) => {
                 </div>
                 <div className="flex items-center gap-1.5">
                     <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        onClick={() => {
+                            const newState = !isCollapsed;
+                            setIsCollapsed(newState);
+                            if (onCollapseChange) onCollapseChange(newState);
+                        }}
                         className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 rounded transition-colors mr-1"
                         title={isCollapsed ? "Expandir" : "Contraer"}
                     >

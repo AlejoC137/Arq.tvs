@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { format, addDays, startOfWeek, isSameDay, isToday, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Plus, Box, Layers } from 'lucide-react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { getWeeklyActions, toggleActionStatus, getTaskActions } from '../../services/actionsService';
 import { getWeeklyTasks, getProjects } from '../../services/tasksService';
 import { getStaffers } from '../../services/spacesService';
@@ -563,6 +563,13 @@ export default function WeeklyCalendar() {
         }
     };
 
+    const { navigation, selectedTask, selectedAction, panelMode } = useSelector(state => state.app);
+    const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
+
+    // Calculate margin based on panel visibility and collapse state
+    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
+    const bottomMargin = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
+
     return (
         <div className="h-screen flex flex-col bg-white dark:bg-zinc-950 font-sans overflow-hidden" onMouseUp={handleMouseUp}>
             <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-zinc-800 shrink-0 bg-white z-10">
@@ -602,7 +609,10 @@ export default function WeeklyCalendar() {
             </div>
 
             {/* Rows by Project */}
-            <div className="flex-1 overflow-y-auto mb-[300px]">
+            <div
+                className="flex-1 overflow-y-auto"
+                style={{ marginBottom: bottomMargin, transition: 'margin-bottom 0.3s ease' }}
+            >
                 {Object.entries(projectGroups).map(([pid, group]) => {
                     // Check if empty rows should be hidden if desired? 
                     // User's image shows empty projects too. Keep them.
@@ -689,7 +699,10 @@ export default function WeeklyCalendar() {
                 })}
             </div>
 
-            <ActionInspectorPanel onActionUpdated={handleActionUpdated} />
+            <ActionInspectorPanel
+                onActionUpdated={handleActionUpdated}
+                onCollapseChange={setIsInspectorCollapsed}
+            />
         </div>
     );
 }
