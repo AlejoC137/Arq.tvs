@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Search, User, Calendar, Tag, Edit } from 'lucide-react';
-import { getProtocols, getProtocolCategories } from '../../services/protocolsService';
+import { FileText, Search, User, Calendar, Tag, Edit, Plus, Save, X } from 'lucide-react';
+import { getProtocols, getProtocolCategories, createProtocol, updateProtocol } from '../../services/protocolsService';
 import ReactMarkdown from 'react-markdown';
 
 const ProtocolsView = () => {
@@ -10,6 +10,16 @@ const ProtocolsView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedProtocol, setSelectedProtocol] = useState(null);
+
+    // Creation/Editing State
+    const [isCreating, setIsCreating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [newProtocol, setNewProtocol] = useState({
+        Nombre: '',
+        Categoria: '',
+        Contenido: ''
+    });
 
     useEffect(() => {
         loadData();
@@ -47,15 +57,73 @@ const ProtocolsView = () => {
         });
     };
 
+    const handleStartCreate = () => {
+        setIsCreating(true);
+        setIsEditing(false);
+        setSelectedProtocol(null);
+        setNewProtocol({ Nombre: '', Categoria: '', Contenido: '' });
+    };
+
+    const handleStartEdit = () => {
+        if (!selectedProtocol) return;
+        setNewProtocol({
+            Nombre: selectedProtocol.Nombre,
+            Categoria: selectedProtocol.Categoria,
+            Contenido: selectedProtocol.Contenido || ''
+        });
+        setIsEditing(true);
+        setIsCreating(false);
+    };
+
+    const handleCancelCreate = () => {
+        setIsCreating(false);
+        setIsEditing(false);
+        setNewProtocol({ Nombre: '', Categoria: '', Contenido: '' });
+    };
+
+    const handleSaveProtocol = async () => {
+        if (!newProtocol.Nombre.trim()) return alert('El nombre es obligatorio');
+
+        setSaving(true);
+        try {
+            if (isEditing && selectedProtocol) {
+                const updated = await updateProtocol(selectedProtocol.id, newProtocol);
+                setProtocols(protocols.map(p => p.id === updated.id ? updated : p));
+                setCategories([...new Set([...categories, updated.Categoria].filter(Boolean))].sort());
+                setIsEditing(false);
+                setSelectedProtocol(updated);
+            } else {
+                const created = await createProtocol(newProtocol);
+                setProtocols([created, ...protocols]);
+                setCategories([...new Set([...categories, created.Categoria].filter(Boolean))].sort());
+                setIsCreating(false);
+                setSelectedProtocol(created);
+            }
+        } catch (error) {
+            alert('Error al guardar: ' + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="h-full flex bg-white">
             {/* LEFT: Protocols List */}
             <div className="w-96 border-r border-gray-200 flex flex-col">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <FileText size={20} className="text-blue-600" />
-                        Protocolos
+                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2">
+                            <FileText size={20} className="text-blue-600" />
+                            Protocolos
+                        </span>
+                        <button
+                            onClick={handleStartCreate}
+                            className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                            title="Nuevo Protocolo"
+                        >
+                            <Plus size={16} />
+                        </button>
                     </h2>
 
                     {/* Search */}
@@ -120,9 +188,70 @@ const ProtocolsView = () => {
                 </div>
             </div>
 
-            {/* RIGHT: Protocol Details */}
+            {/* RIGHT: Protocol Details or Create/Edit Form */}
             <div className="flex-1 flex flex-col">
-                {selectedProtocol ? (
+                {isCreating || isEditing ? (
+                    <div className="flex flex-col h-full bg-white">
+                        {/* Create/Edit Header */}
+                        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-gray-900">
+                                {isEditing ? 'Editar Protocolo' : 'Nuevo Protocolo'}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleCancelCreate}
+                                    className="flex items-center gap-1 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium"
+                                >
+                                    <X size={16} /> Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSaveProtocol}
+                                    disabled={saving}
+                                    className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                                >
+                                    {saving ? 'Guardando...' : <><Save size={16} /> Guardar</>}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Create Form */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Título del Protocolo</label>
+                                <input
+                                    type="text"
+                                    value={newProtocol.Nombre}
+                                    onChange={e => setNewProtocol({ ...newProtocol, Nombre: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Ej: Protocolo de Seguridad..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                                <input
+                                    list="categories-list"
+                                    type="text"
+                                    value={newProtocol.Categoria}
+                                    onChange={e => setNewProtocol({ ...newProtocol, Categoria: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Selecciona o escribe una nueva..."
+                                />
+                                <datalist id="categories-list">
+                                    {categories.map(cat => <option key={cat} value={cat} />)}
+                                </datalist>
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Contenido (Markdown soportado)</label>
+                                <textarea
+                                    value={newProtocol.Contenido}
+                                    onChange={e => setNewProtocol({ ...newProtocol, Contenido: e.target.value })}
+                                    className="w-full h-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                                    placeholder="# Título Principal&#10;&#10;Contenido del protocolo..."
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ) : selectedProtocol ? (
                     <>
                         {/* Header */}
                         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
@@ -157,7 +286,10 @@ const ProtocolsView = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                <button
+                                    onClick={handleStartEdit}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                                >
                                     <Edit size={16} />
                                     Editar
                                 </button>

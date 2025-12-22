@@ -32,7 +32,9 @@ export const getTaskById = async (taskId) => {
             *,
             proyecto:Proyectos(id, name),
             espacio:Espacio_Elemento(_id, nombre, tipo),
-            staff:Staff(id, name)
+            staff:Staff(id, name),
+            condicionada_por_task:Tareas!condicionada_por(id, task_description),
+            condiciona_a_task:Tareas!condiciona_a(id, task_description)
         `)
         .eq('id', taskId)
         .single();
@@ -40,6 +42,25 @@ export const getTaskById = async (taskId) => {
     if (error) {
         console.error('Error fetching task:', error);
         throw error;
+    }
+    return data;
+};
+
+/**
+ * Busca tareas por nombre (para autocompletado)
+ */
+export const searchTasks = async (query) => {
+    if (!query || query.length < 2) return [];
+
+    const { data, error } = await supabase
+        .from('Tareas')
+        .select('id, task_description, proyecto:Proyectos(name)')
+        .ilike('task_description', `%${query}%`)
+        .limit(10);
+
+    if (error) {
+        console.error('Error searching tasks:', error);
+        return [];
     }
     return data;
 };
@@ -191,7 +212,9 @@ export const getWeeklyTasks = async (currentDate = new Date()) => {
           proyecto:Proyectos(id, name),
           espacio:Espacio_Elemento(_id, nombre, tipo),
           staff:Staff(id, name),
-          stage:Stage(id, name)
+          stage:Stage(id, name),
+          condicionada_por_task:Tareas!condicionada_por(id, task_description),
+          condiciona_a_task:Tareas!condiciona_a(id, task_description)
       `)
         .or(`and(fecha_inicio.gte.${startStr},fecha_inicio.lte.${endStr}),and(fecha_fin_estimada.gte.${startStr},fecha_fin_estimada.lte.${endStr})`);
 

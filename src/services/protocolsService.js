@@ -65,3 +65,23 @@ export const updateProtocol = async (protocolId, updates) => {
     if (error) throw error;
     return data[0];
 };
+
+/**
+ * Crea un nuevo protocolo
+ */
+export const createProtocol = async (protocolData) => {
+    const { data, error } = await supabase
+        .from('Protocolos')
+        .insert([{
+            ...protocolData,
+            FechaUpdate: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating protocol:', error);
+        throw error;
+    }
+    return data;
+};

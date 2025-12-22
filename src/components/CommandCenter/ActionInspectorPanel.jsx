@@ -5,6 +5,7 @@ import { updateAction, createAction, getTaskActions, updateActionsOrder, deleteA
 import { getSpaceComponents, updateComponent } from '../../services/componentsService';
 import { getSpaces, getSpaceDetails, updateSpace, getStaffers } from '../../services/spacesService';
 import { createTask, updateTask, getProjects, deleteTask, getTasksByDate, getStages } from '../../services/tasksService';
+import TaskDependencySelector from './TaskDependencySelector'; // Import Selector
 import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -107,9 +108,12 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 stage_id: selectedTask.stage_id || '',
                 status: selectedTask.status || 'Activa',
                 notes: selectedTask.notes || '',
-                RonaldPass: selectedTask.RonaldPass || false,
                 WietPass: selectedTask.WietPass || false,
                 AlejoPass: selectedTask.AlejoPass || false,
+                condicionada_por: selectedTask.condicionada_por || null,
+                condiciona_a: selectedTask.condiciona_a || null,
+                condicionada_por_task: selectedTask.condicionada_por_task || null, // For initial display
+                condiciona_a_task: selectedTask.condiciona_a_task || null,       // For initial display
                 fullActions: [] // We don't load actions into form state for edit mode, we use components state
             });
         }
@@ -315,7 +319,10 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 if (taskForm.notes !== selectedTask.notes) updates.notes = taskForm.notes;
                 if (taskForm.RonaldPass !== selectedTask.RonaldPass) updates.RonaldPass = taskForm.RonaldPass;
                 if (taskForm.WietPass !== selectedTask.WietPass) updates.WietPass = taskForm.WietPass;
+                if (taskForm.WietPass !== selectedTask.WietPass) updates.WietPass = taskForm.WietPass;
                 if (taskForm.AlejoPass !== selectedTask.AlejoPass) updates.AlejoPass = taskForm.AlejoPass;
+                if (taskForm.condicionada_por !== selectedTask.condicionada_por) updates.condicionada_por = taskForm.condicionada_por || null;
+                if (taskForm.condiciona_a !== selectedTask.condiciona_a) updates.condiciona_a = taskForm.condiciona_a || null;
 
                 let updatedTaskData = selectedTask;
                 if (Object.keys(updates).length > 0) {
@@ -450,6 +457,22 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
         dispatch(setSelectedTask(task));
     };
 
+    const handleNavToTask = async (taskId) => {
+        if (!taskId) return;
+        try {
+            setLoading(true);
+            const task = await getTaskById(taskId);
+            if (task) {
+                dispatch(setSelectedTask(task));
+            }
+        } catch (error) {
+            console.error("Error navigating to task:", error);
+            alert("No se pudo cargar la tarea vinculada.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
 
     // Determine visibility and height classes
@@ -505,6 +528,30 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                     value={taskForm.WietPass}
                                     onChange={(val) => handleTaskChange('WietPass', val)}
                                 />
+                            </div>
+
+                            {/* Dependencies Selectors - Widened container */}
+                            <div className="flex items-center gap-2 border-l border-gray-200 pl-3 w-[450px]">
+                                <div className="flex-1 min-w-0">
+                                    <TaskDependencySelector
+                                        label="Condicionada Por"
+                                        value={taskForm.condicionada_por}
+                                        initialItem={taskForm.condicionada_por_task}
+                                        onChange={(val) => handleTaskChange('condicionada_por', val)}
+                                        onEdit={(item) => handleNavToTask(item.id)}
+                                        placeholder="Buscar..."
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <TaskDependencySelector
+                                        label="Condiciona A"
+                                        value={taskForm.condiciona_a}
+                                        initialItem={taskForm.condiciona_a_task}
+                                        onChange={(val) => handleTaskChange('condiciona_a', val)}
+                                        onEdit={(item) => handleNavToTask(item.id)}
+                                        placeholder="Buscar..."
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}
