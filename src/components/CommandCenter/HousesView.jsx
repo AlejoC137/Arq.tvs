@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2 } from 'lucide-react';
-import { useSelector } from 'react-redux';
-import { getHouses, getParcels, updateProject } from '../../services/projectsService';
+import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { getHouses, getParcels, updateProject, createProject, deleteProject } from '../../services/projectsService';
+import { getTasksByProject } from '../../services/tasksService';
+import { getSpaces } from '../../services/spacesService';
+import { setSelectedTask } from '../../store/actions/appActions';
 
 const HousesView = () => {
+    const dispatch = useDispatch();
     const { navigation } = useSelector(state => state.app);
     const propertyView = navigation?.propertyView || 'houses';
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
+    const [spaces, setSpaces] = useState([]);
+    const [projectTasks, setProjectTasks] = useState([]);
+    const [loadingTasks, setLoadingTasks] = useState(false);
 
     // Inline editing state
     const [formData, setFormData] = useState({
@@ -24,7 +31,17 @@ const HousesView = () => {
 
     useEffect(() => {
         loadProjects();
+        loadSpaces();
     }, [propertyView]);
+
+    const loadSpaces = async () => {
+        try {
+            const spacesData = await getSpaces();
+            setSpaces(spacesData || []);
+        } catch (error) {
+            console.error('Error loading spaces:', error);
+        }
+    };
 
     // Load form data when project is selected
     useEffect(() => {
@@ -39,8 +56,21 @@ const HousesView = () => {
                 presentacionesEspacio: datos?.presentacionesEspacio || []
             });
             setHasChanges(false);
+            loadProjectTasks(selectedProject.id);
         }
     }, [selectedProject]);
+
+    const loadProjectTasks = async (projectId) => {
+        setLoadingTasks(true);
+        try {
+            const tasks = await getTasksByProject(projectId);
+            setProjectTasks(tasks || []);
+        } catch (error) {
+            console.error('Error loading project tasks:', error);
+        } finally {
+            setLoadingTasks(false);
+        }
+    };
 
     const parseData = (datos) => {
         if (!datos) return {};
@@ -104,6 +134,44 @@ const HousesView = () => {
         } catch (error) {
             console.error('Error saving:', error);
             alert('Error al guardar: ' + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleCreateNewProject = async () => {
+        const name = prompt('Nombre de la nueva casa:');
+        if (!name || !name.trim()) return;
+
+        setLoading(true);
+        try {
+            const newProj = await createProject({
+                name: name.trim(),
+                status: 'Activo',
+                Datos: { etapa: 'Planificación' }
+            });
+            setProjects(prev => [...prev, newProj].sort((a, b) => a.name.localeCompare(b.name)));
+            setSelectedProject(newProj);
+        } catch (error) {
+            console.error('Error creating project:', error);
+            alert('Error al crear casa: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteProject = async () => {
+        if (!selectedProject?.id) return;
+        if (!confirm(`¿Estás seguro de que deseas eliminar "${selectedProject.name}"? Esta acción no se puede deshacer.`)) return;
+
+        setSaving(true);
+        try {
+            await deleteProject(selectedProject.id);
+            setProjects(prev => prev.filter(p => p.id !== selectedProject.id));
+            setSelectedProject(null);
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            alert('Error al eliminar casa: ' + error.message);
         } finally {
             setSaving(false);
         }
@@ -176,25 +244,40 @@ const HousesView = () => {
         setHasChanges(true);
     };
 
+    const handleTaskClick = (task) => {
+        dispatch(setSelectedTask(task));
+    };
+
     return (
         <div className="h-full flex bg-white">
-            {/* LEFT: ENRICHED SIDEBAR */}
+            {/* LEFT: SIDEBAR */}
             <div className="w-80 border-r border-gray-200 flex flex-col">
                 {/* Header */}
-                <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        {propertyView === 'parcels' ? (
-                            <><MapPin size={20} className="text-blue-600" /> Parcelación</>
-                        ) : (
-                            <><Home size={20} className="text-blue-600" /> Casas del Proyecto</>
-                        )}
-                    </h2>
-                    <p className="text-xs text-gray-600">
-                        {projects.length} {propertyView === 'parcels' ? 'proyecto' : 'casas'}
-                    </p>
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+                            {propertyView === 'parcels' ? (
+                                <><MapPin size={20} className="text-blue-600" /> Parcelación</>
+                            ) : (
+                                <><Home size={20} className="text-blue-600" /> Casas del Proyecto</>
+                            )}
+                        </h2>
+                        <p className="text-xs text-gray-600">
+                            {projects.length} {propertyView === 'parcels' ? 'proyecto' : 'casas'}
+                        </p>
+                    </div>
+                    {propertyView !== 'parcels' && (
+                        <button
+                            onClick={handleCreateNewProject}
+                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                            title="Nueva Casa"
+                        >
+                            <Plus size={16} strokeWidth={3} />
+                        </button>
+                    )}
                 </div>
 
-                {/* Projects List - ENRICHED */}
+                {/* Projects List */}
                 <div className="flex-1 overflow-y-auto">
                     {loading ? (
                         <div className="p-4 text-center text-sm text-gray-500">Cargando...</div>
@@ -214,18 +297,10 @@ const HousesView = () => {
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                            {propertyView === 'parcels' ? (
-                                                <MapPin size={20} className="text-blue-600" />
-                                            ) : (
-                                                <Home size={20} className="text-blue-600" />
-                                            )}
+                                            {propertyView === 'parcels' ? <MapPin size={20} className="text-blue-600" /> : <Home size={20} className="text-blue-600" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            {/* Name - Bold */}
-                                            <div className="font-medium text-sm text-gray-900">
-                                                {project.name}
-                                            </div>
-                                            {/* Etapa Badge */}
+                                            <div className="font-medium text-sm text-gray-900 truncate">{project.name}</div>
                                             <span className={`inline-block mt-1 px-2 py-0.5 text-[10px] font-medium rounded-full ${getEtapaColor(etapa)}`}>
                                                 {etapa}
                                             </span>
@@ -238,20 +313,29 @@ const HousesView = () => {
                 </div>
             </div>
 
-            {/* RIGHT: INLINE EDITOR PANEL */}
+            {/* RIGHT: EDITOR PANEL */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {selectedProject ? (
                     <>
-                        {/* Header with Save Button */}
+                        {/* Header */}
                         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
                                     <Home size={24} className="text-blue-600" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900">
-                                        {formData.name || 'Sin nombre'}
-                                    </h3>
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-lg font-bold text-gray-900">{formData.name || 'Sin nombre'}</h3>
+                                        {propertyView !== 'parcels' && (
+                                            <button
+                                                onClick={handleDeleteProject}
+                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Eliminar Casa"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
                                     <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded-full ${getEtapaColor(formData.etapa)}`}>
                                         {formData.etapa || 'Sin etapa'}
                                     </span>
@@ -260,182 +344,144 @@ const HousesView = () => {
                             <button
                                 onClick={handleSave}
                                 disabled={saving || !hasChanges}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${hasChanges
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    }`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${hasChanges ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                             >
-                                {saving ? (
-                                    <><Loader2 size={16} className="animate-spin" /> Guardando...</>
-                                ) : (
-                                    <><Save size={16} /> Guardar</>
-                                )}
+                                {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
                             </button>
                         </div>
 
-                        {/* Inline Edit Form */}
+                        {/* Editor Form */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            <div className="max-w-3xl space-y-6">
-                                {/* Basic Info Grid */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
-                                            Nombre
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.name}
-                                            onChange={(e) => handleFieldChange('name', e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        />
+                            <div className="max-w-5xl grid grid-cols-12 gap-8">
+                                {/* Form Section */}
+                                <div className="col-span-12 lg:col-span-7 space-y-6">
+                                    {/* Info Grid */}
+                                    <div className="grid grid-cols-2 gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nombre</label>
+                                            <input type="text" value={formData.name} onChange={(e) => handleFieldChange('name', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20" />
+                                        </div>
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Responsable</label>
+                                            <input type="text" value={formData.responsable} onChange={(e) => handleFieldChange('responsable', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20" placeholder="Nombre..." />
+                                        </div>
+                                        <div className="col-span-1">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Etapa</label>
+                                            <select value={formData.etapa} onChange={(e) => handleFieldChange('etapa', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="Planificación">Planificación</option>
+                                                <option value="Obra Negra">Obra Negra</option>
+                                                <option value="Acabados">Acabados</option>
+                                                <option value="Entrega">Entrega</option>
+                                            </select>
+                                        </div>
+                                        <div className="col-span-1">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Estado</label>
+                                            <select value={formData.status} onChange={(e) => handleFieldChange('status', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="Activo">Activo</option>
+                                                <option value="Pausado">Pausado</option>
+                                                <option value="Completado">Completado</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
-                                            Responsable
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={formData.responsable}
-                                            onChange={(e) => handleFieldChange('responsable', e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                            placeholder="Nombre del responsable..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
-                                            Etapa
-                                        </label>
-                                        <select
-                                            value={formData.etapa}
-                                            onChange={(e) => handleFieldChange('etapa', e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Planificación">Planificación</option>
-                                            <option value="Obra Negra">Obra Negra</option>
-                                            <option value="Acabados">Acabados</option>
-                                            <option value="Entrega">Entrega</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
-                                            Estado
-                                        </label>
-                                        <select
-                                            value={formData.status}
-                                            onChange={(e) => handleFieldChange('status', e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Activo">Activo</option>
-                                            <option value="Pausado">Pausado</option>
-                                            <option value="Completado">Completado</option>
-                                        </select>
-                                    </div>
-                                </div>
 
-                                {/* Materiales Constantes */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide">
-                                            Materiales Constantes
-                                        </label>
-                                        <button
-                                            onClick={handleAddMaterial}
-                                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                        >
-                                            <Plus size={14} /> Agregar
-                                        </button>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {formData.materialesConstantes.map((mat, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                                                <input
-                                                    type="text"
-                                                    value={mat.categoria}
-                                                    onChange={(e) => handleUpdateMaterial(idx, 'categoria', e.target.value)}
-                                                    placeholder="Categoría"
-                                                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={mat.nombre}
-                                                    onChange={(e) => handleUpdateMaterial(idx, 'nombre', e.target.value)}
-                                                    placeholder="Nombre"
-                                                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={mat.observaciones}
-                                                    onChange={(e) => handleUpdateMaterial(idx, 'observaciones', e.target.value)}
-                                                    placeholder="Observaciones"
-                                                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
-                                                />
-                                                <button
-                                                    onClick={() => handleRemoveMaterial(idx)}
-                                                    className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {formData.materialesConstantes.length === 0 && (
-                                            <p className="text-xs text-gray-400 italic p-2">No hay materiales definidos</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Presentaciones Canva */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide">
-                                            Links de Presentaciones (Canva)
-                                        </label>
-                                        <button
-                                            onClick={handleAddLink}
-                                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                        >
-                                            <Plus size={14} /> Agregar
-                                        </button>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {formData.presentacionesEspacio.map((pres, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                                                <input
-                                                    type="text"
-                                                    value={pres.espacio}
-                                                    onChange={(e) => handleUpdateLink(idx, 'espacio', e.target.value)}
-                                                    placeholder="Espacio"
-                                                    className="w-32 px-2 py-1 text-xs border border-gray-300 rounded"
-                                                />
-                                                <input
-                                                    type="url"
-                                                    value={pres.link}
-                                                    onChange={(e) => handleUpdateLink(idx, 'link', e.target.value)}
-                                                    placeholder="https://www.canva.com/..."
-                                                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
-                                                />
-                                                {pres.link && (
-                                                    <a
-                                                        href={pres.link}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="p-1 text-blue-500 hover:bg-blue-50 rounded"
+                                    {/* Canva Links */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Presentaciones (Canva)</h4>
+                                            <button onClick={handleAddLink} className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-100">
+                                                <Plus size={14} /> AGREGAR LINK
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {formData.presentacionesEspacio.map((pres, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                    <select
+                                                        value={pres.espacio}
+                                                        onChange={(e) => handleUpdateLink(idx, 'espacio', e.target.value)}
+                                                        className="w-40 px-2 py-1 text-xs border border-gray-200 rounded-md focus:ring-1 focus:ring-blue-500 outline-none"
                                                     >
-                                                        <ExternalLink size={14} />
-                                                    </a>
-                                                )}
-                                                <button
-                                                    onClick={() => handleRemoveLink(idx)}
-                                                    className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {formData.presentacionesEspacio.length === 0 && (
-                                            <p className="text-xs text-gray-400 italic p-2">No hay links definidos</p>
-                                        )}
+                                                        <option value="">- Seleccionar Espacio -</option>
+                                                        {spaces.map(s => <option key={s._id} value={s.nombre}>{s.nombre}</option>)}
+                                                    </select>
+                                                    <input type="url" value={pres.link} onChange={(e) => handleUpdateLink(idx, 'link', e.target.value)} placeholder="Link URL..." className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
+                                                    {pres.link && (
+                                                        <a href={pres.link} target="_blank" rel="noopener noreferrer" className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md"><ExternalLink size={14} /></a>
+                                                    )}
+                                                    <button onClick={() => handleRemoveLink(idx)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"><Trash2 size={14} /></button>
+                                                </div>
+                                            ))}
+                                            {formData.presentacionesEspacio.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4 bg-gray-50/50 rounded-lg border border-dashed">No hay presentaciones definidas</p>}
+                                        </div>
+                                    </div>
+
+                                    {/* Materiales */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Materiales Constantes</h4>
+                                            <button onClick={handleAddMaterial} className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-100">
+                                                <Plus size={14} /> AGREGAR MATERIAL
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {formData.materialesConstantes.map((mat, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                    <input type="text" value={mat.categoria} onChange={(e) => handleUpdateMaterial(idx, 'categoria', e.target.value)} placeholder="Categoría" className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
+                                                    <input type="text" value={mat.nombre} onChange={(e) => handleUpdateMaterial(idx, 'nombre', e.target.value)} placeholder="Nombre del material" className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
+                                                    <input type="text" value={mat.observaciones} onChange={(e) => handleUpdateMaterial(idx, 'observaciones', e.target.value)} placeholder="Obs." className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
+                                                    <button onClick={() => handleRemoveMaterial(idx)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"><Trash2 size={14} /></button>
+                                                </div>
+                                            ))}
+                                            {formData.materialesConstantes.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4 bg-gray-50/50 rounded-lg border border-dashed">No hay materiales definidos</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Tasks Section Sidebar */}
+                                <div className="col-span-12 lg:col-span-5 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                                            <Calendar size={14} className="text-blue-600" /> Tareas de la Casa
+                                        </h4>
+                                        <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{projectTasks.length}</span>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                                        <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-100">
+                                            {loadingTasks ? (
+                                                <div className="p-8 text-center text-xs text-gray-500 flex flex-col items-center gap-2">
+                                                    <Loader2 size={24} className="animate-spin text-blue-600" />
+                                                    Cargando tareas...
+                                                </div>
+                                            ) : projectTasks.length === 0 ? (
+                                                <div className="p-8 text-center text-xs text-gray-400 italic">No hay tareas para esta casa</div>
+                                            ) : (
+                                                projectTasks.map(task => (
+                                                    <button
+                                                        key={task.id}
+                                                        onClick={() => handleTaskClick(task)}
+                                                        className="w-full text-left p-4 hover:bg-white hover:shadow-md transition-all group relative overflow-hidden"
+                                                    >
+                                                        {/* Status Stripe */}
+                                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${task.terminado ? 'bg-green-500' : 'bg-blue-400'}`} />
+
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <div className="font-bold text-xs text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                                                {task.task_description}
+                                                            </div>
+                                                            <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                                                                <span className="flex items-center gap-1"><Clock size={12} /> {task.fecha_inicio}</span>
+                                                                <span className="flex items-center gap-1"><CheckCircle size={12} className={task.terminado ? 'text-green-500' : 'text-gray-300'} /> {task.terminado ? 'Completada' : 'En curso'}</span>
+                                                            </div>
+                                                            {task.staff?.name && (
+                                                                <div className="text-[10px] font-medium text-gray-400 uppercase tracking-tight">Responsable: {task.staff.name}</div>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -443,18 +489,10 @@ const HousesView = () => {
                     </>
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-gray-400">
-                        <div className="text-center">
-                            {propertyView === 'parcels' ? (
-                                <>
-                                    <MapPin size={48} className="mx-auto mb-3 opacity-50" />
-                                    <p className="text-sm">Selecciona la parcelación para editar</p>
-                                </>
-                            ) : (
-                                <>
-                                    <Home size={48} className="mx-auto mb-3 opacity-50" />
-                                    <p className="text-sm">Selecciona una casa para editar</p>
-                                </>
-                            )}
+                        <div className="text-center p-8 border-2 border-dashed border-gray-100 rounded-3xl">
+                            <Home size={64} className="mx-auto mb-4 opacity-10" />
+                            <h3 className="text-xl font-bold text-gray-300 mb-1 tracking-tight">Gestión de Casas</h3>
+                            <p className="text-sm max-w-xs">{propertyView === 'parcels' ? 'Selecciona la parcelación en la barra lateral para editar los detalles generales del proyecto.' : 'Selecciona una casa o crea una nueva para comenzar a gestionar sus detalles y tareas.'}</p>
                         </div>
                     </div>
                 )}

@@ -39,7 +39,10 @@ Desglose atómico de las Tareas (Sub-tareas).
 ### Tabla: Proyectos (public."Proyectos")
 - `id` (uuid): PK.
 - `name` (text).
+- `responsable` (uuid): FK -> Staff.id.
+- `status` (uuid): FK? (Type is UUID in DB).
 - `Datos` (jsonb): **Columna JSON Crítica**. Contiene configuración de Canva y materiales constantes.
+- `espacios` (jsonb): Lista de IDs de espacios relacionados (opcional).
 - `Tasks` (text/json): Resúmenes o snapshots.
 
 ---

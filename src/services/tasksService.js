@@ -224,3 +224,24 @@ export const getWeeklyTasks = async (currentDate = new Date()) => {
     }
     return data || [];
 };
+
+/**
+ * Obtiene tareas por ID de proyecto
+ */
+export const getTasksByProject = async (projectId) => {
+    const { data, error } = await supabase
+        .from('Tareas')
+        .select(`
+            *,
+            staff:Staff(id, name),
+            stage:Stage(id, name)
+        `)
+        .eq('project_id', projectId)
+        .order('fecha_inicio', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching tasks by project:', error);
+        throw error;
+    }
+    return data || [];
+};

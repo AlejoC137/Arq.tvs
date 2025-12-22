@@ -22,7 +22,7 @@ export const getProjects = async () => {
 export const getProjectById = async (projectId) => {
     const { data, error } = await supabase
         .from('Proyectos')
-        .select('*')
+        .select('id, name, responsable, status, Datos')
         .eq('id', projectId)
         .single();
 
@@ -119,4 +119,42 @@ export const updateProject = async (projectId, updates) => {
         throw error;
     }
     return data;
+};
+
+/**
+ * Crea un nuevo proyecto
+ */
+export const createProject = async (projectData) => {
+    const { data, error } = await supabase
+        .from('Proyectos')
+        .insert([{
+            name: projectData.name,
+            responsable: projectData.responsable || null,
+            status: projectData.status && projectData.status !== 'Activo' ? projectData.status : null,
+            Datos: projectData.Datos || {}
+        }])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating project:', error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Elimina un proyecto
+ */
+export const deleteProject = async (projectId) => {
+    const { error } = await supabase
+        .from('Proyectos')
+        .delete()
+        .eq('id', projectId);
+
+    if (error) {
+        console.error('Error deleting project:', error);
+        throw error;
+    }
+    return true;
 };
