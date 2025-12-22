@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, addDays, startOfWeek, isSameDay, isToday, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Box, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Box, Layers, PlayCircle, PauseCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getWeeklyActions, toggleActionStatus, getTaskActions } from '../../services/actionsService';
 import { getWeeklyTasks, getProjects } from '../../services/tasksService';
 import { getStaffers } from '../../services/spacesService';
 import { getProjectColor } from '../../utils/projectColors';
+import { getStaffColor } from '../../utils/staffColors';
+import { getStageColor } from '../../utils/stageColors';
 import { setSelectedAction, setSelectedTask, clearSelection, initCreateAction, initCreateTask, setDayMode } from '../../store/actions/appActions';
 import ActionInspectorPanel from './ActionInspectorPanel';
 import CalendarFilterBar from './CalendarFilterBar';
@@ -106,9 +108,20 @@ const calculateLayout = (items, weekStart) => {
 };
 
 // === COMPONENT: Action Card ===
+// === COMPONENT: Action Card ===
 const ActionCard = ({ action, layoutStyle, onToggle, onClick, onTaskClick }) => {
     const { tarea, completado } = action;
-    const colors = getProjectColor(tarea?.proyecto?.id || 'default');
+    const staffColors = getStaffColor(tarea?.staff?.id || tarea?.asignado_a || 'default');
+    const stageColors = getStageColor(tarea?.stage_id || tarea?.etapa || 'default');
+    const priority = tarea?.prioridad || 0;
+
+    // Background based on Priority (1=High/Red, 3=Low/Pale, >3=White)
+    let bgClass = 'bg-white';
+    if (!completado) {
+        if (priority == 1) bgClass = 'bg-red-200';
+        else if (priority == 2) bgClass = 'bg-red-100';
+        else if (priority == 3) bgClass = 'bg-red-50';
+    }
 
     // Calculate width based on span
     const widthStyle = {
@@ -121,9 +134,9 @@ const ActionCard = ({ action, layoutStyle, onToggle, onClick, onTaskClick }) => 
         <div
             style={widthStyle}
             className={`
-                group relative pl-3 pr-2 py-1.5 mb-1.5 rounded bg-white border border-gray-200 
+                group relative pl-3 pr-2 py-1.5 mb-1.5 rounded border border-gray-200 
                 hover:shadow-md hover:border-blue-400 transition-all duration-150 flex flex-col justify-center min-h-[44px]
-                ${completado ? 'opacity-50 grayscale' : ''}
+                ${completado ? 'opacity-50 grayscale bg-gray-50' : bgClass}
                 shadow-sm
             `}
             onClick={(e) => {
@@ -132,13 +145,18 @@ const ActionCard = ({ action, layoutStyle, onToggle, onClick, onTaskClick }) => 
                 onClick(action);
             }}
         >
-            {/* Barra de Color del Proyecto */}
-            <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l ${colors.bar}`} />
+            {/* Split Color Bar (Left) */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 flex flex-col rounded-l overflow-hidden">
+                {/* Top Half: Responsible */}
+                <div className={`h-1/2 w-full ${staffColors.bar}`} title="Responsable" />
+                {/* Bottom Half: Stage */}
+                <div className={`h-1/2 w-full ${stageColors.bar}`} title="Etapa" />
+            </div>
 
             <div className="flex flex-col w-full overflow-hidden">
                 {/* Task Header (Micro-Frame) - CLICKABLE */}
                 <div
-                    className="text-[9px] font-bold text-gray-400 uppercase tracking-wider truncate mb-0.5 cursor-pointer hover:text-blue-600 hover:underline"
+                    className="text-[9px] font-bold text-gray-500 uppercase tracking-wider truncate mb-0.5 cursor-pointer hover:text-blue-600 hover:underline"
                     onClick={(e) => {
                         e.stopPropagation();
                         // Open Task Inspector
@@ -150,7 +168,7 @@ const ActionCard = ({ action, layoutStyle, onToggle, onClick, onTaskClick }) => 
 
                 <div className="flex items-center justify-between gap-2 w-full">
                     {/* Título Acción */}
-                    <span className={`text-[11px] font-medium leading-tight truncate flex-1 text-gray-800 ${completado ? 'line-through' : ''}`}>
+                    <span className={`text-[11px] font-medium leading-tight truncate flex-1 text-gray-900 ${completado ? 'line-through' : ''}`}>
                         {action.descripcion}
                     </span>
 
@@ -176,9 +194,20 @@ const ActionCard = ({ action, layoutStyle, onToggle, onClick, onTaskClick }) => 
 
 const TaskGroupCard = ({ group, layoutStyle, onClick, onTaskClick, isStart, isEnd }) => {
     const { tarea, actions } = group;
-    const colors = getProjectColor(tarea?.proyecto?.id || 'default');
+    const staffColors = getStaffColor(tarea?.staff?.id || tarea?.asignado_a || 'default');
+    const stageColors = getStageColor(tarea?.stage_id || tarea?.etapa || 'default');
     const isTerminado = tarea?.terminado;
+    const isPaused = tarea?.status === 'Pausada';
+    const priority = tarea?.prioridad || 0;
     const height = getCardHeight(group);
+
+    // Background based on Priority (1=High/Red, 3=Low/Pale, >3=White)
+    let bgClass = 'bg-white';
+    if (!isTerminado) {
+        if (priority == 1) bgClass = 'bg-red-200';
+        else if (priority == 2) bgClass = 'bg-red-100';
+        else if (priority == 3) bgClass = 'bg-red-50';
+    }
 
     const widthStyle = {
         width: `calc(${layoutStyle.span * 100}% + ${(layoutStyle.span - 1)}px)`,
@@ -191,45 +220,70 @@ const TaskGroupCard = ({ group, layoutStyle, onClick, onTaskClick, isStart, isEn
         <div
             style={widthStyle}
             className={`
-                group relative pl-3 pr-2 py-1.5 mb-1.5 rounded bg-white border border-gray-200 
+                group relative pl-3 pr-2 py-1.5 mb-1.5 rounded border border-gray-200 
                 hover:shadow-md hover:border-blue-400 transition-all duration-150 flex flex-col justify-between
                 shadow-sm overflow-hidden
-                ${isTerminado ? 'opacity-60 grayscale bg-gray-50' : ''}
+                ${isTerminado ? 'opacity-60 grayscale bg-gray-50' : bgClass}
+                ${isPaused ? 'border-red-300 ring-1 ring-red-100' : ''}
             `}
             onClick={(e) => {
                 e.stopPropagation();
                 onTaskClick(tarea);
             }}
         >
-            {/* Barra de Color del Proyecto */}
-            <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l ${colors.bar}`} />
-
-            {/* Row 1: Title */}
-            <div className={`text-[10px] font-bold text-gray-700 uppercase tracking-wide truncate leading-tight ${isTerminado ? 'line-through' : ''}`}>
-                {tarea?.task_description || 'Tarea Sin Nombre'}
+            {/* Split Color Bar (Left) */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 flex flex-col rounded-l overflow-hidden">
+                {/* Top Half: Responsible */}
+                <div className={`h-1/2 w-full ${staffColors.bar}`} title="Responsable" />
+                {/* Bottom Half: Stage */}
+                <div className={`h-1/2 w-full ${stageColors.bar}`} title="Etapa" />
             </div>
 
-            {/* Row 2: Metadata (Count + Responsible + Start/End) */}
-            <div className="flex items-center justify-between mt-1">
-                {/* Action Count & Responsible */}
-                <div className="flex items-center gap-2 overflow-hidden">
+            {/* Row 1: Title & Status Icon */}
+            <div className="flex items-center gap-2 max-w-full min-w-0">
+                <div className={`text-[10px] font-bold text-gray-700 uppercase tracking-wide truncate leading-tight flex-1 min-w-0 ${isTerminado ? 'line-through' : ''}`}>
+                    {tarea?.task_description || 'Tarea Sin Nombre'}
+                </div>
+                {/* Status Icon */}
+                <div className="shrink-0">
+                    {tarea?.status === 'Pausada' ? (
+                        <PauseCircle size={10} className="text-red-500 fill-red-100" />
+                    ) : (
+                        <PlayCircle size={10} className="text-green-500 fill-green-100" />
+                    )}
+                </div>
+            </div>
+
+            {/* Row 2: Metadata (Count + Responsible + Stage + Start/End) */}
+            <div className="flex items-center justify-between mt-1 min-w-0">
+                {/* Left Side: Actions + Responsible + Stage */}
+                <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
                     <div className="flex items-center gap-1 text-gray-400 shrink-0">
                         <Layers size={10} />
                         <span className="text-[9px] font-bold">{actions.length}</span>
                     </div>
 
-                    {/* Responsible Name */}
-                    {tarea?.staff?.name && (
-                        <div className="flex items-center gap-1 text-gray-500 truncate border-l border-gray-200 pl-2">
-                            <span className="text-[9px] font-semibold truncate">{tarea.staff.name.split(' ')[0]}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2 truncate border-l border-gray-200 pl-2 min-w-0">
+                        {/* Responsible */}
+                        {tarea?.staff?.name && (
+                            <span className="text-[9px] font-semibold text-gray-500 truncate">
+                                {tarea.staff.name.split(' ')[0]}
+                            </span>
+                        )}
+
+                        {/* Stage */}
+                        {tarea?.stage?.name && (
+                            <span className="text-[8px] font-bold text-indigo-500 bg-indigo-50 px-1 rounded truncate uppercase hidden sm:inline">
+                                {tarea.stage.name}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
-                {/* Start/End Labels */}
-                <div className="flex shrink-0 gap-1">
-                    {isStart && <span className="text-[9px] font-extrabold text-red-500 bg-red-50 px-1 rounded-sm">INICIO</span>}
-                    {isEnd && <span className="text-[9px] font-extrabold text-red-500 bg-red-50 px-1 rounded-sm">FINAL</span>}
+                {/* Right Side: Start/End Labels */}
+                <div className="flex shrink-0 gap-1 ml-2">
+                    {isStart && <span className="text-[9px] font-extrabold text-red-500 bg-red-50 px-1 rounded-sm">INI</span>}
+                    {isEnd && <span className="text-[9px] font-extrabold text-red-500 bg-red-50 px-1 rounded-sm">FIN</span>}
                 </div>
             </div>
         </div>
@@ -594,43 +648,53 @@ export default function WeeklyCalendar() {
                 </div>
             </div>
 
-            {/* Grid Header (Days) - Sticky */}
-            <div className="flex border-b border-gray-200 bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
-                <div className="w-32 shrink-0 p-2 text-xs font-bold text-gray-400 uppercase text-right border-r border-gray-200 flex items-center justify-end pr-4">
-                    Proyectos
-                </div>
-                <div className="flex-1 grid grid-cols-7 divide-x divide-gray-200">
-                    {weekDays.map((day) => (
-                        <div key={day.toString()} className={`py-2 text-center text-[10px] font-bold uppercase ${isToday(day) ? 'text-blue-600 bg-blue-50/30' : 'text-gray-400'}`}>
-                            {format(day, 'EEE d', { locale: es })}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
             {/* Rows by Project */}
             <div
                 className="flex-1 overflow-y-auto"
                 style={{ marginBottom: bottomMargin, transition: 'margin-bottom 0.3s ease' }}
             >
+                {/* Grid Header (Days) - Sticky */}
+                <div className="flex border-b border-gray-200 bg-gray-50/80 sticky top-0 z-30 backdrop-blur-sm shadow-sm ring-1 ring-black/5">
+                    <div className="w-20 shrink-0 p-2 text-xs font-bold text-gray-400 uppercase text-right border-r border-gray-200 flex items-center justify-end pr-4">
+                        Proyectos
+                    </div>
+                    <div
+                        className="flex-1 grid divide-x divide-gray-200"
+                        style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) minmax(0, 0.3fr)' }}
+                    >
+                        {weekDays.map((day) => (
+                            <div key={day.toString()} className={`py-2 text-center text-[10px] font-bold uppercase ${isToday(day) ? 'text-blue-600 bg-blue-50/30' : 'text-gray-400'}`}>
+                                {format(day, 'EEE d', { locale: es })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
                 {Object.entries(projectGroups).map(([pid, group]) => {
                     // Check if empty rows should be hidden if desired? 
                     // User's image shows empty projects too. Keep them.
                     const pLayout = projectLayouts[pid] || {};
                     const pItems = group.items;
+                    const hasItems = pItems.length > 0;
 
                     return (
-                        <div key={pid} className="flex border-b border-gray-100 min-h-[120px] bg-white relative group/row">
+                        <div
+                            key={pid}
+                            className={`flex border-b border-gray-100 bg-white relative group/row transition-all duration-300 ${hasItems ? 'min-h-[100px]' : 'min-h-[36px]'}`}
+                        >
                             {/* Y-Axis Label: Project Name */}
-                            <div className="w-32 shrink-0 p-3 bg-gray-50/20 border-r border-gray-200 text-xs font-bold text-gray-700 flex flex-col justify-center text-right pr-4 relative">
+                            <div className="w-20 shrink-0 p-2 bg-gray-50/20 border-r border-gray-200 text-xs font-bold text-gray-700 flex flex-col justify-center text-right pr-3 relative">
                                 <span className="truncate">{group.project.name}</span>
-                                {group.project.status && <span className="text-[9px] text-gray-400 font-normal uppercase">{group.project.status}</span>}
+                                {group.project.status && hasItems && <span className="text-[9px] text-gray-400 font-normal uppercase">{group.project.status}</span>}
                                 {/* Row Hover Effect Bar */}
                                 <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-blue-500 opacity-0 group-hover/row:opacity-100 transition-opacity" />
                             </div>
 
                             {/* 7-Cols Grid for this Project */}
-                            <div className="flex-1 grid grid-cols-7 divide-x divide-gray-100 relative">
+                            <div
+                                className="flex-1 grid divide-x divide-gray-100 relative"
+                                style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) minmax(0, 0.3fr)' }}
+                            >
                                 {weekDays.map((day, colIndex) => {
                                     const itemsToRender = [];
                                     Object.entries(pLayout).forEach(([id, meta]) => {

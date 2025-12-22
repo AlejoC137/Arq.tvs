@@ -190,7 +190,8 @@ export const getWeeklyTasks = async (currentDate = new Date()) => {
           *,
           proyecto:Proyectos(id, name),
           espacio:Espacio_Elemento(_id, nombre, tipo),
-          staff:Staff(id, name)
+          staff:Staff(id, name),
+          stage:Stage(id, name)
       `)
         .or(`and(fecha_inicio.gte.${startStr},fecha_inicio.lte.${endStr}),and(fecha_fin_estimada.gte.${startStr},fecha_fin_estimada.lte.${endStr})`);
 
