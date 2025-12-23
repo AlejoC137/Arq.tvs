@@ -4,9 +4,10 @@ import { clearSelection, setSelectedAction, setSelectedTask } from '../../store/
 import { updateAction, createAction, getTaskActions, updateActionsOrder, deleteAction } from '../../services/actionsService';
 import { getSpaceComponents, updateComponent } from '../../services/componentsService';
 import { getSpaces, getSpaceDetails, updateSpace, getStaffers } from '../../services/spacesService';
-import { createTask, updateTask, getProjects, deleteTask, getTasksByDate, getStages } from '../../services/tasksService';
+import { createTask, updateTask, getProjects, deleteTask, getTasksByDate, getStages, getTaskById } from '../../services/tasksService';
+import { createCall, createMultipleCalls } from '../../services/callsService';
 import TaskDependencySelector from './TaskDependencySelector'; // Import Selector
-import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check } from 'lucide-react';
+import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check, Phone, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
@@ -31,6 +32,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const [projects, setProjects] = useState([]);
     const [staffers, setStaffers] = useState([]);
     const [stages, setStages] = useState([]);
+    const [callerName, setCallerName] = useState('');
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -327,6 +329,15 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 let updatedTaskData = selectedTask;
                 if (Object.keys(updates).length > 0) {
                     updatedTaskData = await updateTask(selectedTask.id, updates);
+
+                    // NEW: Automatic call if status is "Pausada"
+                    if (updates.status === 'Pausada') {
+                        // We use a small timeout to ensure state/db is updated or just call the logic
+                        console.log("Automatic call triggered for Paused status");
+                        // We need to ensure we have the IDs for seguimiento or just call handleCallSeguimiento
+                        // handleCallSeguimiento depends on taskForm and selectedTask being correct
+                        setTimeout(() => handleCallSeguimiento(true), 500);
+                    }
                 }
 
                 // 2. UPDATE/CREATE ACTIONS
@@ -473,6 +484,58 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
         }
     };
 
+    const handleCallResponsible = async () => {
+        if (!taskForm.staff_id || !selectedTask?.id) {
+            alert("No hay un responsable asignado para llamar.");
+            return;
+        }
+
+        try {
+            setSaving(true);
+            await createCall({
+                tarea_id: selectedTask.id,
+                llamado_id: taskForm.staff_id,
+                llamador_name: callerName || 'Usuario',
+                proyecto_id: taskForm.proyecto_id || (selectedTask.proyecto?.id)
+            });
+            alert("Llamado al responsable registrado.");
+        } catch (error) {
+            alert("Error al registrar llamado: " + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleCallSeguimiento = async (forceAll = false) => {
+        if (!selectedTask?.id) return;
+
+        const targets = [];
+        if (forceAll || taskForm.AlejoPass) targets.push('112973d6-7f9e-4b48-b484-73eca526b905');
+        if (forceAll || taskForm.RonaldPass) targets.push('8971b42e-2856-4a92-9fdf-25e50b82ce43');
+        if (forceAll || taskForm.WietPass) targets.push('421e8b2b-881b-4664-9c27-8ea0e5b40284');
+
+        if (targets.length === 0) {
+            if (!forceAll) alert("No hay encargados de seguimiento seleccionados (Alejo, Ronald, Wiet).");
+            return;
+        }
+
+        try {
+            setSaving(true);
+            const calls = targets.map(id => ({
+                tarea_id: selectedTask.id,
+                llamado_id: id,
+                llamador_name: callerName || 'Sistema',
+                proyecto_id: taskForm.proyecto_id || (selectedTask.proyecto?.id)
+            }));
+            await createMultipleCalls(calls);
+            alert(`Llamado a seguimiento registrado (${targets.length} personas).`);
+        } catch (error) {
+            alert("Error al registrar llamados: " + error.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
 
     // Determine visibility and height classes
@@ -505,7 +568,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
                     {/* Bitácora & Approvals in Header - Show for Task (Edit) AND CreateTask (Preview) */}
                     {(panelMode === 'task' || panelMode === 'createTask') && (
-                        <div className="flex items-center gap-3 border-l border-gray-200 pl-3">
+                        <div className="flex items-center gap-3 border-l border-gray-200 pl-3 flex-1 overflow-hidden">
                             <BitacoraManager
                                 notesStr={taskForm.notes}
                                 onChange={(newVal) => handleTaskChange('notes', newVal)}
@@ -530,8 +593,39 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                 />
                             </div>
 
-                            {/* Dependencies Selectors - Widened container */}
-                            <div className="flex items-center gap-2 border-l border-gray-200 pl-3 w-[450px]">
+                            <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Yo soy:</span>
+                                <input
+                                    type="text"
+                                    value={callerName}
+                                    onChange={(e) => setCallerName(e.target.value)}
+                                    placeholder="Tu nombre..."
+                                    className="text-[10px] bg-white border border-gray-200 rounded px-2 py-0.5 focus:ring-1 focus:ring-blue-500 w-24"
+                                />
+                            </div>
+
+                            {/* Call Buttons Section - High Contrast + "!" icons */}
+                            <div className="flex items-center gap-1.5 px-2 border-x border-gray-100">
+                                <button
+                                    onClick={handleCallResponsible}
+                                    className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm"
+                                    title="Llamar al responsable"
+                                >
+                                    <Phone size={12} />
+                                    <AlertCircle size={10} className="text-blue-200" />
+                                </button>
+                                <button
+                                    onClick={handleCallSeguimiento}
+                                    className="flex items-center gap-1 px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-sm"
+                                    title="Llamar a seguimiento (Alejo/Ronald/Wiet)"
+                                >
+                                    <Users size={12} />
+                                    <AlertCircle size={10} className="text-purple-200" />
+                                </button>
+                            </div>
+
+                            {/* Dependencies Selectors - Pushed to the right */}
+                            <div className="flex items-center gap-2 w-[450px]">
                                 <div className="flex-1 min-w-0">
                                     <TaskDependencySelector
                                         label="Condicionada Por"

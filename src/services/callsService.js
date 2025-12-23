@@ -1,0 +1,84 @@
+import supabase from '../config/supabaseClient';
+
+/**
+ * Registra una nueva llamada en la tabla "Llamadas"
+ * @param {Object} callData - Datos de la llamada (tarea_id, llamador_id, llamado_id, proyecto_id)
+ */
+export const createCall = async (callData) => {
+    const { data, error } = await supabase
+        .from('Llamadas')
+        .insert([{
+            tarea_id: callData.tarea_id,
+            llamador_name: callData.llamador_name || 'Sistema',
+            llamado_id: callData.llamado_id,
+            proyecto_id: callData.proyecto_id || null,
+            created_at: new Date().toISOString()
+        }]);
+
+    if (error) {
+        console.error('Error creating call record:', error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Registra múltiples llamadas (útil para el equipo de seguimiento)
+ * @param {Array} callsArray - Array de objetos de llamada
+ */
+export const createMultipleCalls = async (callsArray) => {
+    const { data, error } = await supabase
+        .from('Llamadas')
+        .insert(callsArray.map(call => ({
+            tarea_id: call.tarea_id,
+            llamador_name: call.llamador_name || 'Sistema',
+            llamado_id: call.llamado_id,
+            proyecto_id: call.proyecto_id || null,
+            created_at: new Date().toISOString()
+        })));
+
+    if (error) {
+        console.error('Error creating multiple call records:', error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Obtiene todas las llamadas con detalles de la tarea y el personal llamado
+ */
+export const getCallsWithDetails = async () => {
+    const { data, error } = await supabase
+        .from('Llamadas')
+        .select(`
+            *,
+            tarea:Tareas(id, task_description, status, project_id, proyecto:Proyectos(name)),
+            llamado:Staff!llamado_id(id, name)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching calls with details:', error);
+        throw error;
+    }
+    return data || [];
+};
+
+/**
+ * Actualiza una llamada existente
+ */
+export const updateCall = async (callId, updates) => {
+    const { data, error } = await supabase
+        .from('Llamadas')
+        .update(updates)
+        .eq('id', callId)
+        .select();
+
+    if (error) {
+        console.error('Error updating call:', error);
+        throw error;
+    }
+    return data[0];
+};
+
+

@@ -10,7 +10,8 @@ import {
     FileText,
     Package,
     BookOpen,
-    Upload
+    Upload,
+    Bell
 } from 'lucide-react';
 import JsonImporterModal from './JsonImporterModal';
 import {
@@ -122,6 +123,15 @@ const TopNavigation = () => {
                 >
                     <Users size={14} />
                     <span>Equipo</span>
+                </button>
+
+                {/* Llamados */}
+                <button
+                    onClick={() => handleButtonClick('llamados')}
+                    className={buttonClass(isActive('llamados'))}
+                >
+                    <Bell size={14} />
+                    <span>Llamados</span>
                 </button>
 
                 {/* Protocols */}

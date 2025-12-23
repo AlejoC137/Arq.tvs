@@ -8,6 +8,8 @@ import TeamView from './TeamView';
 import ProtocolsView from './ProtocolsView';
 import MaterialsView from './MaterialsView';
 import DirectoryView from './DirectoryView';
+import CallsView from './CallsView';
+
 
 const MainContainer = () => {
     const { navigation } = useSelector(state => state.app);
@@ -32,6 +34,8 @@ const MainContainer = () => {
                 return <MaterialsView />;
             case 'directory':
                 return <DirectoryView />;
+            case 'llamados':
+                return <CallsView />;
             default:
                 return <CalendarContainer />;
         }
