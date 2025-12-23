@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { checkConnection } from './store/actions/appActions';
+import { checkConnection, fetchPendingCallsCount } from './store/actions/appActions';
 import MainContainer from './components/CommandCenter/MainContainer';
 import TopNavigation from './components/CommandCenter/TopNavigation';
 import { Activity, Database, Layers } from 'lucide-react';
@@ -12,6 +12,14 @@ function App() {
 
     useEffect(() => {
         dispatch(checkConnection());
+        dispatch(fetchPendingCallsCount());
+
+        // Refresh count every 30 seconds
+        const interval = setInterval(() => {
+            dispatch(fetchPendingCallsCount());
+        }, 30000);
+
+        return () => clearInterval(interval);
     }, [dispatch]);
 
     // Fallback for missing colors if CSS isn't fully loaded or configured:

@@ -9,11 +9,15 @@ import ProtocolsView from './ProtocolsView';
 import MaterialsView from './MaterialsView';
 import DirectoryView from './DirectoryView';
 import CallsView from './CallsView';
+import ActionInspectorPanel from './ActionInspectorPanel';
 
 
 const MainContainer = () => {
-    const { navigation } = useSelector(state => state.app);
+    const { navigation, panelMode, isInspectorCollapsed } = useSelector(state => state.app);
     const activeView = navigation?.activeView || 'calendar';
+
+    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
+    const paddingBottom = !showPanel ? '0' : (isInspectorCollapsed ? '40px' : '300px');
 
     const renderView = () => {
         switch (activeView) {
@@ -42,8 +46,15 @@ const MainContainer = () => {
     };
 
     return (
-        <div className="h-full w-full">
-            {renderView()}
+        <div className="h-full w-full flex flex-col relative overflow-hidden">
+            <div
+                className="flex-1 overflow-hidden transition-all duration-300"
+                style={{ paddingBottom: paddingBottom }}
+            >
+                {renderView()}
+            </div>
+
+            <ActionInspectorPanel />
         </div>
     );
 };

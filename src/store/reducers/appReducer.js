@@ -14,7 +14,10 @@ const initialState = {
         activeTeamView: null,
         activeMaterial: null,
         activeDirectory: null
-    }
+    },
+    pendingCallsCount: 0,
+    isInspectorCollapsed: false,
+    refreshCounter: 0
 };
 
 export const appReducer = (state = initialState, action) => {
@@ -49,6 +52,12 @@ export const appReducer = (state = initialState, action) => {
             return { ...state, navigation: { ...state.navigation, activeTeamView: action.payload } };
         case 'SET_ACTIVE_VIEW':
             return { ...state, navigation: { ...state.navigation, activeView: action.payload } };
+        case 'SET_PENDING_CALLS_COUNT':
+            return { ...state, pendingCallsCount: action.payload };
+        case 'TOGGLE_INSPECTOR_COLLAPSE':
+            return { ...state, isInspectorCollapsed: action.payload !== undefined ? action.payload : !state.isInspectorCollapsed };
+        case 'INCREMENT_REFRESH_COUNTER':
+            return { ...state, refreshCounter: state.refreshCounter + 1 };
         default:
             return state;
     }

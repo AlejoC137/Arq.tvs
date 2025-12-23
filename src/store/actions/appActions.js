@@ -1,4 +1,5 @@
 import supabase from '../../config/supabaseClient';
+import { getPendingCallsCount } from '../../services/callsService';
 
 export const checkConnection = () => async (dispatch) => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -73,4 +74,22 @@ export const setActiveTeamView = (view) => ({
 export const setActiveView = (view) => ({
     type: 'SET_ACTIVE_VIEW',
     payload: view
+});
+
+export const fetchPendingCallsCount = () => async (dispatch) => {
+    try {
+        const count = await getPendingCallsCount();
+        dispatch({ type: 'SET_PENDING_CALLS_COUNT', payload: count });
+    } catch (error) {
+        console.error('Error fetching pending calls count:', error);
+    }
+};
+
+export const toggleInspectorCollapse = (collapsed) => ({
+    type: 'TOGGLE_INSPECTOR_COLLAPSE',
+    payload: collapsed
+});
+
+export const incrementRefreshCounter = () => ({
+    type: 'INCREMENT_REFRESH_COUNTER'
 });

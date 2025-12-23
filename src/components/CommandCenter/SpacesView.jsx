@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { Building2, Box, Search, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { getSpaces, createSpace, updateSpace, deleteSpace, getAllSpacesAndElements, getStages, getSpaceDetails } from '../../services/spacesService';
 import { getSpaceComponents, createSpaceComponent, getComponents } from '../../services/componentsService';
@@ -6,6 +7,7 @@ import { getProjects } from '../../services/projectsService';
 import AddComponentModal from './AddComponentModal';
 
 const SpacesView = () => {
+    const { refreshCounter } = useSelector(state => state.app);
     const [spaces, setSpaces] = useState([]);
     const [selectedSpace, setSelectedSpace] = useState(null);
     const [components, setComponents] = useState([]);
@@ -37,7 +39,7 @@ const SpacesView = () => {
     useEffect(() => {
         loadSpaces();
         loadDropdownOptions();
-    }, []);
+    }, [refreshCounter]);
 
     const loadDropdownOptions = async () => {
         try {

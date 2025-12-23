@@ -17,21 +17,9 @@ import {
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Layers, Plus } from 'lucide-react';
 import { setSelectedTask, clearSelection, initCreateTask } from '../../store/actions/appActions';
-import { getWeeklyTasks } from '../../services/tasksService'; // Reusing this as it's date based, or create monthly?
-// Actually getWeeklyTasks takes a date and calculates week range. I should probably modify it or create getMonthlyTasks.
-// But wait, the user just wants the tasks. If I use getAllTasks I can filter in memory.
-// Given previous turn, I created getWeeklyTasks. I should create getMonthlyTasks or just use getTasks (all) if performance allows.
-// Let's use getTasks() generally available or filtered. 
-// "Or just fetch all tasks and filter". The repo instructions say "avoid generic...".
-// I'll filter by date range in memory for now using getAllTasks if available, or better:
-// The user previously wanted "Weekly". Now "Monthly". 
-// I will create `getTasksByDateRange` in `tasksService` or just use `getTasks` (which fetches ALL active tasks usually).
-// `getTasks` in `tasksService` fetches EVERYTHING.
 import { getTasks, getProjects } from '../../services/tasksService';
 import { getStaffers } from '../../services/spacesService';
 import { getProjectColor } from '../../utils/projectColors';
-import ActionInspectorPanel from './ActionInspectorPanel';
-import CalendarFilterBar from './CalendarFilterBar';
 
 const TaskEventCard = ({ task, type, onClick }) => {
     const colors = getProjectColor(task.proyecto?.id || 'default');
@@ -62,7 +50,7 @@ const TaskEventCard = ({ task, type, onClick }) => {
 const MonthlyCalendar = () => {
     const dispatch = useDispatch();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const { selectedTask, panelMode } = useSelector(state => state.app);
+    const { selectedTask, panelMode, refreshCounter } = useSelector(state => state.app);
 
     // Get all days to display (including padding days from prev/next month)
     const monthStart = startOfMonth(currentDate);
@@ -83,10 +71,7 @@ const MonthlyCalendar = () => {
         wietPass: false
     });
 
-    // UI State for Panel
-    const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
-    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
-    const paddingBottom = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
+    // Layout and panel are now managed by MainContainer
 
     // Load tasks & metadata
     React.useEffect(() => {
@@ -101,7 +86,7 @@ const MonthlyCalendar = () => {
             setProjects(allProjects || []);
         };
         loadJava();
-    }, [currentDate]);
+    }, [currentDate, refreshCounter]);
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
@@ -228,10 +213,7 @@ const MonthlyCalendar = () => {
             {/* Filters Relocated - Removed */}
 
             {/* Calendar Grid */}
-            <div
-                className="flex-1 overflow-auto"
-                style={{ paddingBottom: paddingBottom, transition: 'padding-bottom 0.3s ease' }}
-            >
+            <div className="flex-1 overflow-auto">
                 {/* Weekday Headers */}
                 <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
                     {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (
@@ -318,10 +300,6 @@ const MonthlyCalendar = () => {
                     })}
                 </div>
             </div>
-            <ActionInspectorPanel
-                onActionUpdated={handleActionUpdated}
-                onCollapseChange={setIsInspectorCollapsed}
-            />
         </div>
     );
 };

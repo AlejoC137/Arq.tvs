@@ -23,7 +23,7 @@ import {
 
 const TopNavigation = () => {
     const dispatch = useDispatch();
-    const { navigation } = useSelector(state => state.app);
+    const { navigation, pendingCallsCount } = useSelector(state => state.app);
     const activeView = navigation?.activeView || 'calendar';
     const calendarView = navigation?.calendarView || 'week';
     const propertyView = navigation?.propertyView || 'houses';
@@ -128,10 +128,15 @@ const TopNavigation = () => {
                 {/* Llamados */}
                 <button
                     onClick={() => handleButtonClick('llamados')}
-                    className={buttonClass(isActive('llamados'))}
+                    className={`${buttonClass(isActive('llamados'))} relative`}
                 >
                     <Bell size={14} />
                     <span>Llamados</span>
+                    {pendingCallsCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold h-4 w-4 flex items-center justify-center rounded-full border-2 border-white animate-pulse">
+                            {pendingCallsCount > 99 ? '99+' : pendingCallsCount}
+                        </span>
+                    )}
                 </button>
 
                 {/* Protocols */}

@@ -8,7 +8,7 @@ import { setSelectedTask } from '../../store/actions/appActions';
 
 const HousesView = () => {
     const dispatch = useDispatch();
-    const { navigation } = useSelector(state => state.app);
+    const { navigation, refreshCounter } = useSelector(state => state.app);
     const propertyView = navigation?.propertyView || 'houses';
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -58,7 +58,7 @@ const HousesView = () => {
             setHasChanges(false);
             loadProjectTasks(selectedProject.id);
         }
-    }, [selectedProject]);
+    }, [selectedProject, refreshCounter]);
 
     const loadProjectTasks = async (projectId) => {
         setLoadingTasks(true);

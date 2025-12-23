@@ -52,7 +52,15 @@ export const getCallsWithDetails = async () => {
         .from('Llamadas')
         .select(`
             *,
-            tarea:Tareas(id, task_description, status, project_id, proyecto:Proyectos(name)),
+            tarea:Tareas(
+                *,
+                proyecto:Proyectos(id, name),
+                espacio:Espacio_Elemento(_id, nombre, tipo),
+                staff:Staff(id, name),
+                stage:Stage(id, name),
+                condicionada_por_task:Tareas!condicionada_por(id, task_description),
+                condiciona_a_task:Tareas!condiciona_a(id, task_description)
+            ),
             llamado:Staff!llamado_id(id, name)
         `)
         .order('created_at', { ascending: false });
@@ -79,6 +87,22 @@ export const updateCall = async (callId, updates) => {
         throw error;
     }
     return data[0];
+};
+
+/**
+ * Obtiene el conteo de llamadas no atendidas
+ */
+export const getPendingCallsCount = async () => {
+    const { count, error } = await supabase
+        .from('Llamadas')
+        .select('*', { count: 'exact', head: true })
+        .eq('atendido', false);
+
+    if (error) {
+        console.error('Error fetching pending calls count:', error);
+        throw error;
+    }
+    return count || 0;
 };
 
 

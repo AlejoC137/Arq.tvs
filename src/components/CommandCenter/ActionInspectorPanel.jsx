@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { clearSelection, setSelectedAction, setSelectedTask } from '../../store/actions/appActions';
+import { clearSelection, setSelectedAction, setSelectedTask, fetchPendingCallsCount, toggleInspectorCollapse, incrementRefreshCounter } from '../../store/actions/appActions';
 import { updateAction, createAction, getTaskActions, updateActionsOrder, deleteAction } from '../../services/actionsService';
 import { getSpaceComponents, updateComponent } from '../../services/componentsService';
 import { getSpaces, getSpaceDetails, updateSpace, getStaffers } from '../../services/spacesService';
@@ -12,8 +12,7 @@ import { format } from 'date-fns';
 
 const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const dispatch = useDispatch();
-    const { selectedAction, selectedTask, selectedDate, panelMode } = useSelector(state => state.app);
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const { selectedAction, selectedTask, selectedDate, panelMode, isInspectorCollapsed: isCollapsed } = useSelector(state => state.app);
 
     // Local state for Action form
     const [actionForm, setActionForm] = useState({});
@@ -85,11 +84,14 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 espacio_uuid: selectedTask.espacio_uuid || null,
                 proyecto_id: selectedTask.proyecto_id || null,
                 terminado: selectedTask.terminado || false,
-                staff_id: selectedTask.staff_id || selectedTask.asignado_a || '',
+                staff_id: selectedTask.staff?.id || selectedTask.staff_id || selectedTask.asignado_a || '',
                 Priority: selectedTask.Priority || '1',
-                stage_id: selectedTask.stage_id || '',
+                stage_id: selectedTask.stage?.id || selectedTask.stage_id || '',
                 status: selectedTask.status || 'Activa',
-                notes: selectedTask.notes || ''
+                notes: selectedTask.notes || '',
+                RonaldPass: selectedTask.RonaldPass || false,
+                WietPass: selectedTask.WietPass || false,
+                AlejoPass: selectedTask.AlejoPass || false
             });
             // Load draft fullActions if present (for JSON Importer)
             if (selectedTask.fullActions) {
@@ -105,13 +107,14 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 espacio_uuid: selectedTask.espacio ? (selectedTask.espacio._id || selectedTask.espacio.id) : (selectedTask.espacio_uuid || null),
                 proyecto_id: selectedTask.proyecto ? selectedTask.proyecto.id : (selectedTask.proyecto_id || null),
                 terminado: selectedTask.terminado || false,
-                staff_id: selectedTask.staff_id || selectedTask.asignado_a || '',
+                staff_id: selectedTask.staff?.id || selectedTask.staff_id || selectedTask.asignado_a || '',
                 Priority: selectedTask.Priority || '1',
-                stage_id: selectedTask.stage_id || '',
+                stage_id: selectedTask.stage?.id || selectedTask.stage_id || '',
                 status: selectedTask.status || 'Activa',
                 notes: selectedTask.notes || '',
                 WietPass: selectedTask.WietPass || false,
                 AlejoPass: selectedTask.AlejoPass || false,
+                RonaldPass: selectedTask.RonaldPass || false,
                 condicionada_por: selectedTask.condicionada_por || null,
                 condiciona_a: selectedTask.condiciona_a || null,
                 condicionada_por_task: selectedTask.condicionada_por_task || null, // For initial display
@@ -119,7 +122,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 fullActions: [] // We don't load actions into form state for edit mode, we use components state
             });
         }
-    }, [selectedTask, panelMode]);
+    }, [selectedTask?.id, panelMode]); // Only reset form if the task ID or panel mode actually changes
 
     // Load Task Data (Actions)
     useEffect(() => {
@@ -185,6 +188,28 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 // Revert on error
                 setTaskForm(prev => ({ ...prev, terminado: !checked }));
                 alert("Error al actualizar estado: " + error.message);
+            }
+        }
+    };
+
+    const handlePassToggle = async (field, checked) => {
+        // Optimistic update
+        setTaskForm(prev => ({ ...prev, [field]: checked }));
+
+        if (panelMode === 'task' && selectedTask?.id) {
+            try {
+                const updatedTask = await updateTask(selectedTask.id, { [field]: checked });
+                // Update Redux to reflect change in UI using the FRESH data from server
+                if (updatedTask) {
+                    dispatch(setSelectedTask(updatedTask));
+                }
+                if (onActionUpdated) onActionUpdated(); // Refresh calendar
+                dispatch(incrementRefreshCounter()); // Global refresh
+            } catch (error) {
+                console.error(`Error auto-saving ${field}:`, error);
+                // Revert on error
+                setTaskForm(prev => ({ ...prev, [field]: !checked }));
+                alert("Error al actualizar: " + error.message);
             }
         }
     };
@@ -321,7 +346,6 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 if (taskForm.notes !== selectedTask.notes) updates.notes = taskForm.notes;
                 if (taskForm.RonaldPass !== selectedTask.RonaldPass) updates.RonaldPass = taskForm.RonaldPass;
                 if (taskForm.WietPass !== selectedTask.WietPass) updates.WietPass = taskForm.WietPass;
-                if (taskForm.WietPass !== selectedTask.WietPass) updates.WietPass = taskForm.WietPass;
                 if (taskForm.AlejoPass !== selectedTask.AlejoPass) updates.AlejoPass = taskForm.AlejoPass;
                 if (taskForm.condicionada_por !== selectedTask.condicionada_por) updates.condicionada_por = taskForm.condicionada_por || null;
                 if (taskForm.condiciona_a !== selectedTask.condiciona_a) updates.condiciona_a = taskForm.condiciona_a || null;
@@ -336,7 +360,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         console.log("Automatic call triggered for Paused status");
                         // We need to ensure we have the IDs for seguimiento or just call handleCallSeguimiento
                         // handleCallSeguimiento depends on taskForm and selectedTask being correct
-                        setTimeout(() => handleCallSeguimiento(true), 500);
+                        setTimeout(() => handleCallSeguimiento(false), 500);
                     }
                 }
 
@@ -376,6 +400,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 // Reload data implies fetching fresh state or just updating Redux
                 dispatch(setSelectedTask(updatedTaskData));
                 if (onActionUpdated) onActionUpdated();
+                dispatch(incrementRefreshCounter()); // Global refresh
                 alert("Guardado correctamente");
 
             } else if (panelMode === 'create') {
@@ -384,6 +409,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 const newAction = res && res[0] ? res[0] : res;
                 if (onActionUpdated) onActionUpdated(newAction);
                 dispatch(setSelectedAction(newAction));
+                dispatch(incrementRefreshCounter()); // Global refresh
 
             } else if (panelMode === 'createTask') {
                 const { id, proyecto, espacio, quickActions, fullActions, proyecto_id, ...createData } = taskForm;
@@ -422,6 +448,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
                 dispatch(setSelectedTask(newTask));
                 if (onActionUpdated) onActionUpdated(); // Trigger calendar refresh
+                dispatch(incrementRefreshCounter()); // Global refresh
                 dispatch(clearSelection()); // Close panel after creation
             }
         } catch (error) {
@@ -441,6 +468,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             await deleteTask(selectedTask.id);
             dispatch(clearSelection());
             if (onActionUpdated) onActionUpdated(); // Refresh calendar
+            dispatch(incrementRefreshCounter()); // Global refresh
         } catch (error) {
             alert('Error al eliminar tarea: ' + error.message);
         } finally {
@@ -499,6 +527,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 proyecto_id: taskForm.proyecto_id || (selectedTask.proyecto?.id)
             });
             alert("Llamado al responsable registrado.");
+            dispatch(fetchPendingCallsCount());
         } catch (error) {
             alert("Error al registrar llamado: " + error.message);
         } finally {
@@ -510,9 +539,9 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
         if (!selectedTask?.id) return;
 
         const targets = [];
-        if (forceAll || taskForm.AlejoPass) targets.push('112973d6-7f9e-4b48-b484-73eca526b905');
-        if (forceAll || taskForm.RonaldPass) targets.push('8971b42e-2856-4a92-9fdf-25e50b82ce43');
-        if (forceAll || taskForm.WietPass) targets.push('421e8b2b-881b-4664-9c27-8ea0e5b40284');
+        if (taskForm.AlejoPass) targets.push('112973d6-7f9e-4b48-b484-73eca526b905');
+        if (taskForm.RonaldPass) targets.push('8971b42e-2856-4a92-9fdf-25e50b82ce43');
+        if (taskForm.WietPass) targets.push('421e8b2b-881b-4664-9c27-8ea0e5b40284');
 
         if (targets.length === 0) {
             if (!forceAll) alert("No hay encargados de seguimiento seleccionados (Alejo, Ronald, Wiet).");
@@ -529,6 +558,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             }));
             await createMultipleCalls(calls);
             alert(`Llamado a seguimiento registrado (${targets.length} personas).`);
+            dispatch(fetchPendingCallsCount());
         } catch (error) {
             alert("Error al registrar llamados: " + error.message);
         } finally {
@@ -568,7 +598,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
                     {/* Bitácora & Approvals in Header - Show for Task (Edit) AND CreateTask (Preview) */}
                     {(panelMode === 'task' || panelMode === 'createTask') && (
-                        <div className="flex items-center gap-3 border-l border-gray-200 pl-3 flex-1 overflow-hidden">
+                        <div className="flex items-center gap-3 border-l border-gray-200 pl-3 flex-1">
                             <BitacoraManager
                                 notesStr={taskForm.notes}
                                 onChange={(newVal) => handleTaskChange('notes', newVal)}
@@ -579,17 +609,17 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                 <ApprovalSwitch
                                     label="Alejo"
                                     value={taskForm.AlejoPass}
-                                    onChange={(val) => handleTaskChange('AlejoPass', val)}
+                                    onChange={(val) => handlePassToggle('AlejoPass', val)}
                                 />
                                 <ApprovalSwitch
                                     label="Ronald"
                                     value={taskForm.RonaldPass}
-                                    onChange={(val) => handleTaskChange('RonaldPass', val)}
+                                    onChange={(val) => handlePassToggle('RonaldPass', val)}
                                 />
                                 <ApprovalSwitch
                                     label="Wiet"
                                     value={taskForm.WietPass}
-                                    onChange={(val) => handleTaskChange('WietPass', val)}
+                                    onChange={(val) => handlePassToggle('WietPass', val)}
                                 />
                             </div>
 
@@ -654,7 +684,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                     <button
                         onClick={() => {
                             const newState = !isCollapsed;
-                            setIsCollapsed(newState);
+                            dispatch(toggleInspectorCollapse(newState));
                             if (onCollapseChange) onCollapseChange(newState);
                         }}
                         className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 rounded transition-colors mr-1"

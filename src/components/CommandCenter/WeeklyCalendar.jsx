@@ -10,7 +10,6 @@ import { getProjectColor } from '../../utils/projectColors';
 import { getStaffColor } from '../../utils/staffColors';
 import { getStageColor } from '../../utils/stageColors';
 import { setSelectedAction, setSelectedTask, clearSelection, initCreateAction, initCreateTask, setDayMode } from '../../store/actions/appActions';
-import ActionInspectorPanel from './ActionInspectorPanel';
 import CalendarFilterBar from './CalendarFilterBar';
 
 // === HELPER: Height Calculation ===
@@ -294,6 +293,7 @@ const Spacer = ({ height = 44 }) => <div style={{ height: `${height}px` }} class
 
 export default function WeeklyCalendar() {
     const dispatch = useDispatch();
+    const { navigation, selectedTask, selectedAction, panelMode, refreshCounter } = useSelector(state => state.app);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [actions, setActions] = useState([]);
     const [weekTasks, setWeekTasks] = useState([]);
@@ -315,7 +315,7 @@ export default function WeeklyCalendar() {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
-    useEffect(() => { loadActions(); }, [currentDate]);
+    useEffect(() => { loadActions(); }, [currentDate, refreshCounter]);
     // Force reload fix
 
     const loadActions = async () => {
@@ -617,12 +617,7 @@ export default function WeeklyCalendar() {
         }
     };
 
-    const { navigation, selectedTask, selectedAction, panelMode } = useSelector(state => state.app);
-    const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
-
-    // Calculate margin based on panel visibility and collapse state
-    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
-    const bottomMargin = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
+    // Layout and panel are now managed by MainContainer
 
     return (
         <div className="h-screen flex flex-col bg-white dark:bg-zinc-950 font-sans overflow-hidden" onMouseUp={handleMouseUp}>
@@ -649,10 +644,7 @@ export default function WeeklyCalendar() {
             </div>
 
             {/* Rows by Project */}
-            <div
-                className="flex-1 overflow-y-auto"
-                style={{ marginBottom: bottomMargin, transition: 'margin-bottom 0.3s ease' }}
-            >
+            <div className="flex-1 overflow-y-auto">
                 {/* Grid Header (Days) - Sticky */}
                 <div className="flex border-b border-gray-200 bg-gray-50/80 sticky top-0 z-30 backdrop-blur-sm shadow-sm ring-1 ring-black/5">
                     <div className="w-20 shrink-0 p-2 text-xs font-bold text-gray-400 uppercase text-right border-r border-gray-200 flex items-center justify-end pr-4">
@@ -763,10 +755,6 @@ export default function WeeklyCalendar() {
                 })}
             </div>
 
-            <ActionInspectorPanel
-                onActionUpdated={handleActionUpdated}
-                onCollapseChange={setIsInspectorCollapsed}
-            />
         </div>
     );
 }

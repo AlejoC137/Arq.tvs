@@ -2,27 +2,23 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCallsWithDetails, updateCall } from '../../services/callsService';
 import { format } from 'date-fns';
-import { setSelectedTask } from '../../store/actions/appActions';
-import ActionInspectorPanel from './ActionInspectorPanel';
+import { setSelectedTask, fetchPendingCallsCount } from '../../store/actions/appActions';
 import { Bell, User, Briefcase, Calendar, Phone, Users, AlertCircle, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
 
 const CallsView = () => {
     const dispatch = useDispatch();
-    const { panelMode } = useSelector(state => state.app);
+    const { panelMode, refreshCounter } = useSelector(state => state.app);
 
-    // UI State for Panel
-    const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
     const [calls, setCalls] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedStafferId, setSelectedStafferId] = useState(null);
     const [hideAttended, setHideAttended] = useState(true);
 
-    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
-    const paddingBottom = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
+    // Layout and panel are now managed by MainContainer
 
     useEffect(() => {
         loadCalls();
-    }, []);
+    }, [refreshCounter]);
 
     const loadCalls = async () => {
         setLoading(true);
@@ -82,12 +78,15 @@ const CallsView = () => {
                     ? { ...c, atendido: newStatus, atendido_at: newAtendidoAt }
                     : c
             ));
+
+            // Refresh global count
+            dispatch(fetchPendingCallsCount());
         } catch (error) {
             alert("Error al actualizar llamado: " + error.message);
         }
     };
 
-    const groupedData = useMemo(() => groupCalls(calls), [calls]);
+    const groupedData = useMemo(() => groupCalls(calls), [calls, hideAttended]);
 
     const staffList = useMemo(() => {
         return Object.values(groupedData).sort((a, b) => b.calls.length - a.calls.length);
@@ -167,10 +166,7 @@ const CallsView = () => {
                 </div>
 
                 {/* RIGHT: Tasks for selected person */}
-                <div
-                    className="flex-1 flex flex-col bg-white overflow-hidden relative"
-                    style={{ paddingBottom: paddingBottom, transition: 'padding-bottom 0.3s ease' }}
-                >
+                <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
                     {selectedStafferData ? (
                         <div className="flex-1 flex flex-col overflow-hidden">
                             {/* Header Banner */}
@@ -265,11 +261,6 @@ const CallsView = () => {
                 </div>
             </div>
 
-            {/* SHARED TASK INSPECTOR PANEL */}
-            <ActionInspectorPanel
-                onActionUpdated={handleRefresh}
-                onCollapseChange={setIsInspectorCollapsed}
-            />
         </div>
     );
 };

@@ -11,7 +11,10 @@ export const getTasks = async () => {
             *,
             proyecto:Proyectos(id, name),
             espacio:Espacio_Elemento(_id, nombre, tipo),
-            staff:Staff(id, name)
+            staff:Staff(id, name),
+            stage:Stage(id, name),
+            condicionada_por_task:Tareas!condicionada_por(id, task_description),
+            condiciona_a_task:Tareas!condiciona_a(id, task_description)
         `)
         .order('fecha_inicio', { ascending: false });
 
@@ -33,6 +36,7 @@ export const getTaskById = async (taskId) => {
             proyecto:Proyectos(id, name),
             espacio:Espacio_Elemento(_id, nombre, tipo),
             staff:Staff(id, name),
+            stage:Stage(id, name),
             condicionada_por_task:Tareas!condicionada_por(id, task_description),
             condiciona_a_task:Tareas!condiciona_a(id, task_description)
         `)
@@ -98,7 +102,11 @@ export const createTask = async (taskData) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo),
+            staff:Staff(id, name),
+            stage:Stage(id, name),
+            condicionada_por_task:Tareas!condicionada_por(id, task_description),
+            condiciona_a_task:Tareas!condiciona_a(id, task_description)
         `);
 
     if (error) {
@@ -119,7 +127,11 @@ export const updateTask = async (taskId, updates) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo)
+            espacio:Espacio_Elemento(_id, nombre, tipo),
+            staff:Staff(id, name),
+            stage:Stage(id, name),
+            condicionada_por_task:Tareas!condicionada_por(id, task_description),
+            condiciona_a_task:Tareas!condiciona_a(id, task_description)
         `);
 
     if (error) {
@@ -184,7 +196,12 @@ export const getTasksByDate = async (dateStr) => {
         .from('Tareas')
         .select(`
             *,
-            staff:Staff(id, name)
+            proyecto:Proyectos(id, name),
+            espacio:Espacio_Elemento(_id, nombre, tipo),
+            staff:Staff(id, name),
+            stage:Stage(id, name),
+            condicionada_por_task:Tareas!condicionada_por(id, task_description),
+            condiciona_a_task:Tareas!condiciona_a(id, task_description)
         `)
         .or(`fecha_inicio.eq.${dateStr},fecha_fin_estimada.eq.${dateStr}`); // Simple logic: starts or ends on that day
 
@@ -233,8 +250,12 @@ export const getTasksByProject = async (projectId) => {
         .from('Tareas')
         .select(`
             *,
+            proyecto:Proyectos(id, name),
+            espacio:Espacio_Elemento(_id, nombre, tipo),
             staff:Staff(id, name),
-            stage:Stage(id, name)
+            stage:Stage(id, name),
+            condicionada_por_task:Tareas!condicionada_por(id, task_description),
+            condiciona_a_task:Tareas!condiciona_a(id, task_description)
         `)
         .eq('project_id', projectId)
         .order('fecha_inicio', { ascending: false });

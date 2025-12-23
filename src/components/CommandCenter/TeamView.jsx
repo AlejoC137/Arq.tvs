@@ -5,20 +5,16 @@ import { getStaffers, deleteStaff } from '../../services/spacesService';
 import { getTasks, getProjects } from '../../services/tasksService';
 import { format } from 'date-fns';
 import { setSelectedTask, initCreateTask } from '../../store/actions/appActions';
-import ActionInspectorPanel from './ActionInspectorPanel';
 import AddMemberModal from './AddMemberModal';
 
 const TeamView = () => {
     const dispatch = useDispatch();
-    const { panelMode } = useSelector(state => state.app);
+    const { panelMode, refreshCounter } = useSelector(state => state.app);
 
-    // UI State for Panel
-    const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
     const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
     const [editingMember, setEditingMember] = useState(null);
 
-    const showPanel = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
-    const paddingBottom = !showPanel ? '0px' : (isInspectorCollapsed ? '40px' : '300px');
+    // Layout and panel are now managed by MainContainer
 
     const [staffers, setStaffers] = useState([]);
     const [tasks, setTasks] = useState([]);
@@ -28,7 +24,7 @@ const TeamView = () => {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [refreshCounter]);
 
     const loadData = async () => {
         setLoading(true);
@@ -182,10 +178,7 @@ const TeamView = () => {
                 </div>
 
                 {/* RIGHT: Member Details */}
-                <div
-                    className="flex-1 flex flex-col bg-white overflow-hidden relative"
-                    style={{ paddingBottom: paddingBottom, transition: 'padding-bottom 0.3s ease' }}
-                >
+                <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
                     {selectedStaffer ? (
                         <div className="flex-1 overflow-y-auto">
                             {/* Header Banner */}
@@ -365,13 +358,6 @@ const TeamView = () => {
                     )}
                 </div>
             </div>
-
-            {/* SHARED TASK INSPECTOR PANEL */}
-            <ActionInspectorPanel
-                onActionUpdated={handleActionUpdated}
-                onCollapseChange={setIsInspectorCollapsed}
-            />
-
             {/* ADD MEMBER MODAL */}
             <AddMemberModal
                 isOpen={isAddMemberModalOpen}
