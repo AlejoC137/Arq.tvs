@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock, User, Search, ChevronDown } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getHouses, getParcels, updateProject, createProject, deleteProject } from '../../services/projectsService';
-import { getTasksByProject } from '../../services/tasksService';
-import { getSpaces } from '../../services/spacesService';
+import { getTasksByProject, getStages } from '../../services/tasksService';
+import { getSpaces, getStaffers, createSpace } from '../../services/spacesService';
 import { setSelectedTask } from '../../store/actions/appActions';
+import CalendarFilterBar from './CalendarFilterBar';
 
 const HousesView = () => {
     const dispatch = useDispatch();
@@ -14,8 +15,17 @@ const HousesView = () => {
     const [loading, setLoading] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
     const [spaces, setSpaces] = useState([]);
+    const [staffers, setStaffers] = useState([]);
+    const [stages, setStages] = useState([]);
     const [projectTasks, setProjectTasks] = useState([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
+    const [filters, setFilters] = useState({
+        staffId: '',
+        stageId: '',
+        alejoPass: false,
+        ronaldPass: false,
+        wietPass: false
+    });
 
     // Inline editing state
     const [formData, setFormData] = useState({
@@ -32,6 +42,7 @@ const HousesView = () => {
     useEffect(() => {
         loadProjects();
         loadSpaces();
+        loadFilterData();
     }, [propertyView]);
 
     const loadSpaces = async () => {
@@ -41,6 +52,17 @@ const HousesView = () => {
         } catch (error) {
             console.error('Error loading spaces:', error);
         }
+    };
+
+    const loadFilterData = async () => {
+        try {
+            const [staffData, stagesData] = await Promise.all([
+                getStaffers(),
+                getStages()
+            ]);
+            setStaffers(staffData || []);
+            setStages(stagesData || []);
+        } catch (error) { console.error(error); }
     };
 
     // Load form data when project is selected
@@ -314,126 +336,196 @@ const HousesView = () => {
             </div>
 
             {/* RIGHT: EDITOR PANEL */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/30">
                 {selectedProject ? (
                     <>
-                        {/* Header */}
-                        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between flex-shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                                    <Home size={24} className="text-blue-600" />
+                        {/* Header Compacto */}
+                        <div className="px-6 py-3 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0 shadow-sm z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-blue-100/50 text-blue-600 flex items-center justify-center shadow-sm">
+                                    <Home size={20} />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="text-lg font-bold text-gray-900">{formData.name || 'Sin nombre'}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-bold text-gray-900 leading-tight">{formData.name || 'Sin nombre'}</h3>
                                         {propertyView !== 'parcels' && (
                                             <button
                                                 onClick={handleDeleteProject}
-                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
                                                 title="Eliminar Casa"
                                             >
-                                                <Trash2 size={16} />
+                                                <Trash2 size={14} />
                                             </button>
                                         )}
                                     </div>
-                                    <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded-full ${getEtapaColor(formData.etapa)}`}>
-                                        {formData.etapa || 'Sin etapa'}
-                                    </span>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <span className={`inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded border ${getEtapaColor(formData.etapa)} bg-opacity-50 border-opacity-20`}>
+                                            {formData.etapa || 'Sin etapa'}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400">|</span>
+                                        <span className="text-[10px] text-gray-500">{projectTasks.length} tareas</span>
+                                    </div>
                                 </div>
                             </div>
                             <button
                                 onClick={handleSave}
                                 disabled={saving || !hasChanges}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${hasChanges ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all shadow-sm ${hasChanges ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow transform hover:-translate-y-0.5' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                             >
-                                {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : <><Save size={16} /> Guardar</>}
+                                {saving ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : <><Save size={14} /> Guardar Cambios</>}
                             </button>
                         </div>
 
                         {/* Editor Form */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            <div className="max-w-5xl grid grid-cols-12 gap-8">
+                            <div className="max-w-6xl mx-auto grid grid-cols-12 gap-6">
                                 {/* Form Section */}
                                 <div className="col-span-12 lg:col-span-7 space-y-6">
-                                    {/* Info Grid */}
-                                    <div className="grid grid-cols-2 gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                                        <div className="col-span-2 sm:col-span-1">
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nombre</label>
-                                            <input type="text" value={formData.name} onChange={(e) => handleFieldChange('name', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20" />
-                                        </div>
-                                        <div className="col-span-2 sm:col-span-1">
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Responsable</label>
-                                            <input type="text" value={formData.responsable} onChange={(e) => handleFieldChange('responsable', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20" placeholder="Nombre..." />
-                                        </div>
-                                        <div className="col-span-1">
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Etapa</label>
-                                            <select value={formData.etapa} onChange={(e) => handleFieldChange('etapa', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20">
-                                                <option value="">Seleccionar...</option>
-                                                <option value="Planificación">Planificación</option>
-                                                <option value="Obra Negra">Obra Negra</option>
-                                                <option value="Acabados">Acabados</option>
-                                                <option value="Entrega">Entrega</option>
-                                            </select>
-                                        </div>
-                                        <div className="col-span-1">
-                                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Estado</label>
-                                            <select value={formData.status} onChange={(e) => handleFieldChange('status', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20">
-                                                <option value="">Seleccionar...</option>
-                                                <option value="Activo">Activo</option>
-                                                <option value="Pausado">Pausado</option>
-                                                <option value="Completado">Completado</option>
-                                            </select>
+                                    {/* Info Grid - High Density */}
+                                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-2">Información General</h4>
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                            <div className="col-span-1">
+                                                <label className="block text-[9px] font-bold text-gray-600 uppercase mb-1">Nombre del Proyecto</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.name}
+                                                    onChange={(e) => handleFieldChange('name', e.target.value)}
+                                                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50/50 focus:bg-white"
+                                                />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="block text-[9px] font-bold text-gray-600 uppercase mb-1">Responsable</label>
+                                                <select
+                                                    value={formData.responsable}
+                                                    onChange={(e) => handleFieldChange('responsable', e.target.value)}
+                                                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50/50 focus:bg-white"
+                                                >
+                                                    <option value="">- Seleccionar Responsable -</option>
+                                                    {staffers.map(s => (
+                                                        <option key={s.id} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="block text-[9px] font-bold text-gray-600 uppercase mb-1">Etapa Actual</label>
+                                                <select
+                                                    value={formData.etapa}
+                                                    onChange={(e) => handleFieldChange('etapa', e.target.value)}
+                                                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50/50 focus:bg-white"
+                                                >
+                                                    <option value="">Seleccionar...</option>
+                                                    <option value="Planificación">Planificación</option>
+                                                    <option value="Obra Negra">Obra Negra</option>
+                                                    <option value="Acabados">Acabados</option>
+                                                    <option value="Entrega">Entrega</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="block text-[9px] font-bold text-gray-600 uppercase mb-1">Estado del Proyecto</label>
+                                                <select
+                                                    value={formData.status}
+                                                    onChange={(e) => handleFieldChange('status', e.target.value)}
+                                                    className="w-full px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50/50 focus:bg-white"
+                                                >
+                                                    <option value="">Seleccionar...</option>
+                                                    <option value="Activo">Activo</option>
+                                                    <option value="Pausado">Pausado</option>
+                                                    <option value="Completado">Completado</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Canva Links */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Presentaciones (Canva)</h4>
-                                            <button onClick={handleAddLink} className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-100">
-                                                <Plus size={14} /> AGREGAR LINK
+                                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                                            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Presentaciones (Canva)</h4>
+                                            <button onClick={handleAddLink} className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-transparent hover:border-blue-100">
+                                                <Plus size={12} strokeWidth={3} /> AGREGAR LINK
                                             </button>
                                         </div>
                                         <div className="space-y-2">
                                             {formData.presentacionesEspacio.map((pres, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                                    <select
-                                                        value={pres.espacio}
-                                                        onChange={(e) => handleUpdateLink(idx, 'espacio', e.target.value)}
-                                                        className="w-40 px-2 py-1 text-xs border border-gray-200 rounded-md focus:ring-1 focus:ring-blue-500 outline-none"
-                                                    >
-                                                        <option value="">- Seleccionar Espacio -</option>
-                                                        {spaces.map(s => <option key={s._id} value={s.nombre}>{s.nombre}</option>)}
-                                                    </select>
-                                                    <input type="url" value={pres.link} onChange={(e) => handleUpdateLink(idx, 'link', e.target.value)} placeholder="Link URL..." className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
-                                                    {pres.link && (
-                                                        <a href={pres.link} target="_blank" rel="noopener noreferrer" className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md"><ExternalLink size={14} /></a>
-                                                    )}
-                                                    <button onClick={() => handleRemoveLink(idx)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"><Trash2 size={14} /></button>
+                                                <div key={idx} className="group flex items-center gap-2">
+                                                    <div className="w-[45%]">
+                                                        <SearchableSpaceSelector
+                                                            value={pres.espacio}
+                                                            onChange={(newVal) => handleUpdateLink(idx, 'espacio', newVal)}
+                                                            projectId={selectedProject.id}
+                                                            spaces={spaces}
+                                                            onSpaceCreated={loadSpaces} // Reload spaces after creation
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 flex items-center gap-2">
+                                                        <input
+                                                            type="url"
+                                                            value={pres.link}
+                                                            onChange={(e) => handleUpdateLink(idx, 'link', e.target.value)}
+                                                            placeholder="Pegar link de Canva..."
+                                                            className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50/30 focus:bg-white"
+                                                        />
+                                                        {pres.link && (
+                                                            <a href={pres.link} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Abrir link">
+                                                                <ExternalLink size={14} />
+                                                            </a>
+                                                        )}
+                                                        <button onClick={() => handleRemoveLink(idx)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Eliminar fila">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
-                                            {formData.presentacionesEspacio.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4 bg-gray-50/50 rounded-lg border border-dashed">No hay presentaciones definidas</p>}
+                                            {formData.presentacionesEspacio.length === 0 && (
+                                                <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                                    <p className="text-xs text-gray-400">No hay presentaciones vinculadas</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Materiales */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Materiales Constantes</h4>
-                                            <button onClick={handleAddMaterial} className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-100">
-                                                <Plus size={14} /> AGREGAR MATERIAL
+                                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                                            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Materiales Constantes</h4>
+                                            <button onClick={handleAddMaterial} className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 rounded-md transition-colors border border-transparent hover:border-blue-100">
+                                                <Plus size={12} strokeWidth={3} /> AGREGAR MATERIAL
                                             </button>
                                         </div>
                                         <div className="space-y-2">
                                             {formData.materialesConstantes.map((mat, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                                    <input type="text" value={mat.categoria} onChange={(e) => handleUpdateMaterial(idx, 'categoria', e.target.value)} placeholder="Categoría" className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
-                                                    <input type="text" value={mat.nombre} onChange={(e) => handleUpdateMaterial(idx, 'nombre', e.target.value)} placeholder="Nombre del material" className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
-                                                    <input type="text" value={mat.observaciones} onChange={(e) => handleUpdateMaterial(idx, 'observaciones', e.target.value)} placeholder="Obs." className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md outline-none" />
-                                                    <button onClick={() => handleRemoveMaterial(idx)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"><Trash2 size={14} /></button>
+                                                <div key={idx} className="group flex items-center gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={mat.categoria}
+                                                        onChange={(e) => handleUpdateMaterial(idx, 'categoria', e.target.value)}
+                                                        placeholder="Categoría"
+                                                        className="w-24 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/30 focus:bg-white transition-colors"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={mat.nombre}
+                                                        onChange={(e) => handleUpdateMaterial(idx, 'nombre', e.target.value)}
+                                                        placeholder="Nombre del material"
+                                                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/30 focus:bg-white transition-colors"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={mat.observaciones}
+                                                        onChange={(e) => handleUpdateMaterial(idx, 'observaciones', e.target.value)}
+                                                        placeholder="Observaciones..."
+                                                        className="w-32 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-gray-50/30 focus:bg-white transition-colors"
+                                                    />
+                                                    <button onClick={() => handleRemoveMaterial(idx)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             ))}
-                                            {formData.materialesConstantes.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4 bg-gray-50/50 rounded-lg border border-dashed">No hay materiales definidos</p>}
+                                            {formData.materialesConstantes.length === 0 && (
+                                                <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                                    <p className="text-xs text-gray-400">No hay materiales definidos</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -441,14 +533,24 @@ const HousesView = () => {
                                 {/* Tasks Section Sidebar */}
                                 <div className="col-span-12 lg:col-span-5 space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                                            <Calendar size={14} className="text-blue-600" /> Tareas de la Casa
+                                        <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                            <Calendar size={12} className="text-blue-600" /> Tareas de la Casa
                                         </h4>
                                         <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{projectTasks.length}</span>
                                     </div>
 
-                                    <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
-                                        <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-100">
+                                    {/* Local Filters (Without Project Selector) */}
+                                    <CalendarFilterBar
+                                        staffers={staffers}
+                                        stages={stages}
+                                        filters={filters}
+                                        onFilterChange={(k, v) => setFilters(prev => ({ ...prev, [k]: v }))}
+                                        onClear={() => setFilters({ staffId: '', stageId: '', alejoPass: false, ronaldPass: false, wietPass: false })}
+                                        showProjectFilter={false} // Don't show project filter here
+                                    />
+
+                                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                        <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-50 custom-scrollbar">
                                             {loadingTasks ? (
                                                 <div className="p-8 text-center text-xs text-gray-500 flex flex-col items-center gap-2">
                                                     <Loader2 size={24} className="animate-spin text-blue-600" />
@@ -457,29 +559,37 @@ const HousesView = () => {
                                             ) : projectTasks.length === 0 ? (
                                                 <div className="p-8 text-center text-xs text-gray-400 italic">No hay tareas para esta casa</div>
                                             ) : (
-                                                projectTasks.map(task => (
-                                                    <button
-                                                        key={task.id}
-                                                        onClick={() => handleTaskClick(task)}
-                                                        className="w-full text-left p-4 hover:bg-white hover:shadow-md transition-all group relative overflow-hidden"
-                                                    >
-                                                        {/* Status Stripe */}
-                                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${task.terminado ? 'bg-green-500' : 'bg-blue-400'}`} />
-
-                                                        <div className="flex flex-col gap-1.5">
-                                                            <div className="font-bold text-xs text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                                                                {task.task_description}
+                                                projectTasks
+                                                    .filter(task => {
+                                                        if (filters.staffId && task.staff_id != filters.staffId && task.asignado_a != filters.staffId) return false;
+                                                        if (filters.stageId && task.stage_id != filters.stageId && task.stage?.id != filters.stageId) return false;
+                                                        if (filters.alejoPass && !task.AlejoPass) return false;
+                                                        if (filters.ronaldPass && !task.RonaldPass) return false;
+                                                        if (filters.wietPass && !task.WietPass) return false;
+                                                        return true;
+                                                    })
+                                                    .map(task => (
+                                                        <button
+                                                            key={task.id}
+                                                            onClick={() => handleTaskClick(task)}
+                                                            className="w-full text-left p-3 hover:bg-blue-50/50 transition-all group relative border-l-2 border-transparent hover:border-blue-500"
+                                                        >
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className={`font-medium text-xs text-gray-800 line-clamp-1 group-hover:text-blue-700 ${task.terminado ? 'line-through text-gray-400' : ''}`}>
+                                                                    {task.task_description}
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                                                                        <span className="flex items-center gap-1"><Clock size={10} /> {task.fecha_inicio}</span>
+                                                                        {task.staff?.name && (
+                                                                            <span className="flex items-center gap-1"><User size={10} /> {task.staff.name}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    {task.terminado && <CheckCircle size={12} className="text-green-500" />}
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-3 text-[10px] text-gray-500">
-                                                                <span className="flex items-center gap-1"><Clock size={12} /> {task.fecha_inicio}</span>
-                                                                <span className="flex items-center gap-1"><CheckCircle size={12} className={task.terminado ? 'text-green-500' : 'text-gray-300'} /> {task.terminado ? 'Completada' : 'En curso'}</span>
-                                                            </div>
-                                                            {task.staff?.name && (
-                                                                <div className="text-[10px] font-medium text-gray-400 uppercase tracking-tight">Responsable: {task.staff.name}</div>
-                                                            )}
-                                                        </div>
-                                                    </button>
-                                                ))
+                                                        </button>
+                                                    ))
                                             )}
                                         </div>
                                     </div>
@@ -502,3 +612,171 @@ const HousesView = () => {
 };
 
 export default HousesView;
+
+// Internal Helper Component for Searchable Space Selection
+
+const SearchableSpaceSelector = ({ value, onChange, projectId, spaces, onSpaceCreated, placeholder = "- Seleccionar Espacio -" }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+    const [newSpaceName, setNewSpaceName] = useState('');
+    const [newSpaceApellido, setNewSpaceApellido] = useState('');
+    const [creatingLoading, setCreatingLoading] = useState(false);
+    const wrapperRef = React.useRef(null);
+
+    // Filter spaces by project and input
+    const filteredSpaces = spaces.filter(s => {
+        // Filter by project ID (loose comparison as DB might use different types)
+        if (s.proyecto && s.proyecto != projectId) return false;
+
+        // Search term
+        const term = searchTerm.toLowerCase();
+        return s.nombre?.toLowerCase().includes(term) || s.apellido?.toLowerCase().includes(term);
+    });
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+                setIsCreating(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleCreateSpace = async () => {
+        if (!newSpaceName.trim()) return;
+        setCreatingLoading(true);
+        try {
+            const newSpace = await createSpace({
+                nombre: newSpaceName.trim(),
+                apellido: newSpaceApellido.trim(),
+                tipo: 'Espacio',
+                proyecto: projectId
+            });
+
+            // Notify parent to reload
+            if (onSpaceCreated) await onSpaceCreated();
+
+            // Auto Select
+            onChange(newSpace.nombre);
+            setIsOpen(false);
+            setIsCreating(false);
+            setNewSpaceName('');
+            setNewSpaceApellido('');
+        } catch (error) {
+            console.error(error);
+            alert("Error al crear espacio");
+        } finally {
+            setCreatingLoading(false);
+        }
+    };
+
+    return (
+        <div className="relative" ref={wrapperRef}>
+            <div
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-lg flex items-center justify-between cursor-pointer bg-gray-50/30 hover:bg-white hover:border-blue-300 transition-colors"
+            >
+                <span className={!value ? 'text-gray-400' : 'text-gray-900'}>
+                    {value || placeholder}
+                </span>
+                <ChevronDown size={12} className="text-gray-400" />
+            </div>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-64 flex flex-col">
+                    {/* Search / Create Header */}
+                    <div className="p-2 border-b border-gray-100 bg-gray-50 flex flex-col gap-2">
+                        {!isCreating ? (
+                            <div className="relative">
+                                <Search size={12} className="absolute left-2 top-1.5 text-gray-400" />
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Buscar espacio..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
+                                />
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-1">
+                                <span className="text-[10px] font-bold text-blue-600 uppercase">Nuevo Espacio</span>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Nombre (ej. Baño)"
+                                    value={newSpaceName}
+                                    onChange={(e) => setNewSpaceName(e.target.value)}
+                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Apellido (ej. Principal)"
+                                    value={newSpaceApellido}
+                                    onChange={(e) => setNewSpaceApellido(e.target.value)}
+                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
+                                />
+                                <div className="flex items-center gap-1 justify-end">
+                                    <button
+                                        onClick={() => setIsCreating(false)}
+                                        className="px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-100 rounded"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={handleCreateSpace}
+                                        disabled={creatingLoading || !newSpaceName.trim()}
+                                        className="px-2 py-1 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                        {creatingLoading ? 'Creando...' : 'Crear'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Options List */}
+                    {!isCreating && (
+                        <div className="flex-1 overflow-y-auto min-h-[100px]">
+                            {filteredSpaces.map(s => (
+                                <div
+                                    key={s._id}
+                                    onClick={() => {
+                                        onChange(s.nombre);
+                                        setIsOpen(false);
+                                    }}
+                                    className="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer flex items-center justify-between group"
+                                >
+                                    <div>
+                                        <span className="font-medium text-gray-800">{s.nombre}</span>
+                                        {s.apellido && <span className="text-gray-500 ml-1">({s.apellido})</span>}
+                                    </div>
+                                    {value === s.nombre && <CheckCircle size={12} className="text-blue-600" />}
+                                </div>
+                            ))}
+                            {filteredSpaces.length === 0 && (
+                                <div className="p-4 text-center text-xs text-gray-400 italic">
+                                    No se encontraron espacios.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Footer Create Action */}
+                    {!isCreating && (
+                        <div
+                            onClick={() => setIsCreating(true)}
+                            className="p-2 border-t border-gray-100 bg-gray-50 cursor-pointer hover:bg-blue-50 transition-colors flex items-center gap-2 text-blue-600"
+                        >
+                            <Plus size={14} />
+                            <span className="text-xs font-bold">Crear "{searchTerm || 'Nuevo'}"</span>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};

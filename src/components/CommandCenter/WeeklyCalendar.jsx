@@ -4,7 +4,7 @@ import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Plus, Box, Layers, PlayCircle, PauseCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getWeeklyActions, toggleActionStatus, getTaskActions } from '../../services/actionsService';
-import { getWeeklyTasks, getProjects } from '../../services/tasksService';
+import { getWeeklyTasks, getProjects, getStages } from '../../services/tasksService';
 import { getStaffers } from '../../services/spacesService';
 import { getProjectColor } from '../../utils/projectColors';
 import { getStaffColor } from '../../utils/staffColors';
@@ -299,9 +299,11 @@ export default function WeeklyCalendar() {
     const [weekTasks, setWeekTasks] = useState([]);
     const [projects, setProjects] = useState([]);
     const [staffers, setStaffers] = useState([]);
+    const [stages, setStages] = useState([]);
     const [filters, setFilters] = useState({
         staffId: '',
         projectId: '',
+        stageId: '',
         alejoPass: false,
         ronaldPass: false,
         wietPass: false
@@ -347,10 +349,12 @@ export default function WeeklyCalendar() {
     useEffect(() => {
         Promise.all([
             getProjects(),
-            getStaffers()
-        ]).then(([projs, staff]) => {
+            getStaffers(),
+            getStages()
+        ]).then(([projs, staff, stg]) => {
             setProjects(projs || []);
             setStaffers(staff || []);
+            setStages(stg || []);
         });
     }, []);
 
@@ -367,6 +371,7 @@ export default function WeeklyCalendar() {
         const passFilter = (t) => {
             if (activeFilters.staffId && t.staff_id != activeFilters.staffId && t.asignado_a != activeFilters.staffId) return false;
             if (activeFilters.projectId && t.proyecto_id != activeFilters.projectId && t.proyecto?.id != activeFilters.projectId) return false;
+            if (activeFilters.stageId && t.stage_id != activeFilters.stageId && t.stage?.id != activeFilters.stageId) return false;
             if (activeFilters.alejoPass && !t.AlejoPass) return false;
             if (activeFilters.ronaldPass && !t.RonaldPass) return false;
             if (activeFilters.wietPass && !t.WietPass) return false;
@@ -478,6 +483,7 @@ export default function WeeklyCalendar() {
         setFilters({
             staffId: '',
             projectId: '',
+            stageId: '',
             alejoPass: false,
             ronaldPass: false,
             wietPass: false
@@ -630,6 +636,7 @@ export default function WeeklyCalendar() {
                     <CalendarFilterBar
                         staffers={staffers}
                         projects={projects}
+                        stages={stages}
                         filters={filters}
                         onFilterChange={handleFilterChange}
                         onClear={handleClearFilters}

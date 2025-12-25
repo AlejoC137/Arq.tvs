@@ -17,9 +17,10 @@ import {
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Layers, Plus } from 'lucide-react';
 import { setSelectedTask, clearSelection, initCreateTask } from '../../store/actions/appActions';
-import { getTasks, getProjects } from '../../services/tasksService';
+import { getTasks, getProjects, getStages } from '../../services/tasksService';
 import { getStaffers } from '../../services/spacesService';
 import { getProjectColor } from '../../utils/projectColors';
+import CalendarFilterBar from './CalendarFilterBar';
 
 const TaskEventCard = ({ task, type, onClick }) => {
     const colors = getProjectColor(task.proyecto?.id || 'default');
@@ -63,9 +64,11 @@ const MonthlyCalendar = () => {
     const [tasks, setTasks] = useState([]);
     const [staffers, setStaffers] = useState([]);
     const [projects, setProjects] = useState([]);
+    const [stages, setStages] = useState([]);
     const [filters, setFilters] = useState({
         staffId: '',
         projectId: '',
+        stageId: '',
         alejoPass: false,
         ronaldPass: false,
         wietPass: false
@@ -76,14 +79,16 @@ const MonthlyCalendar = () => {
     // Load tasks & metadata
     React.useEffect(() => {
         const loadJava = async () => {
-            const [allTasks, allStaff, allProjects] = await Promise.all([
+            const [allTasks, allStaff, allProjects, allStages] = await Promise.all([
                 getTasks(),
                 getStaffers(),
-                getProjects()
+                getProjects(),
+                getStages()
             ]);
             setTasks(allTasks || []);
             setStaffers(allStaff || []);
             setProjects(allProjects || []);
+            setStages(allStages || []);
         };
         loadJava();
     }, [currentDate, refreshCounter]);
@@ -96,6 +101,7 @@ const MonthlyCalendar = () => {
         setFilters({
             staffId: '',
             projectId: '',
+            stageId: '',
             alejoPass: false,
             ronaldPass: false,
             wietPass: false
@@ -114,6 +120,8 @@ const MonthlyCalendar = () => {
             if (filters.staffId && t.staff_id != filters.staffId && t.asignado_a != filters.staffId) return false;
             // Project Filter
             if (filters.projectId && t.proyecto_id != filters.projectId && t.proyecto?.id != filters.projectId) return false;
+            // Stage Filter
+            if (filters.stageId && t.stage_id != filters.stageId && t.stage?.id != filters.stageId) return false;
             // Approvals Filter (OR logic or AND logic? Usually AND if checked)
             // If checkbox is checked, task MUST require/have that pass? 
             // "Filtra por Alejo Paz..." usually means show items related to that.
@@ -182,6 +190,7 @@ const MonthlyCalendar = () => {
                     <CalendarFilterBar
                         staffers={staffers}
                         projects={projects}
+                        stages={stages}
                         filters={filters}
                         onFilterChange={handleFilterChange}
                         onClear={handleClearFilters}

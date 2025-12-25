@@ -96,6 +96,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             // Load draft fullActions if present (for JSON Importer)
             if (selectedTask.fullActions) {
                 setComponents(selectedTask.fullActions.map((a, i) => ({ ...a, orden: i, _isNew: true })));
+            } else {
+                setComponents([]);
             }
         } else if (panelMode === 'task' && selectedTask) {
             // Load existing task data into taskForm for editing
