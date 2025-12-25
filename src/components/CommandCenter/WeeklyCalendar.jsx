@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { format, addDays, startOfWeek, isSameDay, isToday, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Plus, Box, Layers, PlayCircle, PauseCircle } from 'lucide-react';
+import { handleNativePrint } from '../../utils/printUtils';
 import { useDispatch, useSelector } from 'react-redux';
 import { getWeeklyActions, toggleActionStatus, getTaskActions } from '../../services/actionsService';
 import { getWeeklyTasks, getProjects, getStages } from '../../services/tasksService';
@@ -11,6 +12,7 @@ import { getStaffColor } from '../../utils/staffColors';
 import { getStageColor } from '../../utils/stageColors';
 import { setSelectedAction, setSelectedTask, clearSelection, initCreateAction, initCreateTask, setDayMode } from '../../store/actions/appActions';
 import CalendarFilterBar from './CalendarFilterBar';
+import PrintButton from '../common/PrintButton';
 
 // === HELPER: Height Calculation ===
 const CARD_BASE_HEIGHT = 28; // Header + padding
@@ -306,7 +308,8 @@ export default function WeeklyCalendar() {
         stageId: '',
         alejoPass: false,
         ronaldPass: false,
-        wietPass: false
+        wietPass: false,
+        showConstruction: false // Default: FALSE
     });
     const [loading, setLoading] = useState(true);
 
@@ -370,11 +373,27 @@ export default function WeeklyCalendar() {
         const activeFilters = filters;
         const passFilter = (t) => {
             if (activeFilters.staffId && t.staff_id != activeFilters.staffId && t.asignado_a != activeFilters.staffId) return false;
-            if (activeFilters.projectId && t.proyecto_id != activeFilters.projectId && t.proyecto?.id != activeFilters.projectId) return false;
-            if (activeFilters.stageId && t.stage_id != activeFilters.stageId && t.stage?.id != activeFilters.stageId) return false;
             if (activeFilters.alejoPass && !t.AlejoPass) return false;
             if (activeFilters.ronaldPass && !t.RonaldPass) return false;
             if (activeFilters.wietPass && !t.WietPass) return false;
+
+            // Construction Mode Filter (Mutually Exclusive)
+            // Robust matching: Normalize string and check for keywords
+            const stageName = (t.stage?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const isDesignStage =
+                stageName.includes('idea') ||
+                stageName.includes('desarrollo') ||
+                stageName.includes('muebles');
+
+            if (activeFilters.showConstruction) {
+                // If Construction Mode is ON -> Hide Design Stages
+                if (isDesignStage) return false;
+            } else {
+                // If Construction Mode is OFF -> Hide Non-Design (Construction) Stages
+                if (!isDesignStage) return false;
+            }
+            // Note: specific stageId filter is intentionally ignored to enforce group view
+
             return true;
         };
 
@@ -486,7 +505,8 @@ export default function WeeklyCalendar() {
             stageId: '',
             alejoPass: false,
             ronaldPass: false,
-            wietPass: false
+            wietPass: false,
+            showConstruction: false
         });
     };
 
@@ -623,16 +643,23 @@ export default function WeeklyCalendar() {
         }
     };
 
+    const printRef = useRef(null);
+    const handlePrint = () => {
+        handleNativePrint('weekly-calendar-print-view', `Calendario_Semanal_${format(weekStart, 'yyyy-MM-dd')}`);
+    };
+
     // Layout and panel are now managed by MainContainer
 
     return (
-        <div className="h-screen flex flex-col bg-white dark:bg-zinc-950 font-sans overflow-hidden" onMouseUp={handleMouseUp}>
-            <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-zinc-800 shrink-0 bg-white z-10">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent transform translate-y-[-2px]">
+        <div id="weekly-calendar-print-view" ref={printRef} className="h-full flex flex-col bg-white print-container">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 print:border-none z-10">
+                <h2 className="text-xl font-bold text-gray-900 print:text-black">
                     {format(weekStart, 'MMMM yyyy', { locale: es }).toUpperCase()}
                 </h2>
 
-                <div className="flex-1 px-4">
+                {/* Filters Relocated to Header */}
+                <div className="flex-1 px-4 no-print">
                     <CalendarFilterBar
                         staffers={staffers}
                         projects={projects}
@@ -640,20 +667,26 @@ export default function WeeklyCalendar() {
                         filters={filters}
                         onFilterChange={handleFilterChange}
                         onClear={handleClearFilters}
+                        showStageFilter={false} // Hidden to enforce grouped view via Toggle
                     />
                 </div>
 
-                <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-0.5">
-                    <button onClick={() => setCurrentDate(addDays(currentDate, -7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronLeft size={16} /></button>
-                    <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs font-medium hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-all">Hoy</button>
-                    <button onClick={() => setCurrentDate(addDays(currentDate, 7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronRight size={16} /></button>
+                <div className="flex items-center gap-1 no-print">
+                    <PrintButton
+                        onClick={handlePrint}
+                    />
+                    <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                        <button onClick={() => setCurrentDate(addDays(currentDate, -7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronLeft size={16} /></button>
+                        <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs font-medium hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-all">Hoy</button>
+                        <button onClick={() => setCurrentDate(addDays(currentDate, 7))} className="p-1 hover:bg-white dark:hover:bg-zinc-700 rounded-md shadow-sm transition-all"><ChevronRight size={16} /></button>
+                    </div>
                 </div>
             </div>
 
             {/* Rows by Project */}
-            <div className="flex-1 overflow-y-auto">
+            < div className="flex-1 overflow-y-auto" >
                 {/* Grid Header (Days) - Sticky */}
-                <div className="flex border-b border-gray-200 bg-gray-50/80 sticky top-0 z-30 backdrop-blur-sm shadow-sm ring-1 ring-black/5">
+                < div className="flex border-b border-gray-200 bg-gray-50/80 sticky top-0 z-30 backdrop-blur-sm shadow-sm ring-1 ring-black/5" >
                     <div className="w-20 shrink-0 p-2 text-xs font-bold text-gray-400 uppercase text-right border-r border-gray-200 flex items-center justify-end pr-4">
                         Proyectos
                     </div>
@@ -667,101 +700,102 @@ export default function WeeklyCalendar() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </div >
 
-                {Object.entries(projectGroups).map(([pid, group]) => {
-                    // Check if empty rows should be hidden if desired? 
-                    // User's image shows empty projects too. Keep them.
-                    const pLayout = projectLayouts[pid] || {};
-                    const pItems = group.items;
-                    const hasItems = pItems.length > 0;
+                {
+                    Object.entries(projectGroups).map(([pid, group]) => {
+                        // Check if empty rows should be hidden if desired? 
+                        // User's image shows empty projects too. Keep them.
+                        const pLayout = projectLayouts[pid] || {};
+                        const pItems = group.items;
+                        const hasItems = pItems.length > 0;
 
-                    return (
-                        <div
-                            key={pid}
-                            className={`flex border-b border-gray-100 bg-white relative group/row transition-all duration-300 ${hasItems ? 'min-h-[100px]' : 'min-h-[36px]'}`}
-                        >
-                            {/* Y-Axis Label: Project Name */}
-                            <div className="w-20 shrink-0 p-2 bg-gray-50/20 border-r border-gray-200 text-xs font-bold text-gray-700 flex flex-col justify-center text-right pr-3 relative">
-                                <span className="truncate">{group.project.name}</span>
-                                {group.project.status && hasItems && <span className="text-[9px] text-gray-400 font-normal uppercase">{group.project.status}</span>}
-                                {/* Row Hover Effect Bar */}
-                                <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-blue-500 opacity-0 group-hover/row:opacity-100 transition-opacity" />
-                            </div>
-
-                            {/* 7-Cols Grid for this Project */}
+                        return (
                             <div
-                                className="flex-1 grid divide-x divide-gray-100 relative"
-                                style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) minmax(0, 0.3fr)' }}
+                                key={pid}
+                                className={`flex border-b border-gray-100 bg-white relative group/row transition-all duration-300 ${hasItems ? 'min-h-[100px]' : 'min-h-[36px]'}`}
                             >
-                                {weekDays.map((day, colIndex) => {
-                                    const itemsToRender = [];
-                                    Object.entries(pLayout).forEach(([id, meta]) => {
-                                        const { colStart, span, stackIndex } = meta;
-                                        if (colIndex >= colStart && colIndex < (colStart + span)) {
-                                            if (colIndex === colStart) {
-                                                const item = pItems.find(g => g.uniqueLayoutId === id);
-                                                if (item) {
-                                                    itemsToRender.push({ type: item.type === 'task_group' ? 'task_group' : 'card', stackIndex, data: item, meta });
-                                                }
-                                            } else {
-                                                const item = pItems.find(g => g.uniqueLayoutId === id);
-                                                const height = item ? getCardHeight(item) : 44;
-                                                itemsToRender.push({ type: 'spacer', stackIndex, height });
-                                            }
-                                        }
-                                    });
-                                    itemsToRender.sort((a, b) => a.stackIndex - b.stackIndex);
+                                {/* Y-Axis Label: Project Name */}
+                                <div className="w-20 shrink-0 p-2 bg-gray-50/20 border-r border-gray-200 text-xs font-bold text-gray-700 flex flex-col justify-center text-right pr-3 relative">
+                                    <span className="truncate">{group.project.name}</span>
+                                    {group.project.status && hasItems && <span className="text-[9px] text-gray-400 font-normal uppercase">{group.project.status}</span>}
+                                    {/* Row Hover Effect Bar */}
+                                    <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-blue-500 opacity-0 group-hover/row:opacity-100 transition-opacity" />
+                                </div>
 
-                                    const isSelected = isInSelection(day);
-
-                                    return (
-                                        <div
-                                            key={day.toString()}
-                                            className={`relative p-1 transition-colors group/cell ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/30'}`}
-                                            onMouseDown={() => handleMouseDown(day, colIndex)}
-                                            onMouseEnter={() => handleMouseEnter(day, colIndex)}
-                                        >
-                                            {/* Render Items */}
-                                            {itemsToRender.map((item, idx) => {
-                                                if (item.type === 'task_group') {
-                                                    return <TaskGroupCard key={item.data.uniqueLayoutId} group={item.data} layoutStyle={item.meta} onClick={handleCardClick} onTaskClick={handleTaskClick} isStart={item.data.isStart} isEnd={item.data.isEnd} />;
-                                                } else if (item.type === 'card') {
-                                                    return <ActionCard key={item.data.uniqueLayoutId} action={item.data} layoutStyle={item.meta} onToggle={handleToggle} onClick={handleCardClick} onTaskClick={handleTaskClick} />;
+                                {/* 7-Cols Grid for this Project */}
+                                <div
+                                    className="flex-1 grid divide-x divide-gray-100 relative"
+                                    style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) minmax(0, 0.3fr)' }}
+                                >
+                                    {weekDays.map((day, colIndex) => {
+                                        const itemsToRender = [];
+                                        Object.entries(pLayout).forEach(([id, meta]) => {
+                                            const { colStart, span, stackIndex } = meta;
+                                            if (colIndex >= colStart && colIndex < (colStart + span)) {
+                                                if (colIndex === colStart) {
+                                                    const item = pItems.find(g => g.uniqueLayoutId === id);
+                                                    if (item) {
+                                                        itemsToRender.push({ type: item.type === 'task_group' ? 'task_group' : 'card', stackIndex, data: item, meta });
+                                                    }
                                                 } else {
-                                                    return <Spacer key={`spacer-${idx}`} height={item.height} />;
+                                                    const item = pItems.find(g => g.uniqueLayoutId === id);
+                                                    const height = item ? getCardHeight(item) : 44;
+                                                    itemsToRender.push({ type: 'spacer', stackIndex, height });
                                                 }
-                                            })}
+                                            }
+                                        });
+                                        itemsToRender.sort((a, b) => a.stackIndex - b.stackIndex);
 
-                                            {/* Row-specific Add Button (Hidden by default, show on hover/empty) */}
-                                            <div className="absolute bottom-1 right-1 opacity-0 group-hover/cell:opacity-100 transition-opacity z-20">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        // Pass date and project_id
-                                                        dispatch(initCreateTask({
-                                                            task_description: '',
-                                                            fecha_inicio: format(day, 'yyyy-MM-dd'),
-                                                            fecha_fin_estimada: format(day, 'yyyy-MM-dd'),
-                                                            proyecto_id: group.project.id !== 'orphan' ? group.project.id : null,
-                                                            espacio_uuid: null,
-                                                        }));
-                                                    }}
-                                                    className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded shadow-sm hover:scale-110 transition-transform"
-                                                    title="Agregar Tarea"
-                                                >
-                                                    <Plus size={12} strokeWidth={3} />
-                                                </button>
+                                        const isSelected = isInSelection(day);
+
+                                        return (
+                                            <div
+                                                key={day.toString()}
+                                                className={`relative p-1 transition-colors group/cell ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/30'}`}
+                                                onMouseDown={() => handleMouseDown(day, colIndex)}
+                                                onMouseEnter={() => handleMouseEnter(day, colIndex)}
+                                            >
+                                                {/* Render Items */}
+                                                {itemsToRender.map((item, idx) => {
+                                                    if (item.type === 'task_group') {
+                                                        return <TaskGroupCard key={item.data.uniqueLayoutId} group={item.data} layoutStyle={item.meta} onClick={handleCardClick} onTaskClick={handleTaskClick} isStart={item.data.isStart} isEnd={item.data.isEnd} />;
+                                                    } else if (item.type === 'card') {
+                                                        return <ActionCard key={item.data.uniqueLayoutId} action={item.data} layoutStyle={item.meta} onToggle={handleToggle} onClick={handleCardClick} onTaskClick={handleTaskClick} />;
+                                                    } else {
+                                                        return <Spacer key={`spacer-${idx}`} height={item.height} />;
+                                                    }
+                                                })}
+
+                                                {/* Row-specific Add Button (Hidden by default, show on hover/empty) */}
+                                                <div className="absolute bottom-1 right-1 opacity-0 group-hover/cell:opacity-100 transition-opacity z-20">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // Pass date and project_id
+                                                            dispatch(initCreateTask({
+                                                                task_description: '',
+                                                                fecha_inicio: format(day, 'yyyy-MM-dd'),
+                                                                fecha_fin_estimada: format(day, 'yyyy-MM-dd'),
+                                                                proyecto_id: group.project.id !== 'orphan' ? group.project.id : null,
+                                                                espacio_uuid: null,
+                                                            }));
+                                                        }}
+                                                        className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded shadow-sm hover:scale-110 transition-transform"
+                                                        title="Agregar Tarea"
+                                                    >
+                                                        <Plus size={12} strokeWidth={3} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
-
+                        );
+                    })
+                }
+            </div >
         </div>
     );
 }

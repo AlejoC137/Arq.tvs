@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useRef, useEffect, useState } from 'react';
+import { handleNativePrint } from '../../utils/printUtils';
+import { useDispatch, useSelector } from 'react-redux';
 import { clearSelection, setSelectedAction, setSelectedTask, fetchPendingCallsCount, toggleInspectorCollapse, incrementRefreshCounter } from '../../store/actions/appActions';
 import { updateAction, createAction, getTaskActions, updateActionsOrder, deleteAction } from '../../services/actionsService';
 import { getSpaceComponents, updateComponent } from '../../services/componentsService';
@@ -9,6 +10,7 @@ import { createCall, createMultipleCalls } from '../../services/callsService';
 import TaskDependencySelector from './TaskDependencySelector'; // Import Selector
 import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check, Phone, Users } from 'lucide-react';
 import { format } from 'date-fns';
+import PrintButton from '../common/PrintButton';
 
 const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const dispatch = useDispatch();
@@ -38,6 +40,11 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
     // DnD State
     const [draggedIndex, setDraggedIndex] = useState(null);
+
+    const printRef = useRef(null);
+    const handlePrint = () => {
+        handleNativePrint('action-inspector-print-view', `Detalle_${panelMode}_${selectedTask?.task_description || selectedAction?.descripcion || selectedDate}`);
+    };
 
     // Load dropdown data on mount
     useEffect(() => {
@@ -682,7 +689,12 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 no-print">
+                    {showPanel && (panelMode === 'task' || panelMode === 'action' || panelMode === 'day') && (
+                        <PrintButton
+                            onClick={handlePrint}
+                        />
+                    )}
                     <button
                         onClick={() => {
                             const newState = !isCollapsed;
@@ -730,7 +742,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         Selecciona una acción o tarea
                     </div>
                 ) : (
-                    <>
+                    <div id="action-inspector-print-view" ref={printRef} className="h-full print-container">
                         {/* MODE: CREATE TASK & EDIT TASK (Unified) */}
                         {(panelMode === 'task' || panelMode === 'createTask') && (
                             <div className="grid grid-cols-12 h-full text-xs">
@@ -1178,9 +1190,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                 </div>
                             </div>
                         )}
-                    </>
-                )
-                }
+                    </div>
+                )}
             </div >
         </div >
     );

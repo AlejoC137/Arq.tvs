@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { handleNativePrint } from '../../utils/printUtils';
 import { FileText, Search, User, Calendar, Tag, Edit, Plus, Save, X } from 'lucide-react';
 import { getProtocols, getProtocolCategories, createProtocol, updateProtocol } from '../../services/protocolsService';
 import ReactMarkdown from 'react-markdown';
+import PrintButton from '../common/PrintButton';
 
 const ProtocolsView = () => {
     const [protocols, setProtocols] = useState([]);
@@ -39,6 +41,10 @@ const ProtocolsView = () => {
         } finally {
             setLoading(false);
         }
+    };
+    const printRef = useRef(null);
+    const handlePrint = () => {
+        handleNativePrint('protocols-view-print-view', `Protocolo_${selectedProtocol?.Nombre || 'Detalle'}`);
     };
 
     const filteredProtocols = protocols.filter(protocol => {
@@ -109,7 +115,7 @@ const ProtocolsView = () => {
     return (
         <div className="h-full flex bg-white">
             {/* LEFT: Protocols List */}
-            <div className="w-96 border-r border-gray-200 flex flex-col">
+            <div className="w-96 border-r border-gray-200 flex flex-col no-print">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200">
                     <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center justify-between gap-2">
@@ -252,9 +258,9 @@ const ProtocolsView = () => {
                         </div>
                     </div>
                 ) : selectedProtocol ? (
-                    <>
+                    <div id="protocols-view-print-view" ref={printRef} className="flex-1 flex flex-col h-full print-container">
                         {/* Header */}
-                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
+                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white print:border-none">
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex items-start gap-4 flex-1">
                                     <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -286,13 +292,18 @@ const ProtocolsView = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={handleStartEdit}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                                >
-                                    <Edit size={16} />
-                                    Editar
-                                </button>
+                                <div className="flex items-center gap-2 no-print">
+                                    <PrintButton
+                                        onClick={handlePrint}
+                                    />
+                                    <button
+                                        onClick={handleStartEdit}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                                    >
+                                        <Edit size={16} />
+                                        Editar
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -304,7 +315,7 @@ const ProtocolsView = () => {
                                 </ReactMarkdown>
                             </div>
                         </div>
-                    </>
+                    </div>
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-gray-400">
                         <div className="text-center">

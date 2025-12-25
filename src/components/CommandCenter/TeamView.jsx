@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Users, User, Briefcase, Plus, X, Save, Loader2, Calendar, UserPlus, Pencil, Trash2 } from 'lucide-react';
 import { getStaffers, deleteStaff } from '../../services/spacesService';
@@ -6,6 +6,9 @@ import { getTasks, getProjects } from '../../services/tasksService';
 import { format } from 'date-fns';
 import { setSelectedTask, initCreateTask } from '../../store/actions/appActions';
 import AddMemberModal from './AddMemberModal';
+import PrintButton from '../common/PrintButton';
+import PDFModal from '../common/PDFModal';
+import TeamReport from '../Reports/TeamReport';
 
 const TeamView = () => {
     const dispatch = useDispatch();
@@ -110,11 +113,19 @@ const TeamView = () => {
         return { active, completed, total: staffTasks.length };
     }, [staffTasks]);
 
+    // PDF Report State
+    const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+
+    // Legacy Print handling replaced by React PDF
+    const handlePrint = () => {
+        setIsPDFModalOpen(true);
+    };
+
     return (
         <div className="h-full flex flex-col bg-white overflow-hidden">
             <div className="flex-1 flex overflow-hidden">
                 {/* LEFT: Team List */}
-                <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50/30">
+                <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50/30 no-print">
                     {/* Header */}
                     <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                         <div>
@@ -180,9 +191,9 @@ const TeamView = () => {
                 {/* RIGHT: Member Details */}
                 <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
                     {selectedStaffer ? (
-                        <div className="flex-1 overflow-y-auto">
+                        <div id="team-view-print-view" className="flex-1 overflow-y-auto print-container">
                             {/* Header Banner */}
-                            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50/50 to-white">
+                            <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50/50 to-white print:border-none">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex items-start gap-4">
                                         <div className="w-16 h-16 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center">
@@ -193,7 +204,10 @@ const TeamView = () => {
                                                 <h3 className="text-xl font-bold text-gray-900 mb-1">
                                                     {selectedStaffer.name}
                                                 </h3>
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1 no-print">
+                                                    <PrintButton
+                                                        onClick={handlePrint}
+                                                    />
                                                     <button
                                                         onClick={handleEditStaffer}
                                                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -220,7 +234,7 @@ const TeamView = () => {
                                     </div>
                                     <button
                                         onClick={handleCreateTask}
-                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm hover:shadow-md"
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm hover:shadow-md no-print"
                                     >
                                         <Plus size={16} />
                                         Agregar Tarea
@@ -368,6 +382,20 @@ const TeamView = () => {
                 onMemberAdded={loadData}
                 member={editingMember}
             />
+
+            {/* PDF Report Modal */}
+            <PDFModal
+                isOpen={isPDFModalOpen}
+                onClose={() => setIsPDFModalOpen(false)}
+                title={`Reporte de Equipo: ${selectedStaffer?.name}`}
+            >
+                <TeamReport
+                    staffer={selectedStaffer}
+                    stats={stats}
+                    tasks={staffTasks}
+                    projects={projects}
+                />
+            </PDFModal>
         </div>
     );
 };

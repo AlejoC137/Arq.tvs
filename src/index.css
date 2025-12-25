@@ -163,3 +163,36 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+@layer utilities {
+  .no-print {
+    @media print {
+      display: none !important;
+    }
+  }
+}
+
+@media print {
+  body {
+    background-color: white;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Hide scrollbars in print */
+  * {
+    overflow: visible !important;
+  }
+  
+  /* Ensure content fits */
+  .print-container {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Force landscape if supported */
+  @page {
+    size: landscape;
+    margin: 1cm;
+  }
+}

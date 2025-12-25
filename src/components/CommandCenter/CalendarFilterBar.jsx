@@ -62,8 +62,22 @@ const CalendarFilterBar = ({
                 </select>
             )}
 
-            {/* Approvals Filters (Checkboxes) */}
             <div className="flex items-center gap-3 ml-2 border-l border-gray-200 pl-3">
+                {/* Construction Mode Toggle */}
+                <button
+                    onClick={() => onFilterChange('showConstruction', !filters.showConstruction)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${filters.showConstruction
+                            ? 'bg-orange-100 text-orange-700 border-orange-200'
+                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    title={filters.showConstruction ? "Ocultar etapas de construcción" : "Mostrar etapas de construcción"}
+                >
+                    <span className="text-sm">🏗️</span>
+                    <span className="text-xs font-bold">Obra</span>
+                </button>
+
+                <div className="h-4 w-px bg-gray-200 mx-1"></div>
+
                 <label className="flex items-center gap-1.5 cursor-pointer select-none">
                     <input
                         type="checkbox"

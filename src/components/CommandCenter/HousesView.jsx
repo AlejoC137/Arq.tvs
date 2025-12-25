@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { handleNativePrint } from '../../utils/printUtils';
 import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock, User, Search, ChevronDown } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getHouses, getParcels, updateProject, createProject, deleteProject } from '../../services/projectsService';
@@ -6,6 +7,7 @@ import { getTasksByProject, getStages } from '../../services/tasksService';
 import { getSpaces, getStaffers, createSpace } from '../../services/spacesService';
 import { setSelectedTask } from '../../store/actions/appActions';
 import CalendarFilterBar from './CalendarFilterBar';
+import PrintButton from '../common/PrintButton';
 
 const HousesView = () => {
     const dispatch = useDispatch();
@@ -24,7 +26,8 @@ const HousesView = () => {
         stageId: '',
         alejoPass: false,
         ronaldPass: false,
-        wietPass: false
+        wietPass: false,
+        showConstruction: false // Default: No Construction
     });
 
     // Inline editing state
@@ -38,6 +41,10 @@ const HousesView = () => {
     });
     const [saving, setSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const printRef = useRef(null);
+    const handlePrint = () => {
+        handleNativePrint('houses-view-print-view', `Casa_${formData.name}`);
+    };
 
     useEffect(() => {
         loadProjects();
@@ -273,7 +280,7 @@ const HousesView = () => {
     return (
         <div className="h-full flex bg-white">
             {/* LEFT: SIDEBAR */}
-            <div className="w-80 border-r border-gray-200 flex flex-col">
+            <div className="w-80 border-r border-gray-200 flex flex-col no-print">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                     <div>
@@ -336,7 +343,7 @@ const HousesView = () => {
             </div>
 
             {/* RIGHT: EDITOR PANEL */}
-            <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/30">
+            <div id="houses-view-print-view" ref={printRef} className="flex-1 flex flex-col overflow-hidden bg-gray-50/30 print-container">
                 {selectedProject ? (
                     <>
                         {/* Header Compacto */}
@@ -348,15 +355,20 @@ const HousesView = () => {
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <h3 className="text-base font-bold text-gray-900 leading-tight">{formData.name || 'Sin nombre'}</h3>
-                                        {propertyView !== 'parcels' && (
-                                            <button
-                                                onClick={handleDeleteProject}
-                                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                                                title="Eliminar Casa"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
+                                        <div className="flex items-center gap-1 no-print">
+                                            <PrintButton
+                                                onClick={handlePrint}
+                                            />
+                                            {propertyView !== 'parcels' && (
+                                                <button
+                                                    onClick={handleDeleteProject}
+                                                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                                    title="Eliminar Casa"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-2 mt-0.5">
                                         <span className={`inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded border ${getEtapaColor(formData.etapa)} bg-opacity-50 border-opacity-20`}>
@@ -370,7 +382,7 @@ const HousesView = () => {
                             <button
                                 onClick={handleSave}
                                 disabled={saving || !hasChanges}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all shadow-sm ${hasChanges ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow transform hover:-translate-y-0.5' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all shadow-sm no-print ${hasChanges ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow transform hover:-translate-y-0.5' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                             >
                                 {saving ? <><Loader2 size={14} className="animate-spin" /> Guardando...</> : <><Save size={14} /> Guardar Cambios</>}
                             </button>
@@ -545,8 +557,9 @@ const HousesView = () => {
                                         stages={stages}
                                         filters={filters}
                                         onFilterChange={(k, v) => setFilters(prev => ({ ...prev, [k]: v }))}
-                                        onClear={() => setFilters({ staffId: '', stageId: '', alejoPass: false, ronaldPass: false, wietPass: false })}
-                                        showProjectFilter={false} // Don't show project filter here
+                                        onClear={() => setFilters({ staffId: '', stageId: '', alejoPass: false, ronaldPass: false, wietPass: false, showConstruction: false })}
+                                        showProjectFilter={false}
+                                        showStageFilter={false} // Hidden to enforce grouped view via Toggle
                                     />
 
                                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
@@ -562,10 +575,24 @@ const HousesView = () => {
                                                 projectTasks
                                                     .filter(task => {
                                                         if (filters.staffId && task.staff_id != filters.staffId && task.asignado_a != filters.staffId) return false;
-                                                        if (filters.stageId && task.stage_id != filters.stageId && task.stage?.id != filters.stageId) return false;
                                                         if (filters.alejoPass && !task.AlejoPass) return false;
                                                         if (filters.ronaldPass && !task.RonaldPass) return false;
                                                         if (filters.wietPass && !task.WietPass) return false;
+
+                                                        // Construction Mode Filter (Mutually Exclusive)
+                                                        // Robust matching: Normalize string and check for keywords
+                                                        const stageName = (task.stage?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                                        const isDesignStage =
+                                                            stageName.includes('idea') ||
+                                                            stageName.includes('desarrollo') ||
+                                                            stageName.includes('muebles');
+
+                                                        if (filters.showConstruction) {
+                                                            if (isDesignStage) return false;
+                                                        } else {
+                                                            if (!isDesignStage) return false;
+                                                        }
+
                                                         return true;
                                                     })
                                                     .map(task => (

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import { handleNativePrint } from '../../utils/printUtils';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     format,
@@ -21,6 +22,7 @@ import { getTasks, getProjects, getStages } from '../../services/tasksService';
 import { getStaffers } from '../../services/spacesService';
 import { getProjectColor } from '../../utils/projectColors';
 import CalendarFilterBar from './CalendarFilterBar';
+import PrintButton from '../common/PrintButton';
 
 const TaskEventCard = ({ task, type, onClick }) => {
     const colors = getProjectColor(task.proyecto?.id || 'default');
@@ -71,7 +73,8 @@ const MonthlyCalendar = () => {
         stageId: '',
         alejoPass: false,
         ronaldPass: false,
-        wietPass: false
+        wietPass: false,
+        showConstruction: false // Default: Only show Idea, Dev, Muebles
     });
 
     // Layout and panel are now managed by MainContainer
@@ -104,7 +107,8 @@ const MonthlyCalendar = () => {
             stageId: '',
             alejoPass: false,
             ronaldPass: false,
-            wietPass: false
+            wietPass: false,
+            showConstruction: false
         });
     };
 
@@ -121,14 +125,26 @@ const MonthlyCalendar = () => {
             // Project Filter
             if (filters.projectId && t.proyecto_id != filters.projectId && t.proyecto?.id != filters.projectId) return false;
             // Stage Filter
-            if (filters.stageId && t.stage_id != filters.stageId && t.stage?.id != filters.stageId) return false;
-            // Approvals Filter (OR logic or AND logic? Usually AND if checked)
-            // If checkbox is checked, task MUST require/have that pass? 
-            // "Filtra por Alejo Paz..." usually means show items related to that.
-            // Let's assume: Show tasks where THAT condition is true. 
             if (filters.alejoPass && !t.AlejoPass) return false;
             if (filters.ronaldPass && !t.RonaldPass) return false;
             if (filters.wietPass && !t.WietPass) return false;
+
+            // Construction Mode Filter (Mutually Exclusive)
+            // Robust matching: Normalize string and check for keywords
+            const stageName = (t.stage?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const isDesignStage =
+                stageName.includes('idea') ||
+                stageName.includes('desarrollo') ||
+                stageName.includes('muebles');
+
+            if (filters.showConstruction) {
+                // If Construction Mode is ON -> Hide Design Stages
+                if (isDesignStage) return false;
+            } else {
+                // If Construction Mode is OFF -> Hide Non-Design (Construction) Stages
+                if (!isDesignStage) return false;
+            }
+            // Note: specific stageId is ignored
 
             return true;
         });
@@ -177,16 +193,33 @@ const MonthlyCalendar = () => {
         setCurrentDate(new Date());
     };
 
+    const printRef = useRef(null);
+    const handlePrint = useReactToPrint({
+        content: () => {
+            const element = printRef.current || document.getElementById('monthly-calendar-print-view');
+            if (!element) {
+                return document.querySelector('.print-container');
+            }
+            return element;
+        },
+        documentTitle: `Calendario_Mensual_${format(currentDate, 'yyyy-MM')}`,
+        removeAfterPrint: true,
+        onPrintError: (errorLocation, error) => {
+            console.error("Print Error:", errorLocation, error);
+            alert("Error al imprimir.");
+        }
+    });
+
     return (
-        <div className="h-full flex flex-col bg-white">
+        <div id="monthly-calendar-print-view" ref={printRef} className="h-full flex flex-col bg-white print-container">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 print:border-none z-10">
+                <h2 className="text-xl font-bold text-gray-900 print:text-black">
                     {format(currentDate, 'MMMM yyyy', { locale: es }).toUpperCase()}
                 </h2>
 
                 {/* Filters Relocated to Header */}
-                <div className="flex-1 px-4">
+                <div className="flex-1 px-4 no-print">
                     <CalendarFilterBar
                         staffers={staffers}
                         projects={projects}
@@ -194,10 +227,15 @@ const MonthlyCalendar = () => {
                         filters={filters}
                         onFilterChange={handleFilterChange}
                         onClear={handleClearFilters}
+                        showStageFilter={false} // Hidden to enforce grouped view via Toggle
                     />
                 </div>
 
-                <div className="flex bg-gray-100 rounded-lg p-0.5">
+                <div className="flex-1 px-4 no-print flex justify-end">
+                    <PrintButton
+                        onClick={handlePrint}
+                    />
+                </div>    <div className="flex bg-gray-100 rounded-lg p-0.5">
                     <button
                         onClick={handlePrevMonth}
                         className="p-1 hover:bg-white rounded-md shadow-sm transition-all"
@@ -218,6 +256,7 @@ const MonthlyCalendar = () => {
                     </button>
                 </div>
             </div>
+
 
             {/* Filters Relocated - Removed */}
 
@@ -309,7 +348,7 @@ const MonthlyCalendar = () => {
                     })}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
