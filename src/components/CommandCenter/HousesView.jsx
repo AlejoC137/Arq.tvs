@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { handleNativePrint } from '../../utils/printUtils';
 import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock, User, Search, ChevronDown } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getHouses, getParcels, updateProject, createProject, deleteProject } from '../../services/projectsService';
 import { getTasksByProject, getStages } from '../../services/tasksService';
 import { getSpaces, getStaffers, createSpace } from '../../services/spacesService';
@@ -10,10 +11,14 @@ import CalendarFilterBar from './CalendarFilterBar';
 import PrintButton from '../common/PrintButton';
 import HouseGanttModal from './ProjectTimeline/HouseGanttModal';
 
-const HousesView = () => {
+const HousesView = ({ mode }) => {
     const dispatch = useDispatch();
-    const { navigation, refreshCounter } = useSelector(state => state.app);
-    const propertyView = navigation?.propertyView || 'houses';
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { refreshCounter } = useSelector(state => state.app);
+    // Determine view mode from prop or URL (fallback)
+    const propertyView = mode || (location.pathname.startsWith('/parcels') ? 'parcels' : 'houses');
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -74,13 +79,65 @@ const HousesView = () => {
         } catch (error) { console.error(error); }
     };
 
+    // URL Sync Effect: Handle Deep Linking
+    useEffect(() => {
+        if (!loading && projects.length > 0) {
+            if (id) {
+                const found = projects.find(p => p.id == id);
+                if (found) {
+                    setSelectedProject(found);
+                    if (location.pathname.endsWith('/cronograma')) {
+                        setShowGantt(true);
+                    }
+                }
+            } else {
+                setSelectedProject(null);
+            }
+        }
+    }, [id, projects, loading, location.pathname]);
+
+    // Update URL when project is selected (Internal navigation)
+    const handleProjectSelect = (project) => {
+        const basePath = propertyView === 'parcels' ? '/parcels' : '/houses';
+        navigate(`${basePath}/${project.id}`);
+    };
+
+    const handleOpenGantt = () => {
+        const basePath = propertyView === 'parcels' ? '/parcels' : '/houses';
+        if (selectedProject) {
+            navigate(`${basePath}/${selectedProject.id}/cronograma`);
+            setShowGantt(true);
+        }
+    };
+
+    const handleCloseGantt = () => {
+        const basePath = propertyView === 'parcels' ? '/parcels' : '/houses';
+        if (selectedProject) {
+            navigate(`${basePath}/${selectedProject.id}`);
+            setShowGantt(false);
+        }
+    };
+
     // Load form data when project is selected
     useEffect(() => {
         if (selectedProject) {
             const datos = parseData(selectedProject.Datos);
+
+            // Resolve Responsable: Check if it's a UUID or Name on load
+            let responsableId = selectedProject.responsable || '';
+
+            // If it's a Name (not UUID), try to find ID from staffers list
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(responsableId);
+            if (responsableId && !isUuid && staffers.length > 0) {
+                const foundStaff = staffers.find(s => s.name === responsableId || s.nombre === responsableId);
+                if (foundStaff) {
+                    responsableId = foundStaff.id;
+                }
+            }
+
             setFormData({
                 name: selectedProject.name || '',
-                responsable: selectedProject.responsable || '',
+                responsable: responsableId,
                 status: selectedProject.status || '',
                 etapa: datos?.etapa || '',
                 materialesConstantes: datos?.materialesConstantes || [],
@@ -89,7 +146,7 @@ const HousesView = () => {
             setHasChanges(false);
             loadProjectTasks(selectedProject.id);
         }
-    }, [selectedProject, refreshCounter]);
+    }, [selectedProject, refreshCounter, staffers]); // Added staffers dependency
 
     const loadProjectTasks = async (projectId) => {
         setLoadingTasks(true);
@@ -150,10 +207,13 @@ const HousesView = () => {
 
             const updates = {
                 name: formData.name,
-                responsable: formData.responsable,
-                status: formData.status,
+                // Explicitly handle UUID/FK fields to avoid sending "" to a UUID column
+                responsable: (formData.responsable && formData.responsable.trim() !== '') ? formData.responsable : null,
+                status: (formData.status && formData.status.trim() !== '') ? formData.status : null,
                 Datos: newDatos
             };
+
+            console.log("Saving Project Updates:", updates);
 
             await updateProject(selectedProject.id, updates);
 
@@ -282,7 +342,7 @@ const HousesView = () => {
     return (
         <div className="h-full flex bg-white">
             {/* LEFT: SIDEBAR */}
-            <div className="w-80 border-r border-gray-200 flex flex-col no-print">
+            <div className="w-64 border-r border-gray-200 flex flex-col no-print">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                     <div>
@@ -320,7 +380,7 @@ const HousesView = () => {
                             return (
                                 <button
                                     key={project.id}
-                                    onClick={() => setSelectedProject(project)}
+                                    onClick={() => handleProjectSelect(project)}
                                     className={`
                                         w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-blue-50 transition-colors
                                         ${selectedProject?.id === project.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
@@ -380,7 +440,7 @@ const HousesView = () => {
                                         <span className="text-[10px] text-gray-500">{projectTasks.length} tareas</span>
                                         <span className="text-[10px] text-gray-400">|</span>
                                         <button
-                                            onClick={() => setShowGantt(true)}
+                                            onClick={handleOpenGantt}
                                             className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
                                         >
                                             <Calendar size={10} /> Ver Cronograma
@@ -424,7 +484,7 @@ const HousesView = () => {
                                                 >
                                                     <option value="">- Seleccionar Responsable -</option>
                                                     {staffers.map(s => (
-                                                        <option key={s.id} value={s.name}>{s.name}</option>
+                                                        <option key={s.id} value={s.id}>{s.name}</option>
                                                     ))}
                                                 </select>
                                             </div>
@@ -560,16 +620,7 @@ const HousesView = () => {
                                         <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{projectTasks.length}</span>
                                     </div>
 
-                                    {/* Local Filters (Without Project Selector) */}
-                                    <CalendarFilterBar
-                                        staffers={staffers}
-                                        stages={stages}
-                                        filters={filters}
-                                        onFilterChange={(k, v) => setFilters(prev => ({ ...prev, [k]: v }))}
-                                        onClear={() => setFilters({ staffId: '', stageId: '', alejoPass: false, ronaldPass: false, wietPass: false, showConstruction: false })}
-                                        showProjectFilter={false}
-                                        showStageFilter={false} // Hidden to enforce grouped view via Toggle
-                                    />
+
 
                                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                                         <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-50 custom-scrollbar">
@@ -582,28 +633,7 @@ const HousesView = () => {
                                                 <div className="p-8 text-center text-xs text-gray-400 italic">No hay tareas para esta casa</div>
                                             ) : (
                                                 projectTasks
-                                                    .filter(task => {
-                                                        if (filters.staffId && task.staff_id != filters.staffId && task.asignado_a != filters.staffId) return false;
-                                                        if (filters.alejoPass && !task.AlejoPass) return false;
-                                                        if (filters.ronaldPass && !task.RonaldPass) return false;
-                                                        if (filters.wietPass && !task.WietPass) return false;
-
-                                                        // Construction Mode Filter (Mutually Exclusive)
-                                                        // Robust matching: Normalize string and check for keywords
-                                                        const stageName = (task.stage?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                                                        const isDesignStage =
-                                                            stageName.includes('idea') ||
-                                                            stageName.includes('desarrollo') ||
-                                                            stageName.includes('muebles');
-
-                                                        if (filters.showConstruction) {
-                                                            if (isDesignStage) return false;
-                                                        } else {
-                                                            if (!isDesignStage) return false;
-                                                        }
-
-                                                        return true;
-                                                    })
+                                                    // .filter(...) Removed to show all tasks as requested
                                                     .map(task => (
                                                         <button
                                                             key={task.id}
@@ -637,7 +667,7 @@ const HousesView = () => {
                         {showGantt && (
                             <HouseGanttModal
                                 isOpen={showGantt}
-                                onClose={() => setShowGantt(false)}
+                                onClose={handleCloseGantt}
                                 project={selectedProject}
                                 tasks={projectTasks}
                             />

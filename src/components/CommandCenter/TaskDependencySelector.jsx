@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Link } from 'lucide-react';
-import { searchTasks } from '../../services/tasksService';
+import { searchTasks, getTaskById } from '../../services/tasksService';
 
-const TaskDependencySelector = ({ label, value, onChange, initialItem, placeholder = "Buscar tarea..." }) => {
+const TaskDependencySelector = ({ label, value, onChange, onEdit, initialItem, placeholder = "Buscar tarea..." }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [results, setResults] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -10,13 +10,28 @@ const TaskDependencySelector = ({ label, value, onChange, initialItem, placehold
     const [loading, setLoading] = useState(false);
     const wrapperRef = useRef(null);
 
-    // Initialize with provided item or value
+    // Initialize with provided item or fetch if missing
     useEffect(() => {
-        if (initialItem && initialItem.id === value) {
-            setSelectedItem(initialItem);
-        } else if (!value) {
-            setSelectedItem(null);
-        }
+        const initializeItem = async () => {
+            if (initialItem && initialItem.id === value) {
+                setSelectedItem(initialItem);
+            } else if (value && (!selectedItem || selectedItem.id !== value)) {
+                // We have a Value (ID) but no Item object. Fetch it.
+                try {
+                    setLoading(true);
+                    const taskData = await getTaskById(value);
+                    if (taskData) setSelectedItem(taskData);
+                } catch (err) {
+                    console.error("Error fetching dependency task:", err);
+                } finally {
+                    setLoading(false);
+                }
+            } else if (!value) {
+                setSelectedItem(null);
+            }
+        };
+
+        initializeItem();
     }, [initialItem, value]);
 
     // Click outside to close
@@ -112,9 +127,24 @@ const TaskDependencySelector = ({ label, value, onChange, initialItem, placehold
             ) : (
                 <div className="flex items-center justify-between text-[10px] bg-blue-50 border border-blue-100 rounded px-1.5 py-1 text-blue-800">
                     <span className="truncate flex-1 font-medium">{selectedItem.task_description}</span>
-                    <button onClick={handleClear} className="ml-1 p-0.5 hover:bg-blue-100 rounded text-blue-500">
-                        <X size={10} />
-                    </button>
+                    <div className="flex items-center">
+                        {/* New Navigation Button */}
+                        {onEdit && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEdit(selectedItem);
+                                }}
+                                className="mr-1 p-0.5 hover:bg-blue-100 rounded text-blue-400 hover:text-blue-600 transition-colors"
+                                title="Ir a la tarea"
+                            >
+                                <Link size={10} className="transform -rotate-45" /> {/* Use Link icon rotated or similar to indicate jump */}
+                            </button>
+                        )}
+                        <button onClick={handleClear} className="p-0.5 hover:bg-blue-100 rounded text-blue-500">
+                            <X size={10} />
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

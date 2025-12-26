@@ -309,7 +309,10 @@ export default function WeeklyCalendar() {
         alejoPass: false,
         ronaldPass: false,
         wietPass: false,
-        showConstruction: false // Default: FALSE
+        showIdea: true,
+        showDesarrollo: true,
+        showMuebles: true,
+        showObra: false
     });
     const [loading, setLoading] = useState(true);
 
@@ -377,22 +380,23 @@ export default function WeeklyCalendar() {
             if (activeFilters.ronaldPass && !t.RonaldPass) return false;
             if (activeFilters.wietPass && !t.WietPass) return false;
 
-            // Construction Mode Filter (Mutually Exclusive)
-            // Robust matching: Normalize string and check for keywords
+            // Stage Filters (Combinatorial)
             const stageName = (t.stage?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            const isDesignStage =
-                stageName.includes('idea') ||
-                stageName.includes('desarrollo') ||
-                stageName.includes('muebles');
 
-            if (activeFilters.showConstruction) {
-                // If Construction Mode is ON -> Hide Design Stages
-                if (isDesignStage) return false;
-            } else {
-                // If Construction Mode is OFF -> Hide Non-Design (Construction) Stages
-                if (!isDesignStage) return false;
-            }
-            // Note: specific stageId filter is intentionally ignored to enforce group view
+            // Check specific categories
+            const isIdea = stageName.includes('idea');
+            const isDesarrollo = stageName.includes('desarrollo');
+            const isMuebles = stageName.includes('muebles');
+            // Assume anything not matching the above is "Obra" or "Other", but user specifically wants 'Obra' logic.
+            // If the stage is explicitly 'Obra Negra', 'Acabados', 'Entrega', etc., it falls under 'Obra'.
+            // Simple logic: If it's not Design/Muebles, treat as Obra for the filter? 
+            // Or better: Check explicit keywords for Obra too.
+            const isObra = !isIdea && !isDesarrollo && !isMuebles; // Fallback for now, captures 'Obra Negra', 'Acabados'
+
+            if (isIdea && !activeFilters.showIdea) return false;
+            if (isDesarrollo && !activeFilters.showDesarrollo) return false;
+            if (isMuebles && !activeFilters.showMuebles) return false;
+            if (isObra && !activeFilters.showObra) return false;
 
             return true;
         };
@@ -506,7 +510,10 @@ export default function WeeklyCalendar() {
             alejoPass: false,
             ronaldPass: false,
             wietPass: false,
-            showConstruction: false
+            showIdea: true,
+            showDesarrollo: true,
+            showMuebles: true,
+            showObra: false
         });
     };
 

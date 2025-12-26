@@ -112,6 +112,10 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             }
         } else if (panelMode === 'task' && selectedTask) {
             // Load existing task data into taskForm for editing
+
+            // NOTE: condiciona_a is a REAL column in the database (Image Confirmed).
+            // We map it directly, but we also kept the "condiciona_a_task" join for the Label in the selector.
+
             setTaskForm({
                 ...selectedTask,
                 task_description: selectedTask.task_description || '',
@@ -128,11 +132,11 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 WietPass: selectedTask.WietPass || false,
                 AlejoPass: selectedTask.AlejoPass || false,
                 RonaldPass: selectedTask.RonaldPass || false,
-                condicionada_por: selectedTask.condicionada_por || null,
-                condiciona_a: selectedTask.condiciona_a || null,
-                condicionada_por_task: selectedTask.condicionada_por_task || null, // For initial display
-                condiciona_a_task: selectedTask.condiciona_a_task || null,       // For initial display
-                fullActions: [], // We don't load actions into form state for edit mode, we use components state
+                condicionada_por: selectedTask.condicionada_por || null, // Direct Column
+                condiciona_a: selectedTask.condiciona_a || null, // Direct Column mapping
+                condicionada_por_task: selectedTask.condicionada_por_task || null,
+                condiciona_a_task: selectedTask.condiciona_a_task || null,
+                fullActions: [],
                 evidence_url: selectedTask.evidence_url || ''
             });
         }
@@ -175,6 +179,23 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             }
             return updates;
         });
+    };
+
+    const handleNavToTask = async (targetTaskId) => {
+        if (!targetTaskId) return;
+        try {
+            const targetTask = await getTaskById(targetTaskId);
+            if (targetTask) {
+                // If we are in a 'dirty' state, we might want to warn? 
+                // For now, simpler is just jump.
+                dispatch(setSelectedTask(targetTask));
+                // Ensure panel is open and in task mode (should be already if we are here)
+                if (!showPanel) dispatch(toggleInspector(true));
+            }
+        } catch (err) {
+            console.error("Error navigating to task:", err);
+            alert("Error al abrir la tarea vinculada.");
+        }
     };
 
     const handleTaskChange = (field, value) => {
@@ -325,7 +346,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const handleSaveAction = async (e) => {
         if (e) e.preventDefault();
 
-        console.log("handleSaveAction CALLED - VERSION: REFACTORED_CLEAN_V1");
+        // console.log("handleSaveAction CALLED - VERSION: REFACTORED_CLEAN_V1");
         setSaving(true);
 
         try {
@@ -337,7 +358,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 if (onActionUpdated) onActionUpdated({ ...selectedAction, ...updates });
 
             } else if (panelMode === 'task' && selectedTask?.id) {
-                console.log("Mode: TASK & ACTIONS UPDATE");
+                // console.log("Mode: TASK & ACTIONS UPDATE");
 
                 // 1. UPDATE TASK
                 const updates = {};
@@ -367,7 +388,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 if (taskForm.WietPass !== selectedTask.WietPass) updates.WietPass = taskForm.WietPass;
                 if (taskForm.AlejoPass !== selectedTask.AlejoPass) updates.AlejoPass = taskForm.AlejoPass;
                 if (taskForm.condicionada_por !== selectedTask.condicionada_por) updates.condicionada_por = taskForm.condicionada_por || null;
-                if (taskForm.condiciona_a !== selectedTask.condiciona_a) updates.condiciona_a = taskForm.condiciona_a || null;
+                if (taskForm.condiciona_a !== selectedTask.condiciona_a) updates.condiciona_a = taskForm.condiciona_a || null; // SAVE DIRECTLY
                 if (taskForm.evidence_url !== selectedTask.evidence_url) updates.evidence_url = taskForm.evidence_url;
 
                 let updatedTaskData = selectedTask;
@@ -382,6 +403,50 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         // handleCallSeguimiento depends on taskForm and selectedTask being correct
                         setTimeout(() => handleCallSeguimiento(false), 500);
                     }
+                }
+
+                // 1.5 UPDATE DEPENDENTS (Side Effects for Double-Linking)
+
+                // SIDE EFFECT 1: If "Condiciona A" changed, update the Target's "Condicionada Por"
+                if (taskForm.condiciona_a !== selectedTask.condiciona_a) {
+                    console.log(`DEBUG: Cambio detectado en Condiciona A.\nAnterior: ${selectedTask.condiciona_a}\nNuevo: ${taskForm.condiciona_a}`);
+                    try {
+                        // New Target
+                        if (taskForm.condiciona_a) {
+                            console.log(`Syncing: Task ${taskForm.condiciona_a} is now conditioned by ${selectedTask.id}`);
+                            await updateTask(taskForm.condiciona_a, { condicionada_por: selectedTask.id });
+                        }
+                        // Old Target (Clear it)
+                        if (selectedTask.condiciona_a && selectedTask.condiciona_a !== taskForm.condiciona_a) {
+                            console.log(`Syncing: Task ${selectedTask.condiciona_a} is no longer conditioned by ${selectedTask.id}`);
+                            await updateTask(selectedTask.condiciona_a, { condicionada_por: null });
+                        }
+                    } catch (err) {
+                        console.error("Error syncing Condiciona A:", err);
+                    }
+                } else {
+                    console.log(`DEBUG: NO se detectó cambio en Condiciona A.\nForm: ${taskForm.condiciona_a}\nOrig: ${selectedTask.condiciona_a}`);
+                }
+
+                // SIDE EFFECT 2: If "Condicionada Por" changed, update the Target's "Condiciona A"
+                if (taskForm.condicionada_por !== selectedTask.condicionada_por) {
+                    console.log(`DEBUG: Cambio detectado en Condicionada Por.\nAnterior: ${selectedTask.condicionada_por}\nNuevo: ${taskForm.condicionada_por}`);
+                    try {
+                        // New Parent
+                        if (taskForm.condicionada_por) {
+                            console.log(`Syncing: Task ${taskForm.condicionada_por} conditions ${selectedTask.id}`);
+                            await updateTask(taskForm.condicionada_por, { condiciona_a: selectedTask.id });
+                        }
+                        // Old Parent (Clear it)
+                        if (selectedTask.condicionada_por && selectedTask.condicionada_por !== taskForm.condicionada_por) {
+                            console.log(`Syncing: Task ${selectedTask.condicionada_por} no longer conditions ${selectedTask.id}`);
+                            await updateTask(selectedTask.condicionada_por, { condiciona_a: null });
+                        }
+                    } catch (err) {
+                        console.error("Error syncing Condicionada Por:", err);
+                    }
+                } else {
+                    console.log(`DEBUG: NO se detectó cambio en Condicionada Por.\nForm: ${taskForm.condicionada_por}\nOrig: ${selectedTask.condicionada_por}`);
                 }
 
                 // 2. UPDATE/CREATE ACTIONS
@@ -417,9 +482,17 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
                 await Promise.all(actionPromises);
 
-                // Reload data implies fetching fresh state or just updating Redux
-                dispatch(setSelectedTask(updatedTaskData));
-                if (onActionUpdated) onActionUpdated();
+                // RE-FETCH FRESH DATA (Critical for relationships like 'condiciona_a' which are external)
+                try {
+                    const freshTask = await getTaskById(selectedTask.id);
+                    dispatch(setSelectedTask(freshTask));
+                } catch (fetchErr) {
+                    console.error("Error reloading task:", fetchErr);
+                    // Fallback to local update if fetch fails
+                    dispatch(setSelectedTask(updatedTaskData));
+                }
+
+                if (onActionUpdated) onActionUpdated(); // Refresh calendar/list
                 dispatch(incrementRefreshCounter()); // Global refresh
                 alert("Guardado correctamente");
 
@@ -521,21 +594,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
         dispatch(setSelectedTask(task));
     };
 
-    const handleNavToTask = async (taskId) => {
-        if (!taskId) return;
-        try {
-            setLoading(true);
-            const task = await getTaskById(taskId);
-            if (task) {
-                dispatch(setSelectedTask(task));
-            }
-        } catch (error) {
-            console.error("Error navigating to task:", error);
-            alert("No se pudo cargar la tarea vinculada.");
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Duplicate handler removed
 
     const handleCallResponsible = async () => {
         if (!taskForm.staff_id || !selectedTask?.id) {

@@ -64,13 +64,50 @@ const CalendarFilterBar = ({
 
             <div className="flex items-center gap-3 ml-2 border-l border-gray-200 pl-3 shrink-0">
                 {/* Construction Mode Toggle */}
+                {/* Stage Toggles */}
                 <button
-                    onClick={() => onFilterChange('showConstruction', !filters.showConstruction)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${filters.showConstruction
-                        ? 'bg-orange-100 text-orange-700 border-orange-200'
-                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                    onClick={() => onFilterChange('showIdea', !filters.showIdea)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${filters.showIdea
+                        ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                        : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
                         }`}
-                    title={filters.showConstruction ? "Ocultar etapas de construcción" : "Mostrar etapas de construcción"}
+                    title="Toggle Idea Básica"
+                >
+                    <span className="text-sm">💡</span>
+                    <span className="text-xs font-bold">Idea</span>
+                </button>
+
+                <button
+                    onClick={() => onFilterChange('showDesarrollo', !filters.showDesarrollo)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${filters.showDesarrollo
+                        ? 'bg-blue-100 text-blue-700 border-blue-200'
+                        : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    title="Toggle Desarrollo Técnico"
+                >
+                    <span className="text-sm">📐</span>
+                    <span className="text-xs font-bold">Desarrollo</span>
+                </button>
+
+                <button
+                    onClick={() => onFilterChange('showMuebles', !filters.showMuebles)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${filters.showMuebles
+                        ? 'bg-purple-100 text-purple-700 border-purple-200'
+                        : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    title="Toggle Muebles"
+                >
+                    <span className="text-sm">🪑</span>
+                    <span className="text-xs font-bold">Muebles</span>
+                </button>
+
+                <button
+                    onClick={() => onFilterChange('showObra', !filters.showObra)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${filters.showObra
+                        ? 'bg-orange-100 text-orange-700 border-orange-200'
+                        : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                        }`}
+                    title="Toggle Obra"
                 >
                     <span className="text-sm">🏗️</span>
                     <span className="text-xs font-bold">Obra</span>

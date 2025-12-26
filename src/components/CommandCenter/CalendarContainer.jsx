@@ -1,15 +1,15 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import WeeklyCalendar from './WeeklyCalendar';
 import MonthlyCalendar from './MonthlyCalendar';
 
 const CalendarContainer = () => {
-    const { navigation } = useSelector(state => state.app);
-    const calendarView = navigation?.calendarView || 'week';
+    const { view } = useParams();
+    const calendarView = view || 'week';
 
     return (
         <>
-            {calendarView === 'week' ? <WeeklyCalendar /> : <MonthlyCalendar />}
+            {calendarView === 'month' ? <MonthlyCalendar /> : <WeeklyCalendar />}
         </>
     );
 };

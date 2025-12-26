@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Calendar,
     Building2,
@@ -23,22 +24,20 @@ import {
 
 const TopNavigation = () => {
     const dispatch = useDispatch();
-    const { navigation, pendingCallsCount } = useSelector(state => state.app);
-    const activeView = navigation?.activeView || 'calendar';
-    const calendarView = navigation?.calendarView || 'week';
-    const propertyView = navigation?.propertyView || 'houses';
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { pendingCallsCount } = useSelector(state => state.app);
     const [showImporter, setShowImporter] = useState(false);
 
-    const handleButtonClick = (view, additionalAction = null) => {
-        dispatch(setActiveView(view));
-        if (additionalAction) {
-            additionalAction();
+    const checkActive = (path) => {
+        if (path === '/calendar' || path === '/') {
+            return location.pathname.startsWith('/calendar');
         }
+        return location.pathname.startsWith(path);
     };
 
-    const isActive = (viewName) => activeView === viewName;
-    const isCalendarActive = (view) => activeView === 'calendar' && calendarView === view;
-    const isPropertyActive = (view) => (activeView === 'houses' || activeView === 'parcels') && propertyView === view;
+    const isCalendarActive = (view) => location.pathname === `/calendar/${view}`;
+    const isActive = (path) => location.pathname.startsWith(`/${path}`);
 
     const buttonClass = (active) => `
         flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
@@ -53,10 +52,7 @@ const TopNavigation = () => {
             <div className="flex items-center gap-2 flex-wrap">
                 {/* Calendar Views */}
                 <button
-                    onClick={() => {
-                        dispatch(setCalendarView('month'));
-                        dispatch(setActiveView('calendar'));
-                    }}
+                    onClick={() => navigate('/calendar/month')}
                     className={buttonClass(isCalendarActive('month'))}
                 >
                     <Calendar size={14} />
@@ -64,10 +60,7 @@ const TopNavigation = () => {
                 </button>
 
                 <button
-                    onClick={() => {
-                        dispatch(setCalendarView('week'));
-                        dispatch(setActiveView('calendar'));
-                    }}
+                    onClick={() => navigate('/calendar/week')}
                     className={buttonClass(isCalendarActive('week'))}
                 >
                     <Calendar size={14} />
@@ -76,7 +69,7 @@ const TopNavigation = () => {
 
                 {/* Spaces */}
                 <button
-                    onClick={() => handleButtonClick('spaces')}
+                    onClick={() => navigate('/spaces')}
                     className={buttonClass(isActive('spaces'))}
                 >
                     <Building2 size={14} />
@@ -85,7 +78,7 @@ const TopNavigation = () => {
 
                 {/* Components */}
                 <button
-                    onClick={() => handleButtonClick('components')}
+                    onClick={() => navigate('/components')}
                     className={buttonClass(isActive('components'))}
                 >
                     <Box size={14} />
@@ -94,11 +87,8 @@ const TopNavigation = () => {
 
                 {/* Houses */}
                 <button
-                    onClick={() => {
-                        dispatch(setPropertyView('houses'));
-                        dispatch(setActiveView('houses'));
-                    }}
-                    className={buttonClass(isPropertyActive('houses'))}
+                    onClick={() => navigate('/houses')}
+                    className={buttonClass(isActive('houses'))}
                 >
                     <Home size={14} />
                     <span>casas</span>
@@ -106,11 +96,8 @@ const TopNavigation = () => {
 
                 {/* Parcels */}
                 <button
-                    onClick={() => {
-                        dispatch(setPropertyView('parcels'));
-                        dispatch(setActiveView('parcels'));
-                    }}
-                    className={buttonClass(isPropertyActive('parcels'))}
+                    onClick={() => navigate('/parcels')}
+                    className={buttonClass(isActive('parcels'))}
                 >
                     <MapPin size={14} />
                     <span>parcelacion</span>
@@ -118,7 +105,7 @@ const TopNavigation = () => {
 
                 {/* Team */}
                 <button
-                    onClick={() => handleButtonClick('team')}
+                    onClick={() => navigate('/team')}
                     className={buttonClass(isActive('team'))}
                 >
                     <Users size={14} />
@@ -127,8 +114,8 @@ const TopNavigation = () => {
 
                 {/* Llamados */}
                 <button
-                    onClick={() => handleButtonClick('llamados')}
-                    className={`${buttonClass(isActive('llamados'))} relative`}
+                    onClick={() => navigate('/calls')}
+                    className={`${buttonClass(isActive('calls'))} relative`}
                 >
                     <Bell size={14} />
                     <span>Llamados</span>
@@ -141,7 +128,7 @@ const TopNavigation = () => {
 
                 {/* Protocols */}
                 <button
-                    onClick={() => handleButtonClick('protocols')}
+                    onClick={() => navigate('/protocols')}
                     className={buttonClass(isActive('protocols'))}
                 >
                     <FileText size={14} />
@@ -150,7 +137,7 @@ const TopNavigation = () => {
 
                 {/* Materials */}
                 <button
-                    onClick={() => handleButtonClick('materials')}
+                    onClick={() => navigate('/materials')}
                     className={buttonClass(isActive('materials'))}
                 >
                     <Package size={14} />
@@ -159,7 +146,7 @@ const TopNavigation = () => {
 
                 {/* Directory */}
                 <button
-                    onClick={() => handleButtonClick('directory')}
+                    onClick={() => navigate('/directory')}
                     className={buttonClass(isActive('directory'))}
                 >
                     <BookOpen size={14} />

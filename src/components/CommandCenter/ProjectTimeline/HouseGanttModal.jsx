@@ -8,19 +8,45 @@ import PrintButton from '../../common/PrintButton';
 const COLUMN_WIDTH = 35; // Compacted width
 const HEADER_HEIGHT = 50; // Compacted header
 const ROW_HEIGHT = 32; // Compacted row
+const SIDEBAR_WIDTH = 420; // Compacted for columns
 
 const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
     if (!isOpen || !project) return null;
 
     const [zoom, setZoom] = useState(1);
+    const [activeFilters, setActiveFilters] = useState({
+        idea: true,
+        desarrollo: true,
+        muebles: true,
+        obra: false
+    });
     const scrollContainerRef = useRef(null);
     const pixelPerDay = COLUMN_WIDTH * zoom;
 
     // 1. Process Data & Calculate Bounds
     const { processedTasks, timelineStart, timelineEnd, totalDays } = useMemo(() => {
-        const validTasks = tasks.filter(t => t.fecha_inicio && isValid(parseISO(t.fecha_inicio)));
+        // Base valid tasks
+        let baseTasks = tasks.filter(t => t.fecha_inicio && isValid(parseISO(t.fecha_inicio)));
 
-        if (validTasks.length === 0) {
+        // Filtering Logic
+        let filteredTasks = baseTasks.filter(task => {
+            const stageName = (task.stage?.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+            const isIdea = stageName.includes('idea') || stageName.includes('diseño'); // "Diseño" alias for Idea
+            const isDesarrollo = stageName.includes('desarrollo');
+            const isMuebles = stageName.includes('muebles');
+            const isDesignGroup = isIdea || isDesarrollo || isMuebles;
+            const isObra = !isDesignGroup;
+
+            if (isIdea && activeFilters.idea) return true;
+            if (isDesarrollo && activeFilters.desarrollo) return true;
+            if (isMuebles && activeFilters.muebles) return true;
+            if (isObra && activeFilters.obra) return true;
+
+            return false;
+        });
+
+        if (filteredTasks.length === 0) {
             const today = startOfDay(new Date());
             return {
                 processedTasks: [],
@@ -31,7 +57,7 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
         }
 
         // Sort by Start Date Ascending
-        const sorted = validTasks.sort((a, b) => parseISO(a.fecha_inicio) - parseISO(b.fecha_inicio));
+        const sorted = filteredTasks.sort((a, b) => parseISO(a.fecha_inicio) - parseISO(b.fecha_inicio));
 
         // Find Min/Max dates
         const startDates = sorted.map(t => parseISO(t.fecha_inicio));
@@ -40,7 +66,7 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
         let minDate = min(startDates);
         let maxDate = max(endDates);
 
-        // Add padding
+        // Add padding for display
         minDate = addDays(minDate, -7);
         maxDate = addDays(maxDate, 14);
 
@@ -52,7 +78,7 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
             timelineEnd: maxDate,
             totalDays: days
         };
-    }, [tasks]);
+    }, [tasks, activeFilters]);
 
     // 2. Generate Time Helpers
     const daysArray = useMemo(() => {
@@ -93,11 +119,11 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
                 scrollContainerRef.current.scrollLeft = scrollPos > 0 ? scrollPos : 0;
             }
         }
-    }, [isOpen, timelineStart, pixelPerDay]);
+    }, [isOpen, timelineStart, pixelPerDay]); // Re-run when timelineStart changes (which happens on toggle)
 
 
     const handlePrint = () => {
-        handleNativePrint('gantt-chart-container', `Cronograma_${project.name}`);
+        handleNativePrint('gantt-chart-container', `Cronograma_${project.name}_${new Date().toISOString()}`);
     };
 
     const handleTaskScroll = (dateStr) => {
@@ -108,13 +134,15 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
         const diff = differenceInDays(taskDate, timelineStart);
         if (diff >= 0) {
             // Scroll to the task start minus some padding (e.g. 100px) so it's not at the very edge
-            const scrollPos = (diff * pixelPerDay) - 250; // Changed from 100 to 250 for better centering
+            const scrollPos = (diff * pixelPerDay) - 250;
             scrollContainerRef.current.scrollTo({
                 left: Math.max(0, scrollPos),
                 behavior: 'smooth'
             });
         }
     };
+
+
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -137,8 +165,55 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* Filter Toolbar */}
+                        <div className="flex items-center gap-2 mr-4">
+                            <button
+                                onClick={() => setActiveFilters(prev => ({ ...prev, idea: !prev.idea }))}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${activeFilters.idea
+                                    ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                    : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <span className="text-sm">💡</span>
+                                <span className="text-[10px] font-bold">Idea</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveFilters(prev => ({ ...prev, desarrollo: !prev.desarrollo }))}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${activeFilters.desarrollo
+                                    ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                    : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <span className="text-sm">📐</span>
+                                <span className="text-[10px] font-bold">Desarrollo</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveFilters(prev => ({ ...prev, muebles: !prev.muebles }))}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${activeFilters.muebles
+                                    ? 'bg-purple-100 text-purple-700 border-purple-200'
+                                    : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <span className="text-sm">🪑</span>
+                                <span className="text-[10px] font-bold">Muebles</span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveFilters(prev => ({ ...prev, obra: !prev.obra }))}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${activeFilters.obra
+                                    ? 'bg-orange-100 text-orange-700 border-orange-200'
+                                    : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <span className="text-sm">🏗️</span>
+                                <span className="text-[10px] font-bold">Obra</span>
+                            </button>
+                        </div>
+
                         {/* Legend */}
-                        <div className="hidden lg:flex items-center gap-3 mr-4 text-[10px] font-medium text-gray-600">
+                        <div className="hidden xl:flex items-center gap-3 mr-4 text-[10px] font-medium text-gray-600">
                             <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span>Terminado</div>
                             <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span>En Curso</div>
                             <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400"></span>Pausado</div>
@@ -165,13 +240,25 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
                         {/* --- HEADER --- */}
                         {/* Top-Left Corner (Sticky Fix) */}
                         <div
-                            className="sticky top-0 left-0 z-50 w-[240px] h-[50px] bg-gray-50 border-r border-b border-gray-200 flex items-center px-3 shadow-[2px_2px_5px_rgba(0,0,0,0.02)]"
+                            className="sticky top-0 left-0 z-50 h-[50px] bg-gray-50 border-r border-b border-gray-200 flex items-center shadow-[2px_2px_5px_rgba(0,0,0,0.02)]"
+                            style={{ width: `${SIDEBAR_WIDTH}px` }}
                         >
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actividad</span>
+                            <div className="w-[240px] px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-200 h-full flex items-center">
+                                Actividad
+                            </div>
+                            <div className="w-[50px] px-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-200 h-full flex items-center justify-center text-center">
+                                Dur.
+                            </div>
+                            <div className="w-[65px] px-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-200 h-full flex items-center justify-center text-center">
+                                Inicio
+                            </div>
+                            <div className="w-[65px] px-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest h-full flex items-center justify-center text-center">
+                                Final
+                            </div>
                         </div>
 
                         {/* Timeline Headers (Month/Day) - Sticky Top */}
-                        <div className="sticky top-0 z-40 bg-white h-[50px] flex border-b border-gray-200" style={{ paddingLeft: '240px', marginTop: '-50px', width: 'fit-content' }}>
+                        <div className="sticky top-0 z-40 bg-white h-[50px] flex border-b border-gray-200" style={{ paddingLeft: `${SIDEBAR_WIDTH}px`, marginTop: '-50px', width: 'fit-content' }}>
                             <div className="flex flex-col h-full">
                                 {/* Months Row */}
                                 <div className="h-[24px] flex border-b border-gray-300 bg-gray-50/90 backdrop-blur-sm">
@@ -198,23 +285,40 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
 
                         {/* --- BODY --- */}
                         {/* Task Column - Sticky Left */}
-                        <div className="sticky left-0 z-30 w-[240px] bg-white border-r border-gray-300 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]" style={{ marginTop: '0px', float: 'left', minHeight: 'calc(100% - 50px)' }}>
-                            {processedTasks.map((task, index) => (
-                                <div
-                                    key={task.id}
-                                    onClick={() => handleTaskScroll(task.fecha_inicio)}
-                                    className="h-[32px] px-3 flex flex-col justify-center border-b border-gray-300 bg-white hover:bg-blue-50 transition-colors group cursor-pointer"
-                                    title="Clic para ir a la tarea"
-                                >
-                                    <div className={`text-[11px] font-medium leading-none truncate group-hover:text-blue-700 ${task.terminado ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                                        {task.task_description}
+                        <div className="sticky left-0 z-30 bg-white border-r border-gray-300 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]" style={{ width: `${SIDEBAR_WIDTH}px`, marginTop: '0px', float: 'left', minHeight: 'calc(100% - 50px)' }}>
+                            {processedTasks.map((task, index) => {
+                                const startDate = parseISO(task.fecha_inicio);
+                                const endDate = task.fecha_fin_estimada && isValid(parseISO(task.fecha_fin_estimada)) ? parseISO(task.fecha_fin_estimada) : startDate;
+                                const duration = differenceInDays(endDate, startDate) + 1;
+
+                                return (
+                                    <div
+                                        key={task.id}
+                                        onClick={() => handleTaskScroll(task.fecha_inicio)}
+                                        className="h-[32px] flex items-center border-b border-gray-300 bg-white hover:bg-blue-50 transition-colors group cursor-pointer"
+                                        title="Clic para ir a la tarea"
+                                    >
+                                        <div className="w-[240px] px-3 text-[11px] font-medium leading-none truncate group-hover:text-blue-700 border-r border-gray-100 h-full flex items-center">
+                                            <span className={task.terminado ? 'line-through text-gray-400' : 'text-gray-700'}>
+                                                {task.task_description}
+                                            </span>
+                                        </div>
+                                        <div className="w-[50px] px-1 text-[10px] text-gray-600 border-r border-gray-100 h-full flex items-center justify-center font-mono">
+                                            {duration}d
+                                        </div>
+                                        <div className="w-[65px] px-1 text-[10px] text-gray-600 border-r border-gray-100 h-full flex items-center justify-center font-mono">
+                                            {isValid(startDate) ? format(startDate, 'dd/MM/yy') : '-'}
+                                        </div>
+                                        <div className="w-[65px] px-1 text-[10px] text-gray-600 h-full flex items-center justify-center font-mono">
+                                            {isValid(endDate) ? format(endDate, 'dd/MM/yy') : '-'}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         {/* Bars Grid */}
-                        <div className="relative z-10" style={{ paddingLeft: '240px', width: 'fit-content' }}>
+                        <div className="relative z-10" style={{ paddingLeft: `${SIDEBAR_WIDTH}px`, width: 'fit-content' }}>
                             {/* Background Lines */}
                             <div className="absolute inset-0 z-0 flex pointer-events-none">
                                 {daysArray.map((day, i) => (
@@ -229,8 +333,73 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
                             {/* Today Line */}
                             <div
                                 className="absolute top-0 bottom-0 w-px bg-red-400 z-0 pointer-events-none"
-                                style={{ left: (differenceInDays(new Date(), timelineStart) * pixelPerDay) + (pixelPerDay / 2) + 240 }}
+                                style={{ left: (differenceInDays(new Date(), timelineStart) * pixelPerDay) + (pixelPerDay / 2) + SIDEBAR_WIDTH }}
                             ></div>
+
+                            {/* DEPENDENCY LINES (SVG Layer) */}
+                            <svg className="absolute inset-0 w-full h-full z-20 pointer-events-none overflow-visible">
+                                <defs>
+                                    <marker id="gantt-arrowhead-unique" markerWidth="6" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 6 3.5, 0 7" fill="#F97316" />
+                                    </marker>
+                                </defs>
+                                {processedTasks.map((task, index) => {
+                                    if (!task.condicionada_por) return null;
+
+                                    // Find Parent
+                                    const parentIndex = processedTasks.findIndex(t => t.id === task.condicionada_por);
+
+                                    if (parentIndex === -1) return null;
+                                    const parentTask = processedTasks[parentIndex];
+
+                                    // Logic Coords (Child)
+                                    const childStart = parseISO(task.fecha_inicio);
+                                    const childLeft = differenceInDays(childStart, timelineStart) * pixelPerDay;
+                                    const childY = (index * ROW_HEIGHT) + (ROW_HEIGHT / 2);
+
+                                    // Logic Coords (Parent)
+                                    const parentStart = parseISO(parentTask.fecha_inicio);
+                                    const parentEnd = parentTask.fecha_fin_estimada && isValid(parseISO(parentTask.fecha_fin_estimada)) ? parseISO(parentTask.fecha_fin_estimada) : parentStart;
+                                    // Add 1 day for end of bar visual
+                                    const parentRight = (differenceInDays(parentEnd, timelineStart) + 1) * pixelPerDay;
+                                    const parentY = (parentIndex * ROW_HEIGHT) + (ROW_HEIGHT / 2);
+
+                                    // Draw Path (Stepped)
+                                    // M = Parent Right, Parent Y
+                                    // L = Mid X, Parent Y
+                                    // L = Mid X, Child Y
+                                    // L = Child Left, Child Y
+
+                                    // Coords with Sidebar Offset
+                                    const x1 = parentRight + SIDEBAR_WIDTH;
+                                    const y1 = parentY;
+                                    const x4 = childLeft + SIDEBAR_WIDTH;
+                                    const y4 = childY;
+
+                                    let path = '';
+                                    if (x4 < x1) {
+                                        // Overlap: Direct Vertical Drop 
+                                        path = `M ${x4} ${y1} L ${x4} ${y4}`;
+                                    } else {
+                                        // Waterfall: Simple L-Shape (Gamma)
+                                        path = `M ${x1} ${y1} L ${x4} ${y1} L ${x4} ${y4}`;
+                                    }
+
+
+
+                                    return (
+                                        <path
+                                            key={`dep-${task.id}`}
+                                            d={path}
+                                            stroke="#F97316"
+                                            strokeWidth="2"
+                                            fill="none"
+                                            markerEnd="url(#gantt-arrowhead-unique)"
+                                            opacity="1"
+                                        />
+                                    );
+                                })}
+                            </svg>
 
                             {/* Task Bars */}
                             {processedTasks.map((task, index) => {
@@ -263,11 +432,7 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
                     </div>
                 </div>
 
-                {/* Footer */}
-                <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 flex justify-between items-center z-50 text-[10px] text-gray-400">
-                    <p>Rango: {format(timelineStart, 'dd/MM/yyyy')} — {format(timelineEnd, 'dd/MM/yyyy')}</p>
-                    <button onClick={onClose} className="hover:text-gray-600 hover:underline">Cerrar</button>
-                </div>
+                {/* Footer Removed as per request */}
             </div>
         </div>
     );
