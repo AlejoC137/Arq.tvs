@@ -8,6 +8,7 @@ import { getSpaces, getStaffers, createSpace } from '../../services/spacesServic
 import { setSelectedTask } from '../../store/actions/appActions';
 import CalendarFilterBar from './CalendarFilterBar';
 import PrintButton from '../common/PrintButton';
+import HouseGanttModal from './ProjectTimeline/HouseGanttModal';
 
 const HousesView = () => {
     const dispatch = useDispatch();
@@ -21,6 +22,7 @@ const HousesView = () => {
     const [stages, setStages] = useState([]);
     const [projectTasks, setProjectTasks] = useState([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
+    const [showGantt, setShowGantt] = useState(false);
     const [filters, setFilters] = useState({
         staffId: '',
         stageId: '',
@@ -376,6 +378,13 @@ const HousesView = () => {
                                         </span>
                                         <span className="text-[10px] text-gray-400">|</span>
                                         <span className="text-[10px] text-gray-500">{projectTasks.length} tareas</span>
+                                        <span className="text-[10px] text-gray-400">|</span>
+                                        <button
+                                            onClick={() => setShowGantt(true)}
+                                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                                        >
+                                            <Calendar size={10} /> Ver Cronograma
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -623,6 +632,16 @@ const HousesView = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Render Modal */}
+                        {showGantt && (
+                            <HouseGanttModal
+                                isOpen={showGantt}
+                                onClose={() => setShowGantt(false)}
+                                project={selectedProject}
+                                tasks={projectTasks}
+                            />
+                        )}
                     </>
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-gray-400">

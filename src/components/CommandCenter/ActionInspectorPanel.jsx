@@ -613,11 +613,22 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                            {panelMode === 'createTask' ? 'Nueva Tarea' :
-                                panelMode === 'task' ? `Editar Tarea: ${taskForm?.task_description || '...'}` :
-                                    panelMode === 'day' ? `Tareas del Día: ${selectedDate}` : 'Detalles'}
-                        </span>
+                        <div className="flex flex-col justify-center">
+                            {panelMode === 'createTask' ? (
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Nueva Tarea</span>
+                            ) : panelMode === 'task' ? (
+                                <>
+                                    <span className="text-[8px] font-bold uppercase text-gray-400 leading-none">Editar Tarea:</span>
+                                    <span className="text-[15px] font-bold text-gray-800 uppercase leading-tight line-clamp-1 max-w-md" title={taskForm?.task_description}>
+                                        {taskForm?.task_description || '...'}
+                                    </span>
+                                </>
+                            ) : panelMode === 'day' ? (
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Tareas del Día: {selectedDate}</span>
+                            ) : (
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Detalles</span>
+                            )}
+                        </div>
                         {(loading || saving) && <span className="text-[9px] text-blue-500 animate-pulse">{saving ? 'Guardando...' : 'Cargando...'}</span>}
                     </div>
 
@@ -858,13 +869,32 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                             <label className="block text-[8px] font-bold text-red-500 uppercase mb-0.5 flex items-center gap-1">
                                                 <AlertCircle size={8} /> Razón de Pausa
                                             </label>
-                                            <textarea
-                                                rows={2}
-                                                value={taskForm.notes || ''}
-                                                onChange={(e) => handleTaskChange('notes', e.target.value)}
-                                                className="w-full bg-red-50 border border-red-200 rounded p-1.5 text-[10px] focus:ring-1 focus:ring-red-500 placeholder-red-300 text-red-800"
-                                                placeholder="Escribe la razón por la que está pausada..."
-                                            />
+
+                                            <div className="bg-red-50 border border-red-200 rounded p-1 mb-1">
+                                                {(() => {
+                                                    try {
+                                                        const entries = JSON.parse(taskForm.notes || '[]');
+                                                        if (!Array.isArray(entries) || entries.length === 0) {
+                                                            return <span className="text-[9px] text-gray-400 italic">Sin razón registrada.</span>;
+                                                        }
+
+                                                        // Show only the latest entry (first item)
+                                                        const latest = entries[0];
+                                                        return (
+                                                            <div className="text-[9px]">
+                                                                <div className="flex justify-between font-bold text-red-700 opacity-70 text-[8px] mb-0.5">
+                                                                    <span>{latest.date}</span>
+                                                                    <span>{latest.user}</span>
+                                                                </div>
+                                                                <p className="text-gray-700 leading-tight whitespace-pre-wrap">{latest.text}</p>
+                                                            </div>
+                                                        );
+                                                    } catch (e) {
+                                                        // Legacy text fallback
+                                                        return <p className="text-[9px] text-gray-700 whitespace-pre-wrap">{taskForm.notes || 'Sin razón especificada.'}</p>;
+                                                    }
+                                                })()}
+                                            </div>
                                         </div>
                                     )}
 
