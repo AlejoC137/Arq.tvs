@@ -52,6 +52,7 @@ function App() {
                     <Route path="/houses" element={<HousesView />} />
                     <Route path="/houses/:id" element={<HousesView />} />
                     <Route path="/houses/:id/cronograma" element={<HousesView />} />
+                    <Route path="/houses/:id/informe" element={<HousesView />} />
                     <Route path="/parcels" element={<HousesView mode="parcels" />} />
                     <Route path="/team" element={<TeamView />} />
                     <Route path="/protocols" element={<ProtocolsView />} />

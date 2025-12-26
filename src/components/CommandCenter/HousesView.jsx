@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { handleNativePrint } from '../../utils/printUtils';
-import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock, User, Search, ChevronDown } from 'lucide-react';
+import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock, User, Search, ChevronDown, FileText } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getHouses, getParcels, updateProject, createProject, deleteProject } from '../../services/projectsService';
@@ -10,6 +10,8 @@ import { setSelectedTask } from '../../store/actions/appActions';
 import CalendarFilterBar from './CalendarFilterBar';
 import PrintButton from '../common/PrintButton';
 import HouseGanttModal from './ProjectTimeline/HouseGanttModal';
+import HouseReportModal from '../Reports/HouseReportModal';
+import SpaceModal from '../common/SpaceModal';
 
 const HousesView = ({ mode }) => {
     const dispatch = useDispatch();
@@ -28,6 +30,7 @@ const HousesView = ({ mode }) => {
     const [projectTasks, setProjectTasks] = useState([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
     const [showGantt, setShowGantt] = useState(false);
+    const [showReport, setShowReport] = useState(false);
     const [filters, setFilters] = useState({
         staffId: '',
         stageId: '',
@@ -88,6 +91,8 @@ const HousesView = ({ mode }) => {
                     setSelectedProject(found);
                     if (location.pathname.endsWith('/cronograma')) {
                         setShowGantt(true);
+                    } else if (location.pathname.endsWith('/informe')) {
+                        setShowReport(true);
                     }
                 }
             } else {
@@ -107,6 +112,22 @@ const HousesView = ({ mode }) => {
         if (selectedProject) {
             navigate(`${basePath}/${selectedProject.id}/cronograma`);
             setShowGantt(true);
+        }
+    };
+
+    const handleOpenReport = () => {
+        const basePath = propertyView === 'parcels' ? '/parcels' : '/houses';
+        if (selectedProject) {
+            navigate(`${basePath}/${selectedProject.id}/informe`);
+            setShowReport(true);
+        }
+    };
+
+    const handleCloseReport = () => {
+        const basePath = propertyView === 'parcels' ? '/parcels' : '/houses';
+        if (selectedProject) {
+            navigate(`${basePath}/${selectedProject.id}`);
+            setShowReport(false);
         }
     };
 
@@ -445,6 +466,13 @@ const HousesView = ({ mode }) => {
                                         >
                                             <Calendar size={10} /> Ver Cronograma
                                         </button>
+                                        <span className="text-[10px] text-gray-400">|</span>
+                                        <button
+                                            onClick={handleOpenReport}
+                                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                                        >
+                                            <FileText size={10} /> Informe
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -672,6 +700,15 @@ const HousesView = ({ mode }) => {
                                 tasks={projectTasks}
                             />
                         )}
+
+                        {showReport && (
+                            <HouseReportModal
+                                isOpen={showReport}
+                                onClose={handleCloseReport}
+                                project={selectedProject}
+                                tasks={projectTasks}
+                            />
+                        )}
                     </>
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-gray-400">
@@ -694,10 +731,7 @@ export default HousesView;
 const SearchableSpaceSelector = ({ value, onChange, projectId, spaces, onSpaceCreated, placeholder = "- Seleccionar Espacio -" }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
-    const [newSpaceName, setNewSpaceName] = useState('');
-    const [newSpaceApellido, setNewSpaceApellido] = useState('');
-    const [creatingLoading, setCreatingLoading] = useState(false);
+    const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false);
     const wrapperRef = React.useRef(null);
 
     // Filter spaces by project and input
@@ -714,39 +748,29 @@ const SearchableSpaceSelector = ({ value, onChange, projectId, spaces, onSpaceCr
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
                 setIsOpen(false);
-                setIsCreating(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleCreateSpace = async () => {
-        if (!newSpaceName.trim()) return;
-        setCreatingLoading(true);
-        try {
-            const newSpace = await createSpace({
-                nombre: newSpaceName.trim(),
-                apellido: newSpaceApellido.trim(),
-                tipo: 'Espacio',
-                proyecto: projectId
-            });
+    // Find the displayed name for the collapsed state
+    const selectedSpace = useMemo(() => {
+        if (!value) return null;
+        return spaces.find(s => s.nombre === value);
+    }, [value, spaces]);
 
-            // Notify parent to reload
-            if (onSpaceCreated) await onSpaceCreated();
+    const displayValue = selectedSpace
+        ? `${selectedSpace.nombre}${selectedSpace.apellido ? ` (${selectedSpace.apellido})` : ''}`
+        : value || placeholder;
 
-            // Auto Select
-            onChange(newSpace.nombre);
-            setIsOpen(false);
-            setIsCreating(false);
-            setNewSpaceName('');
-            setNewSpaceApellido('');
-        } catch (error) {
-            console.error(error);
-            alert("Error al crear espacio");
-        } finally {
-            setCreatingLoading(false);
-        }
+    const handleSpaceCreated = async (newSpace) => {
+        // Notify parent to reload
+        if (onSpaceCreated) await onSpaceCreated();
+
+        // Auto Select
+        onChange(newSpace.nombre);
+        setIsOpen(false);
     };
 
     return (
@@ -756,101 +780,68 @@ const SearchableSpaceSelector = ({ value, onChange, projectId, spaces, onSpaceCr
                 className="w-full px-2.5 py-1.5 text-xs font-medium border border-gray-200 rounded-lg flex items-center justify-between cursor-pointer bg-gray-50/30 hover:bg-white hover:border-blue-300 transition-colors"
             >
                 <span className={!value ? 'text-gray-400' : 'text-gray-900'}>
-                    {value || placeholder}
+                    {displayValue}
                 </span>
                 <ChevronDown size={12} className="text-gray-400" />
             </div>
 
             {isOpen && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-64 flex flex-col">
-                    {/* Search / Create Header */}
+                    {/* Search Header */}
                     <div className="p-2 border-b border-gray-100 bg-gray-50 flex flex-col gap-2">
-                        {!isCreating ? (
-                            <div className="relative">
-                                <Search size={12} className="absolute left-2 top-1.5 text-gray-400" />
-                                <input
-                                    autoFocus
-                                    type="text"
-                                    placeholder="Buscar espacio..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
-                                />
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-1">
-                                <span className="text-[10px] font-bold text-blue-600 uppercase">Nuevo Espacio</span>
-                                <input
-                                    autoFocus
-                                    type="text"
-                                    placeholder="Nombre (ej. Baño)"
-                                    value={newSpaceName}
-                                    onChange={(e) => setNewSpaceName(e.target.value)}
-                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Apellido (ej. Principal)"
-                                    value={newSpaceApellido}
-                                    onChange={(e) => setNewSpaceApellido(e.target.value)}
-                                    className="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
-                                />
-                                <div className="flex items-center gap-1 justify-end">
-                                    <button
-                                        onClick={() => setIsCreating(false)}
-                                        className="px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-100 rounded"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        onClick={handleCreateSpace}
-                                        disabled={creatingLoading || !newSpaceName.trim()}
-                                        className="px-2 py-1 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                                    >
-                                        {creatingLoading ? 'Creando...' : 'Crear'}
-                                    </button>
+                        <div className="relative">
+                            <Search size={12} className="absolute left-2 top-1.5 text-gray-400" />
+                            <input
+                                autoFocus
+                                type="text"
+                                placeholder="Buscar espacio..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-7 pr-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Options List */}
+                    <div className="flex-1 overflow-y-auto min-h-[100px]">
+                        {filteredSpaces.map(s => (
+                            <div
+                                key={s._id}
+                                onClick={() => {
+                                    onChange(s.nombre);
+                                    setIsOpen(false);
+                                }}
+                                className="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer flex items-center justify-between group"
+                            >
+                                <div>
+                                    <span className="font-medium text-gray-800">{s.nombre}</span>
+                                    {s.apellido && <span className="text-gray-500 ml-1">({s.apellido})</span>}
                                 </div>
+                                {value === s.nombre && <CheckCircle size={12} className="text-blue-600" />}
+                            </div>
+                        ))}
+                        {filteredSpaces.length === 0 && (
+                            <div className="p-4 text-center text-xs text-gray-400 italic">
+                                No se encontraron espacios.
                             </div>
                         )}
                     </div>
 
-                    {/* Options List */}
-                    {!isCreating && (
-                        <div className="flex-1 overflow-y-auto min-h-[100px]">
-                            {filteredSpaces.map(s => (
-                                <div
-                                    key={s._id}
-                                    onClick={() => {
-                                        onChange(s.nombre);
-                                        setIsOpen(false);
-                                    }}
-                                    className="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer flex items-center justify-between group"
-                                >
-                                    <div>
-                                        <span className="font-medium text-gray-800">{s.nombre}</span>
-                                        {s.apellido && <span className="text-gray-500 ml-1">({s.apellido})</span>}
-                                    </div>
-                                    {value === s.nombre && <CheckCircle size={12} className="text-blue-600" />}
-                                </div>
-                            ))}
-                            {filteredSpaces.length === 0 && (
-                                <div className="p-4 text-center text-xs text-gray-400 italic">
-                                    No se encontraron espacios.
-                                </div>
-                            )}
-                        </div>
-                    )}
-
                     {/* Footer Create Action */}
-                    {!isCreating && (
-                        <div
-                            onClick={() => setIsCreating(true)}
-                            className="p-2 border-t border-gray-100 bg-gray-50 cursor-pointer hover:bg-blue-50 transition-colors flex items-center gap-2 text-blue-600"
-                        >
-                            <Plus size={14} />
-                            <span className="text-xs font-bold">Crear "{searchTerm || 'Nuevo'}"</span>
-                        </div>
-                    )}
+                    <div
+                        onClick={() => { setIsSpaceModalOpen(true); setIsOpen(false); }}
+                        className="p-2 border-t border-gray-100 bg-gray-50 cursor-pointer hover:bg-blue-50 transition-colors flex items-center gap-2 text-blue-600"
+                    >
+                        <Plus size={14} />
+                        <span className="text-xs font-bold">Abrir Creador de Espacios</span>
+                    </div>
+
+                    <SpaceModal
+                        isOpen={isSpaceModalOpen}
+                        onClose={() => setIsSpaceModalOpen(false)}
+                        onSuccess={handleSpaceCreated}
+                        defaultProjectId={projectId}
+                    />
                 </div>
             )}
         </div>

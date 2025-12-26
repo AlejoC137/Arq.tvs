@@ -5,6 +5,7 @@ import { getSpaces, createSpace, updateSpace, deleteSpace, getAllSpacesAndElemen
 import { getSpaceComponents, createSpaceComponent, getComponents } from '../../services/componentsService';
 import { getProjects } from '../../services/projectsService';
 import AddComponentModal from './AddComponentModal';
+import SpaceModal from '../common/SpaceModal';
 
 const SpacesView = () => {
     const { refreshCounter } = useSelector(state => state.app);
@@ -118,54 +119,8 @@ const SpacesView = () => {
     };
 
     // CRUD handlers for spaces
-    const openSpaceModal = async (space = null) => {
-        // Load dropdown options if not loaded
-        if (projectOptions.length === 0 || stageOptions.length === 0) {
-            await loadDropdownOptions();
-        }
-
-        if (space) {
-            // Fetch full details for editing
-            try {
-                const details = await getSpaceDetails(space._id);
-                setEditingSpace(details);
-                setSpaceFormData({
-                    nombre: details.nombre || '',
-                    apellido: details.apellido || '',
-                    tipo: details.tipo || 'Espacio',
-                    piso: details.piso || '',
-                    proyecto: details.proyecto || '',
-                    etapa: details.etapa || '',
-                    componentes: details.componentes || '',
-                    tareas: details.tareas || ''
-                });
-            } catch (error) {
-                console.error('Error loading space details:', error);
-                setEditingSpace(space);
-                setSpaceFormData({
-                    nombre: space.nombre || '',
-                    apellido: space.apellido || '',
-                    tipo: space.tipo || 'Espacio',
-                    piso: '',
-                    proyecto: '',
-                    etapa: '',
-                    componentes: '',
-                    tareas: ''
-                });
-            }
-        } else {
-            setEditingSpace(null);
-            setSpaceFormData({
-                nombre: '',
-                apellido: '',
-                tipo: 'Espacio',
-                piso: '',
-                proyecto: '',
-                etapa: '',
-                componentes: '',
-                tareas: ''
-            });
-        }
+    const handleOpenAddModal = () => {
+        setEditingSpace(null);
         setIsSpaceModalOpen(true);
     };
 
@@ -186,21 +141,6 @@ const SpacesView = () => {
 
             if (editingSpace) {
                 await updateSpace(editingSpace._id, dataToSave);
-            } else {
-                await createSpace(dataToSave);
-                // Only reset form when creating new (modal)
-                setIsSpaceModalOpen(false);
-                setEditingSpace(null);
-                setSpaceFormData({
-                    nombre: '',
-                    apellido: '',
-                    tipo: 'Espacio',
-                    piso: '',
-                    proyecto: '',
-                    etapa: '',
-                    componentes: '',
-                    tareas: ''
-                });
             }
             // Reload spaces list to update sidebar
             await loadSpaces();
@@ -251,7 +191,7 @@ const SpacesView = () => {
                             Espacios y Elementos
                         </h2>
                         <button
-                            onClick={() => openSpaceModal()}
+                            onClick={handleOpenAddModal}
                             className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                             title="Agregar Espacio/Elemento"
                         >
@@ -520,197 +460,12 @@ const SpacesView = () => {
             />
 
             {/* Space/Element CRUD Modal */}
-            {isSpaceModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200 sticky top-0 bg-white flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-900">
-                                {editingSpace ? 'Editar' : 'Agregar'} Espacio/Elemento
-                            </h3>
-                            <button
-                                onClick={() => { setIsSpaceModalOpen(false); setEditingSpace(null); }}
-                                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            {/* Nombre y Apellido en la misma fila */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Nombre *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={spaceFormData.nombre}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, nombre: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Ej: Cocina, Baño..."
-                                        autoFocus
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Apellido
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={spaceFormData.apellido}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, apellido: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Identificador adicional..."
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Tipo y Piso */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Tipo *
-                                    </label>
-                                    <select
-                                        value={spaceFormData.tipo}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, tipo: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="Espacio">Espacio</option>
-                                        <option value="Elemento">Elemento</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Piso
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={spaceFormData.piso}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, piso: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Ej: 1, 2, Sótano..."
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Proyecto y Etapa (Dropdowns) */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Proyecto
-                                    </label>
-                                    <select
-                                        value={spaceFormData.proyecto}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, proyecto: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">-- Seleccionar proyecto --</option>
-                                        {projectOptions.map((proj) => (
-                                            <option key={proj.id} value={proj.id}>
-                                                {proj.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Etapa
-                                    </label>
-                                    <select
-                                        value={spaceFormData.etapa}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, etapa: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">-- Seleccionar etapa --</option>
-                                        {stageOptions.map((stage) => (
-                                            <option key={stage.id} value={stage.id}>
-                                                {stage.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Componentes (Multi-select) */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Componentes
-                                </label>
-                                <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto bg-gray-50">
-                                    {componentOptions.length === 0 ? (
-                                        <p className="text-sm text-gray-500 italic">No hay componentes disponibles</p>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {componentOptions.map((comp) => {
-                                                const selectedIds = spaceFormData.componentes ? spaceFormData.componentes.split(',').filter(Boolean) : [];
-                                                const isSelected = selectedIds.includes(comp.id);
-                                                return (
-                                                    <label key={comp.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            onChange={(e) => {
-                                                                let newIds;
-                                                                if (e.target.checked) {
-                                                                    newIds = [...selectedIds, comp.id];
-                                                                } else {
-                                                                    newIds = selectedIds.filter(id => id !== comp.id);
-                                                                }
-                                                                setSpaceFormData({ ...spaceFormData, componentes: newIds.join(',') });
-                                                            }}
-                                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                                                        />
-                                                        <span className="text-sm text-gray-700">{comp.nombre}</span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {(spaceFormData.componentes?.split(',').filter(Boolean).length || 0)} componente(s) seleccionado(s)
-                                </p>
-                            </div>
-
-                            {/* Tareas */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Tareas
-                                </label>
-                                <textarea
-                                    value={spaceFormData.tareas}
-                                    onChange={(e) => setSpaceFormData({ ...spaceFormData, tareas: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    rows={3}
-                                    placeholder="IDs de tareas separados por coma, o descripción de tareas..."
-                                />
-                            </div>
-                        </div>
-                        <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
-                            <button
-                                onClick={() => { setIsSpaceModalOpen(false); setEditingSpace(null); }}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleSaveSpace}
-                                disabled={savingSpace}
-                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {savingSpace ? (
-                                    <>Guardando...</>
-                                ) : (
-                                    <>
-                                        <Check size={16} />
-                                        {editingSpace ? 'Guardar' : 'Crear'}
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SpaceModal
+                isOpen={isSpaceModalOpen}
+                onClose={() => setIsSpaceModalOpen(false)}
+                onSuccess={loadSpaces}
+                editingSpace={editingSpace}
+            />
         </div>
     );
 };
