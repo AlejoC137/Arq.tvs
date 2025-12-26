@@ -155,7 +155,7 @@ const HouseGanttModal = ({ isOpen, onClose, project, tasks }) => {
                             <Calendar size={16} />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-gray-900 leading-tight">Cronograma de Obra</h2>
+                            <h2 className="text-lg font-bold text-gray-900 leading-tight">Cronograma de proyecto</h2>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
                                 <span className="font-medium">{project.name}</span>
                                 <span className="w-1 h-1 rounded-full bg-gray-300"></span>
