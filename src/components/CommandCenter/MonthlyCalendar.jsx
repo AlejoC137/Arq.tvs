@@ -194,66 +194,58 @@ const MonthlyCalendar = () => {
     };
 
     const printRef = useRef(null);
-    const handlePrint = useReactToPrint({
-        content: () => {
-            const element = printRef.current || document.getElementById('monthly-calendar-print-view');
-            if (!element) {
-                return document.querySelector('.print-container');
-            }
-            return element;
-        },
-        documentTitle: `Calendario_Mensual_${format(currentDate, 'yyyy-MM')}`,
-        removeAfterPrint: true,
-        onPrintError: (errorLocation, error) => {
-            console.error("Print Error:", errorLocation, error);
-            alert("Error al imprimir.");
-        }
-    });
+
+    const handlePrint = () => {
+        handleNativePrint('monthly-calendar-print-view', `Calendario_Mensual_${format(currentDate, 'yyyy-MM')}`);
+    };
 
     return (
         <div id="monthly-calendar-print-view" ref={printRef} className="h-full flex flex-col bg-white print-container">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 print:border-none z-10">
-                <h2 className="text-xl font-bold text-gray-900 print:text-black">
-                    {format(currentDate, 'MMMM yyyy', { locale: es }).toUpperCase()}
-                </h2>
+                <div className="flex items-center gap-6">
+                    <h2 className="text-xl font-bold text-gray-900 print:text-black whitespace-nowrap">
+                        {format(currentDate, 'MMMM yyyy', { locale: es }).toUpperCase()}
+                    </h2>
 
-                {/* Filters Relocated to Header */}
-                <div className="flex-1 px-4 no-print">
-                    <CalendarFilterBar
-                        staffers={staffers}
-                        projects={projects}
-                        stages={stages}
-                        filters={filters}
-                        onFilterChange={handleFilterChange}
-                        onClear={handleClearFilters}
-                        showStageFilter={false} // Hidden to enforce grouped view via Toggle
-                    />
+                    {/* Filters Relocated to Header */}
+                    <div className="no-print">
+                        <CalendarFilterBar
+                            staffers={staffers}
+                            projects={projects}
+                            stages={stages}
+                            filters={filters}
+                            onFilterChange={handleFilterChange}
+                            onClear={handleClearFilters}
+                            showStageFilter={false} // Hidden to enforce grouped view via Toggle
+                        />
+                    </div>
                 </div>
 
-                <div className="flex-1 px-4 no-print flex justify-end">
+                <div className="flex items-center gap-3 no-print">
                     <PrintButton
                         onClick={handlePrint}
                     />
-                </div>    <div className="flex bg-gray-100 rounded-lg p-0.5">
-                    <button
-                        onClick={handlePrevMonth}
-                        className="p-1 hover:bg-white rounded-md shadow-sm transition-all"
-                    >
-                        <ChevronLeft size={16} />
-                    </button>
-                    <button
-                        onClick={handleToday}
-                        className="px-3 text-xs font-medium hover:bg-white rounded-md transition-all"
-                    >
-                        Hoy
-                    </button>
-                    <button
-                        onClick={handleNextMonth}
-                        className="p-1 hover:bg-white rounded-md shadow-sm transition-all"
-                    >
-                        <ChevronRight size={16} />
-                    </button>
+                    <div className="flex bg-gray-100 rounded-lg p-0.5">
+                        <button
+                            onClick={handlePrevMonth}
+                            className="p-1 hover:bg-white rounded-md shadow-sm transition-all"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button
+                            onClick={handleToday}
+                            className="px-3 text-xs font-medium hover:bg-white rounded-md transition-all"
+                        >
+                            Hoy
+                        </button>
+                        <button
+                            onClick={handleNextMonth}
+                            className="p-1 hover:bg-white rounded-md shadow-sm transition-all"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
             </div>
 

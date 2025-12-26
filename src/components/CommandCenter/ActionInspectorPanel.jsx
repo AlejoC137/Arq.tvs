@@ -8,9 +8,10 @@ import { getSpaces, getSpaceDetails, updateSpace, getStaffers } from '../../serv
 import { createTask, updateTask, getProjects, deleteTask, getTasksByDate, getStages, getTaskById } from '../../services/tasksService';
 import { createCall, createMultipleCalls } from '../../services/callsService';
 import TaskDependencySelector from './TaskDependencySelector'; // Import Selector
-import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check, Phone, Users } from 'lucide-react';
+import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check, Phone, Users, Image as ImageIcon, Loader2, Lock, Unlock } from 'lucide-react';
 import { format } from 'date-fns';
 import PrintButton from '../common/PrintButton';
+import EvidenceUploader from '../common/EvidenceUploader';
 
 const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const dispatch = useDispatch();
@@ -60,7 +61,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             setActionForm({
                 ...selectedAction,
                 fecha_fin: selectedAction.fecha_fin || selectedAction.fecha_ejecucion,
-                ejecutor_nombre: selectedAction.ejecutor_nombre || ''
+                ejecutor_nombre: selectedAction.ejecutor_nombre || '',
+                evidence_url: selectedAction.evidence_url || ''
             });
         } else if (panelMode === 'create') {
             const today = format(new Date(), 'yyyy-MM-dd');
@@ -76,6 +78,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 estado_aprobacion_wiet: false,
                 requiere_aprobacion_alejo: false,
                 estado_aprobacion_alejo: false,
+                evidence_url: ''
             });
         }
     }, [selectedAction, panelMode]);
@@ -98,7 +101,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 notes: selectedTask.notes || '',
                 RonaldPass: selectedTask.RonaldPass || false,
                 WietPass: selectedTask.WietPass || false,
-                AlejoPass: selectedTask.AlejoPass || false
+                AlejoPass: selectedTask.AlejoPass || false,
+                evidence_url: selectedTask.evidence_url || ''
             });
             // Load draft fullActions if present (for JSON Importer)
             if (selectedTask.fullActions) {
@@ -128,7 +132,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 condiciona_a: selectedTask.condiciona_a || null,
                 condicionada_por_task: selectedTask.condicionada_por_task || null, // For initial display
                 condiciona_a_task: selectedTask.condiciona_a_task || null,       // For initial display
-                fullActions: [] // We don't load actions into form state for edit mode, we use components state
+                fullActions: [], // We don't load actions into form state for edit mode, we use components state
+                evidence_url: selectedTask.evidence_url || ''
             });
         }
     }, [selectedTask?.id, panelMode]); // Only reset form if the task ID or panel mode actually changes
@@ -136,23 +141,28 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     // Load Task Data (Actions)
     useEffect(() => {
         if (panelMode === 'task' && selectedTask?.id) {
+            // CRITICAL FIX: Clear previous components immediately to avoid "zombie" state from previous task
+            setComponents([]);
             setLoading(true);
             getTaskActions(selectedTask.id)
                 .then(data => setComponents(data || []))
                 .catch(err => console.error(err))
                 .finally(() => setLoading(false));
+
         } else if (panelMode === 'day' && selectedDate) {
             setLoading(true);
+            setDayTasks([]); // Clear previous day tasks
             getTasksByDate(selectedDate)
                 .then(setDayTasks)
                 .catch(console.error)
                 .finally(() => setLoading(false));
+
         } else if (panelMode !== 'createTask') {
-            // Only clear if NOT in create/preview mode (because preview mode sets components in the previous useEffect)
+            // Only clear if NOT in create/preview mode
             setComponents([]);
             setDayTasks([]);
         }
-    }, [selectedTask, selectedDate, panelMode]);
+    }, [selectedTask?.id, selectedDate, panelMode]); // Changed selectedTask to selectedTask.id to be more specific
 
     const handleActionChange = (field, value) => {
         setActionForm(prev => {
@@ -358,6 +368,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 if (taskForm.AlejoPass !== selectedTask.AlejoPass) updates.AlejoPass = taskForm.AlejoPass;
                 if (taskForm.condicionada_por !== selectedTask.condicionada_por) updates.condicionada_por = taskForm.condicionada_por || null;
                 if (taskForm.condiciona_a !== selectedTask.condiciona_a) updates.condiciona_a = taskForm.condiciona_a || null;
+                if (taskForm.evidence_url !== selectedTask.evidence_url) updates.evidence_url = taskForm.evidence_url;
 
                 let updatedTaskData = selectedTask;
                 if (Object.keys(updates).length > 0) {
@@ -431,7 +442,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                     Priority: taskForm.Priority || '1',
                     stage_id: taskForm.stage_id || null,
                     status: taskForm.status || 'Activa',
-                    notes: taskForm.notes || ''
+                    notes: taskForm.notes || '',
+                    evidence_url: taskForm.evidence_url || ''
                 };
                 const newTask = await createTask(taskPayload);
 
@@ -487,6 +499,10 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
     const handleClose = () => {
         dispatch(clearSelection());
+        // Clean local state explicitly
+        setTaskForm({});
+        setComponents([]);
+        setDayTasks([]);
         setIsCollapsed(false);
     };
 
@@ -907,6 +923,16 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                         </div>
                                     </div>
 
+                                    {/* Evidence Uploader (Task) */}
+                                    <div className="mt-2">
+                                        <EvidenceUploader
+                                            currentUrl={taskForm.evidence_url}
+                                            onUpload={(url) => handleTaskChange('evidence_url', url)}
+                                            pathPrefix="task"
+                                            label="Evidencia de Tarea"
+                                        />
+                                    </div>
+
 
                                 </div>
 
@@ -1076,6 +1102,16 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                             onChange={(e) => handleActionChange('descripcion', e.target.value)}
                                             className="w-full text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500"
                                             placeholder="Describe la acción..."
+                                        />
+                                    </div>
+
+                                    {/* Evidence Uploader (Action) */}
+                                    <div>
+                                        <EvidenceUploader
+                                            currentUrl={actionForm.evidence_url}
+                                            onUpload={(url) => handleActionChange('evidence_url', url)}
+                                            pathPrefix="action"
+                                            label="Evidencia de Acción"
                                         />
                                     </div>
 
@@ -1364,6 +1400,140 @@ const BitacoraManager = ({ notesStr, onChange, staffers = [] }) => {
     const [selectedAuthorId, setSelectedAuthorId] = useState('');
     const [entries, setEntries] = useState([]);
 
+    // Image State
+    const [attachedImage, setAttachedImage] = useState(null); // URL string for NEW upload
+    const [uploading, setUploading] = useState(false);
+
+    // Preview State (for viewing existing images)
+    const [previewImageUrl, setPreviewImageUrl] = useState(null);
+
+    // Admin Mode
+    const [isAdminMode, setIsAdminMode] = useState(false);
+    const [showAdminInput, setShowAdminInput] = useState(false);
+    const [adminCodeInput, setAdminCodeInput] = useState('');
+
+    const handleAdminLogin = () => {
+        if (isAdminMode) {
+            setIsAdminMode(false);
+            setEditModeIndex(null);
+            return;
+        }
+        setShowAdminInput(true);
+        setAdminCodeInput('');
+    };
+
+    const confirmAdminLogin = () => {
+        if (adminCodeInput === import.meta.env.VITE_BITACORA_ADMING_CODE) {
+            setIsAdminMode(true);
+            setShowAdminInput(false);
+        } else {
+            alert("Código incorrecto");
+        }
+        setAdminCodeInput('');
+    };
+
+    // Admin Edit/Delete Logic
+    const [editModeIndex, setEditModeIndex] = useState(null);
+    const [editData, setEditData] = useState({});
+
+    const handleStartEdit = (index, entry) => {
+        setEditModeIndex(index);
+        setEditData({ ...entry });
+    };
+
+    const handleCancelEdit = () => {
+        setEditModeIndex(null);
+        setEditData({});
+    };
+
+    const handleSaveEdit = (index) => {
+        const updatedEntries = [...entries];
+        updatedEntries[index] = editData;
+
+        // If image was removed during edit (set to null), ensure we track that
+        // Note: Actual deletion from storage happens via specific button, this just updates the entry ref
+
+        setEntries(updatedEntries);
+        onChange(JSON.stringify(updatedEntries));
+        setEditModeIndex(null);
+        setEditData({});
+    };
+
+    const handleDeleteEntry = async (index) => {
+        if (!confirm('¿Eliminar esta entrada permanentemente?')) return;
+
+        try {
+            const entry = entries[index];
+            if (entry.imageUrl) {
+                const { deleteEvidence } = await import('../../services/storageService');
+                await deleteEvidence(entry.imageUrl);
+            }
+
+            const updatedEntries = entries.filter((_, i) => i !== index);
+            setEntries(updatedEntries);
+            onChange(JSON.stringify(updatedEntries));
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar entrada: " + error.message);
+        }
+    };
+
+    const handleUpdateEntryImage = async (index, file) => {
+        try {
+            const { uploadBitacoraEvidence } = await import('../../services/storageService');
+
+            // If we are replacing an existing image in the entry
+            const currentEntry = editModeIndex === index ? editData : entries[index];
+            if (currentEntry.imageUrl) {
+                const { deleteEvidence } = await import('../../services/storageService');
+                await deleteEvidence(currentEntry.imageUrl);
+            }
+
+            const url = await uploadBitacoraEvidence(file);
+
+            if (editModeIndex === index) {
+                setEditData(prev => ({ ...prev, imageUrl: url }));
+            } else {
+                const updatedEntries = [...entries];
+                updatedEntries[index] = { ...updatedEntries[index], imageUrl: url };
+                setEntries(updatedEntries);
+                onChange(JSON.stringify(updatedEntries));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error al actualizar imagen: " + error.message);
+        }
+    };
+
+    const handleDeleteEntryImage = async (index) => {
+        if (!confirm('¿Eliminar imagen de esta entrada?')) return;
+
+        try {
+            const entry = editModeIndex === index ? editData : entries[index];
+            if (entry.imageUrl) {
+                const { deleteEvidence } = await import('../../services/storageService');
+                await deleteEvidence(entry.imageUrl);
+            }
+
+            if (editModeIndex === index) {
+                const newEditData = { ...editData };
+                delete newEditData.imageUrl;
+                setEditData(newEditData);
+            } else {
+                const updatedEntries = [...entries];
+                const updatedEntry = { ...updatedEntries[index] };
+                delete updatedEntry.imageUrl;
+                updatedEntries[index] = updatedEntry;
+
+                setEntries(updatedEntries);
+                onChange(JSON.stringify(updatedEntries));
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar imagen: " + error.message);
+        }
+    };
+
     useEffect(() => {
         try {
             const parsed = JSON.parse(notesStr || '[]');
@@ -1378,25 +1548,49 @@ const BitacoraManager = ({ notesStr, onChange, staffers = [] }) => {
         }
     }, [notesStr]);
 
+    const handleImageSelect = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            setUploading(true);
+            const { uploadBitacoraEvidence } = await import('../../services/storageService');
+            const url = await uploadBitacoraEvidence(file);
+            setAttachedImage(url);
+        } catch (error) {
+            console.error(error);
+            alert("Error al subir imagen: " + error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleAdd = () => {
-        if (!newEntry.trim() || !selectedAuthorId) return;
+        if ((!newEntry.trim() && !attachedImage) || !selectedAuthorId) return;
 
         const author = staffers.find(s => s.id === selectedAuthorId)?.name || 'Unknown';
 
         const entry = {
             date: format(new Date(), 'dd/MM/yyyy HH:mm'),
             user: author,
-            text: newEntry
+            text: newEntry,
+            imageUrl: attachedImage // Save URL if exists
         };
         const updated = [entry, ...entries];
         onChange(JSON.stringify(updated));
+
+        // Reset form
         setNewEntry('');
+        setAttachedImage(null);
     };
 
     return (
         <div className="relative">
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    setIsOpen(!isOpen);
+                    if (isOpen) setPreviewImageUrl(null); // Close preview when closing bitacora
+                }}
                 className={`h-6 px-2 rounded flex items-center gap-1.5 transition-colors border ${isOpen ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600'}`}
                 title="Abrir Bitácora"
             >
@@ -1405,63 +1599,237 @@ const BitacoraManager = ({ notesStr, onChange, staffers = [] }) => {
             </button>
 
             {isOpen && (
-                <div className="absolute bottom-full left-0 mb-2 w-[500px] bg-white border border-gray-200 shadow-xl rounded-lg z-50 p-3 flex flex-col gap-2">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-1">
-                        <h4 className="text-[10px] font-bold text-gray-700 uppercase flex items-center gap-1">
-                            <Book size={10} /> Historial de Cambios
-                        </h4>
-                        <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
-                    </div>
+                <>
+                    {/* Main Bitacora Panel */}
+                    <div className="absolute bottom-full left-0 mb-2 w-[500px] bg-white border border-gray-200 shadow-xl rounded-lg z-50 p-3 flex flex-col gap-2">
+                        <div className="flex justify-between items-center border-b border-gray-100 pb-1">
+                            <h4 className="text-[10px] font-bold text-gray-700 uppercase flex items-center gap-1">
+                                <Book size={10} /> Historial de Cambios
+                            </h4>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleAdminLogin}
+                                    className={`text-[9px] flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors relative ${isAdminMode ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                    title="Modo Administrador"
+                                >
+                                    {isAdminMode ? <Unlock size={10} /> : <Lock size={10} />}
+                                    {isAdminMode && "Admin"}
+                                </button>
 
-                    <div className="max-h-[300px] overflow-y-auto space-y-2 p-1 bg-gray-50 rounded border border-gray-100">
-                        {entries.length === 0 && <p className="text-[9px] text-center text-gray-400 italic py-2">No hay registros aún.</p>}
-                        {entries.map((e, idx) => (
-                            <div key={idx} className="bg-white p-2 rounded shadow-sm border border-gray-100">
-                                <div className="flex justify-between items-center text-[8px] text-gray-400 mb-1 border-b border-gray-50 pb-0.5">
-                                    <span>{e.date}</span>
-                                    <span className="font-bold text-blue-600 bg-blue-50 px-1 rounded">{e.user}</span>
+                                {/* Password Input Popover */}
+                                {showAdminInput && (
+                                    <div className="absolute top-8 right-8 bg-white shadow-xl border border-gray-200 rounded p-2 z-[60] flex flex-col gap-2 w-48 animate-in fade-in zoom-in-95 duration-100">
+                                        <p className="text-[10px] font-bold text-gray-700">Ingrese Código:</p>
+                                        <input
+                                            type="password"
+                                            autoFocus
+                                            value={adminCodeInput}
+                                            onChange={(e) => setAdminCodeInput(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && confirmAdminLogin()}
+                                            className="w-full text-[10px] border border-gray-300 rounded px-1.5 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
+                                            placeholder="••••"
+                                        />
+                                        <div className="flex justify-end gap-1">
+                                            <button onClick={() => setShowAdminInput(false)} className="text-[9px] px-2 py-1 bg-gray-100 rounded text-gray-600 hover:bg-gray-200">Cancelar</button>
+                                            <button onClick={confirmAdminLogin} className="text-[9px] px-2 py-1 bg-blue-600 rounded text-white hover:bg-blue-700">Confirmar</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button onClick={() => { setIsOpen(false); setPreviewImageUrl(null); }} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                            </div>
+                        </div>
+
+                        <div className="max-h-[300px] overflow-y-auto space-y-2 p-1 bg-gray-50 rounded border border-gray-100">
+                            {entries.length === 0 && <p className="text-[9px] text-center text-gray-400 italic py-2">No hay registros aún.</p>}
+                            {entries.map((e, idx) => (
+                                <div key={idx} className={`bg-white p-2 rounded shadow-sm border ${editModeIndex === idx ? 'border-blue-300 ring-2 ring-blue-50' : 'border-gray-100'}`}>
+                                    {editModeIndex === idx ? (
+                                        // EDIT MODE
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex justify-between items-start gap-2">
+                                                <div className="flex flex-col gap-1 flex-1">
+                                                    <label className="text-[8px] font-bold text-gray-500">Fecha/Hora</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editData.date}
+                                                        onChange={(ev) => setEditData({ ...editData, date: ev.target.value })}
+                                                        className="text-[9px] border border-gray-300 rounded px-1 py-0.5 w-full"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1 flex-1">
+                                                    <label className="text-[8px] font-bold text-gray-500">Usuario</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editData.user}
+                                                        onChange={(ev) => setEditData({ ...editData, user: ev.target.value })}
+                                                        className="text-[9px] border border-gray-300 rounded px-1 py-0.5 w-full"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[8px] font-bold text-gray-500">Nota</label>
+                                                <textarea
+                                                    value={editData.text}
+                                                    onChange={(ev) => setEditData({ ...editData, text: ev.target.value })}
+                                                    className="w-full text-[10px] border border-gray-300 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                    rows={3}
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-1">
+                                                <div className="flex items-center gap-2">
+                                                    {/* Edit Image Controls */}
+                                                    {editData.imageUrl ? (
+                                                        <div className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                                            <ImageIcon size={10} className="text-blue-500" />
+                                                            <span className="text-[8px] text-gray-500">Imagen adjunta</span>
+                                                            <button onClick={() => handleDeleteEntryImage(idx)} className="text-red-500 hover:bg-red-50 rounded p-0.5"><Trash2 size={10} /></button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="relative">
+                                                            <input
+                                                                type="file"
+                                                                id={`edit-mode-img-${idx}`}
+                                                                className="hidden"
+                                                                accept="image/*"
+                                                                onChange={(evt) => evt.target.files[0] && handleUpdateEntryImage(idx, evt.target.files[0])}
+                                                            />
+                                                            <label htmlFor={`edit-mode-img-${idx}`} className="flex items-center gap-1 text-[9px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100">
+                                                                <Plus size={10} /> Add Img
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <button onClick={handleCancelEdit} className="px-2 py-1 bg-white border border-gray-200 text-gray-600 text-[9px] rounded hover:bg-gray-50">Cancelar</button>
+                                                    <button onClick={() => handleSaveEdit(idx)} className="px-2 py-1 bg-blue-600 text-white text-[9px] rounded hover:bg-blue-700 flex items-center gap-1"><Save size={10} /> Guardar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // VIEW MODE
+                                        <>
+                                            <div className="flex justify-between items-center text-[8px] text-gray-400 mb-1 border-b border-gray-50 pb-0.5">
+                                                <span>{e.date}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-blue-600 bg-blue-50 px-1 rounded">{e.user}</span>
+                                                    {isAdminMode && (
+                                                        <div className="flex items-center gap-1">
+                                                            <button onClick={() => handleStartEdit(idx, e)} className="text-gray-400 hover:text-blue-500" title="Editar entrada"><Edit3 size={10} /></button>
+                                                            <button onClick={() => handleDeleteEntry(idx)} className="text-gray-400 hover:text-red-500" title="Eliminar entrada"><Trash2 size={10} /></button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-[9px] text-gray-800 whitespace-pre-wrap leading-relaxed">{e.text}</p>
+
+                                            {e.imageUrl && (
+                                                <div className="mt-1.5 flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => setPreviewImageUrl(previewImageUrl === e.imageUrl ? null : e.imageUrl)}
+                                                        className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-[9px] transition-colors ${previewImageUrl === e.imageUrl ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-blue-600'}`}
+                                                    >
+                                                        <ImageIcon size={10} />
+                                                        {previewImageUrl === e.imageUrl ? 'Ocultar' : 'Ver'}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
-                                <p className="text-[9px] text-gray-800 whitespace-pre-wrap leading-relaxed">{e.text}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="flex gap-1 items-end pt-1 border-t border-gray-100 flex-col">
-                        <select
-                            value={selectedAuthorId}
-                            onChange={(e) => setSelectedAuthorId(e.target.value)}
-                            className="w-full text-[10px] border border-gray-200 rounded p-1 mb-1 focus:ring-1 focus:ring-blue-500 bg-white"
-                        >
-                            <option value="">- Quién escribe? -</option>
-                            {staffers.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
-                        </select>
-                        <div className="flex gap-1 w-full items-end">
-                            <div className="flex-1">
-                                <textarea
-                                    value={newEntry}
-                                    onChange={(e) => setNewEntry(e.target.value)}
-                                    placeholder="Escribe una nueva nota..."
-                                    rows={4}
-                                    className="w-full text-[10px] border border-gray-200 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleAdd();
-                                        }
-                                    }}
-                                />
-                            </div>
-                            <button
-                                onClick={handleAdd}
-                                disabled={!newEntry.trim() || !selectedAuthorId}
-                                className="bg-blue-600 text-white rounded p-1.5 h-8 w-8 flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm min-w-[32px]"
+                        </div>
+
+                        <div className="flex gap-1 items-end pt-1 border-t border-gray-100 flex-col">
+                            <select
+                                value={selectedAuthorId}
+                                onChange={(e) => setSelectedAuthorId(e.target.value)}
+                                className="w-full text-[10px] border border-gray-200 rounded p-1 mb-1 focus:ring-1 focus:ring-blue-500 bg-white"
                             >
-                                <Plus size={14} />                            </button>
+                                <option value="">- Quién escribe? -</option>
+                                {staffers.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                            <div className="flex gap-1 w-full items-end">
+                                <div className="flex-1 relative">
+                                    <textarea
+                                        value={newEntry}
+                                        onChange={(e) => setNewEntry(e.target.value)}
+                                        placeholder="Escribe una nueva nota..."
+                                        rows={3}
+                                        className="w-full text-[10px] border border-gray-200 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleAdd();
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    {/* Image Attachment Trigger */}
+                                    <input
+                                        type="file"
+                                        id="bitacora-img-upload"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handleImageSelect}
+                                        disabled={uploading}
+                                    />
+                                    <label
+                                        htmlFor="bitacora-img-upload"
+                                        className={`p-1.5 rounded cursor-pointer transition-colors flex items-center justify-center h-8 w-8 ${attachedImage ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400 hover:bg-blue-50 hover:text-blue-500'} border border-transparent hover:border-blue-200`}
+                                        title={attachedImage ? "Imagen adjunta (Click para cambiar)" : "Adjuntar imagen"}
+                                    >
+                                        {uploading ? (
+                                            <Loader2 size={12} className="animate-spin" />
+                                        ) : attachedImage ? (
+                                            <CheckCircle size={12} />
+                                        ) : (
+                                            <ImageIcon size={14} />
+                                        )}
+                                    </label>
+
+                                    <button
+                                        onClick={handleAdd}
+                                        disabled={(!newEntry.trim() && !attachedImage) || !selectedAuthorId || uploading}
+                                        className="bg-blue-600 text-white rounded p-1.5 h-8 w-8 flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm min-w-[32px]"
+                                    >
+                                        <Plus size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                            {attachedImage && (
+                                <div className="w-full text-[8px] text-green-600 flex items-center justify-between bg-green-50 px-1.5 py-0.5 rounded">
+                                    <span className="truncate max-w-[200px]">Imagen lista para adjuntar</span>
+                                    <button onClick={() => setAttachedImage(null)} className="text-red-400 hover:text-red-600"><X size={8} /></button>
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
+
+                    {/* Side Preview Panel */}
+                    {previewImageUrl && (
+                        <div className="absolute bottom-full left-[512px] mb-2 w-[400px] h-[400px] bg-white border border-gray-200 shadow-xl rounded-lg z-50 flex flex-col overflow-hidden">
+                            <div className="flex justify-between items-center p-2 border-b border-gray-100 bg-gray-50">
+                                <h4 className="text-[10px] font-bold text-gray-700 uppercase flex items-center gap-1">
+                                    <ImageIcon size={10} /> Vista Previa
+                                </h4>
+                                <button onClick={() => setPreviewImageUrl(null)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                            </div>
+                            <div className="flex-1 p-2 flex items-center justify-center bg-gray-900 overflow-hidden relative group">
+                                <img
+                                    src={previewImageUrl}
+                                    alt="Evidence"
+                                    className="max-w-full max-h-full object-contain"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

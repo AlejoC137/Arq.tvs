@@ -13,8 +13,8 @@ const CalendarFilterBar = ({
     showStageFilter = true
 }) => {
     return (
-        <div className="flex items-center gap-2 mb-2 p-2 bg-gray-50 rounded-lg border border-gray-100 flex-wrap">
-            <div className="flex items-center gap-1 text-gray-400 mr-2">
+        <div className="flex items-center gap-2 flex-nowrap">
+            <div className="flex items-center gap-1 text-gray-400 mr-2 shrink-0">
                 <Filter size={14} />
                 <span className="text-xs font-bold uppercase">Filtrar:</span>
             </div>
@@ -62,13 +62,13 @@ const CalendarFilterBar = ({
                 </select>
             )}
 
-            <div className="flex items-center gap-3 ml-2 border-l border-gray-200 pl-3">
+            <div className="flex items-center gap-3 ml-2 border-l border-gray-200 pl-3 shrink-0">
                 {/* Construction Mode Toggle */}
                 <button
                     onClick={() => onFilterChange('showConstruction', !filters.showConstruction)}
                     className={`flex items-center gap-1.5 px-3 py-1 rounded border transition-colors ${filters.showConstruction
-                            ? 'bg-orange-100 text-orange-700 border-orange-200'
-                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                        ? 'bg-orange-100 text-orange-700 border-orange-200'
+                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                         }`}
                     title={filters.showConstruction ? "Ocultar etapas de construcción" : "Mostrar etapas de construcción"}
                 >

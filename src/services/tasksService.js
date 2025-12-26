@@ -88,7 +88,8 @@ export const createTask = async (taskData) => {
         terminado: taskData.terminado || false,
         RonaldPass: taskData.RonaldPass || false,
         WietPass: taskData.WietPass || false,
-        AlejoPass: taskData.AlejoPass || false
+        AlejoPass: taskData.AlejoPass || false,
+        evidence_url: taskData.evidence_url || null
     };
 
     // Remove null/undefined values to avoid sending nulls for optional fields
