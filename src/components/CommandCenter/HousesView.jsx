@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { handleNativePrint } from '../../utils/printUtils';
-import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock, User, Search, ChevronDown, FileText } from 'lucide-react';
+import { Home, MapPin, Save, Loader2, ExternalLink, Plus, Trash2, Calendar, CheckCircle, Clock, User, Search, X, ChevronDown, FileText } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getHouses, getParcels, updateProject, createProject, deleteProject } from '../../services/projectsService';
@@ -29,6 +29,7 @@ const HousesView = ({ mode }) => {
     const [stages, setStages] = useState([]);
     const [projectTasks, setProjectTasks] = useState([]);
     const [loadingTasks, setLoadingTasks] = useState(false);
+    const [taskSearch, setTaskSearch] = useState(''); // Search filter for tasks
     const [showGantt, setShowGantt] = useState(false);
     const [showReport, setShowReport] = useState(false);
     const [filters, setFilters] = useState({
@@ -641,11 +642,31 @@ const HousesView = ({ mode }) => {
 
                                 {/* Tasks Section Sidebar */}
                                 <div className="col-span-12 lg:col-span-5 space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2 flex-shrink-0">
                                             <Calendar size={12} className="text-blue-600" /> Tareas de la Casa
                                         </h4>
-                                        <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{projectTasks.length}</span>
+                                        <div className="relative flex-1 max-w-[200px]">
+                                            <Search size={12} className="absolute left-2 top-1.5 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar tarea..."
+                                                value={taskSearch}
+                                                onChange={(e) => setTaskSearch(e.target.value)}
+                                                className="w-full pl-7 pr-2 py-1 text-[10px] border border-gray-200 rounded-md focus:outline-none focus:border-blue-300 bg-white"
+                                            />
+                                            {taskSearch && (
+                                                <button
+                                                    onClick={() => setTaskSearch('')}
+                                                    className="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600"
+                                                >
+                                                    <X size={10} />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full flex-shrink-0">
+                                            {projectTasks.filter(t => t.task_description?.toLowerCase().includes(taskSearch.toLowerCase())).length}
+                                        </span>
                                     </div>
 
 
@@ -661,7 +682,10 @@ const HousesView = ({ mode }) => {
                                                 <div className="p-8 text-center text-xs text-gray-400 italic">No hay tareas para esta casa</div>
                                             ) : (
                                                 projectTasks
-                                                    // .filter(...) Removed to show all tasks as requested
+                                                    .filter(task =>
+                                                        !taskSearch ||
+                                                        task.task_description?.toLowerCase().includes(taskSearch.toLowerCase())
+                                                    )
                                                     .map(task => (
                                                         <button
                                                             key={task.id}
@@ -741,7 +765,11 @@ const SearchableSpaceSelector = ({ value, onChange, projectId, spaces, onSpaceCr
 
         // Search term
         const term = searchTerm.toLowerCase();
-        return s.nombre?.toLowerCase().includes(term) || s.apellido?.toLowerCase().includes(term);
+        return (
+            s.nombre?.toLowerCase().includes(term) ||
+            s.apellido?.toLowerCase().includes(term) ||
+            s.piso?.toString().toLowerCase().includes(term)
+        );
     });
 
     useEffect(() => {
@@ -761,7 +789,7 @@ const SearchableSpaceSelector = ({ value, onChange, projectId, spaces, onSpaceCr
     }, [value, spaces]);
 
     const displayValue = selectedSpace
-        ? `${selectedSpace.nombre}${selectedSpace.apellido ? ` (${selectedSpace.apellido})` : ''}`
+        ? `${selectedSpace.nombre}${selectedSpace.apellido ? ` ${selectedSpace.apellido}` : ''}${selectedSpace.piso ? ` P${selectedSpace.piso}` : ''}`
         : value || placeholder;
 
     const handleSpaceCreated = async (newSpace) => {
@@ -815,7 +843,8 @@ const SearchableSpaceSelector = ({ value, onChange, projectId, spaces, onSpaceCr
                             >
                                 <div>
                                     <span className="font-medium text-gray-800">{s.nombre}</span>
-                                    {s.apellido && <span className="text-gray-500 ml-1">({s.apellido})</span>}
+                                    {s.apellido && <span className="text-gray-500 ml-1">{s.apellido}</span>}
+                                    {s.piso && <span className="text-blue-600 text-[10px] ml-2 font-bold bg-blue-100 px-1.5 py-0.5 rounded">PISO {s.piso}</span>}
                                 </div>
                                 {value === s.nombre && <CheckCircle size={12} className="text-blue-600" />}
                             </div>

@@ -6,7 +6,7 @@ import supabase from '../config/supabaseClient';
 export const getSpaces = async () => {
     const { data, error } = await supabase
         .from('Espacio_Elemento')
-        .select('_id, nombre, tipo, apellido, proyecto')
+        .select('_id, nombre, tipo, apellido, proyecto, piso')
         .eq('tipo', 'Espacio')
         .order('nombre', { ascending: true });
 
