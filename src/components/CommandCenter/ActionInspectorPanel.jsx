@@ -12,10 +12,11 @@ import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Tras
 import { format } from 'date-fns';
 import PrintButton from '../common/PrintButton';
 import EvidenceUploader from '../common/EvidenceUploader';
+import SearchableSpaceSelector from '../common/SearchableSpaceSelector';
 
 const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const dispatch = useDispatch();
-    const { selectedAction, selectedTask, selectedDate, panelMode, isInspectorCollapsed: isCollapsed } = useSelector(state => state.app);
+    const { selectedAction, selectedTask, selectedDate, panelMode, isInspectorCollapsed: isCollapsed, refreshCounter } = useSelector(state => state.app);
 
     // Local state for Action form
     const [actionForm, setActionForm] = useState({});
@@ -140,7 +141,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 evidence_url: selectedTask.evidence_url || ''
             });
         }
-    }, [selectedTask?.id, panelMode]); // Only reset form if the task ID or panel mode actually changes
+    }, [selectedTask?.id, panelMode, refreshCounter]); // Refetch if refreshCounter increments
 
     // Load Task Data (Actions)
     useEffect(() => {
@@ -166,7 +167,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             setComponents([]);
             setDayTasks([]);
         }
-    }, [selectedTask?.id, selectedDate, panelMode]); // Changed selectedTask to selectedTask.id to be more specific
+    }, [selectedTask?.id, selectedDate, panelMode, refreshCounter]); // Refetch if refreshCounter increments
 
     const handleActionChange = (field, value) => {
         setActionForm(prev => {
@@ -345,8 +346,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
     const handleSaveAction = async (e) => {
         if (e) e.preventDefault();
-
-        // console.log("handleSaveAction CALLED - VERSION: REFACTORED_CLEAN_V1");
+        if (saving) return; // RE-ENTRATION GUARD
         setSaving(true);
 
         try {
@@ -364,8 +364,6 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 const updates = {};
                 if (taskForm.task_description !== selectedTask.task_description) updates.task_description = taskForm.task_description;
                 if (taskForm.fecha_inicio !== selectedTask.fecha_inicio) updates.fecha_inicio = taskForm.fecha_inicio;
-                if (taskForm.fecha_inicio !== selectedTask.fecha_inicio) updates.fecha_inicio = taskForm.fecha_inicio;
-                if (taskForm.fecha_fin_estimada !== selectedTask.fecha_fin_estimada) updates.fecha_fin_estimada = taskForm.fecha_fin_estimada;
                 if (taskForm.fecha_fin_estimada !== selectedTask.fecha_fin_estimada) updates.fecha_fin_estimada = taskForm.fecha_fin_estimada;
                 if (taskForm.terminado !== selectedTask.terminado) updates.terminado = taskForm.terminado;
                 if (taskForm.staff_id !== (selectedTask.staff_id || selectedTask.asignado_a)) updates.staff_id = taskForm.staff_id || null;
@@ -975,18 +973,17 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
                                         <div>
                                             <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Espacio</label>
-                                            <select
-                                                value={taskForm.espacio_uuid || ''}
-                                                onChange={(e) => handleTaskChange('espacio_uuid', e.target.value)}
-                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
-                                            >
-                                                <option value="">-</option>
-                                                {spaces.map(s => (
-                                                    <option key={s._id} value={s._id}>
-                                                        {s.nombre}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            <SearchableSpaceSelector
+                                                value={taskForm.espacio_uuid}
+                                                onChange={(val) => handleTaskChange('espacio_uuid', val)}
+                                                projectId={taskForm.proyecto_id}
+                                                spaces={spaces}
+                                                onSpaceCreated={() => {
+                                                    // Refresh spaces list after creation
+                                                    getSpaces().then(setSpaces).catch(console.error);
+                                                }}
+                                                placeholder="-"
+                                            />
                                         </div>
                                     </div>
 
