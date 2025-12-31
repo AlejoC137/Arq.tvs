@@ -24,6 +24,11 @@ const TeamView = () => {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedStaffer, setSelectedStaffer] = useState(null);
+    const [projectFilter, setProjectFilter] = useState('all');
+
+    useEffect(() => {
+        setProjectFilter('all');
+    }, [selectedStaffer]);
 
     useEffect(() => {
         loadData();
@@ -99,12 +104,18 @@ const TeamView = () => {
     // Filter tasks for selected staffer
     const staffTasks = useMemo(() => {
         if (!selectedStaffer) return [];
-        return tasks.filter(t =>
+        let filtered = tasks.filter(t =>
             t.staff_id === selectedStaffer.id ||
             t.asignado_a === selectedStaffer.name ||
             (t.asignado_a && t.asignado_a.includes(selectedStaffer.name)) // Loose match
-        ).sort((a, b) => new Date(b.created_at || b.fecha_inicio) - new Date(a.created_at || a.fecha_inicio));
-    }, [tasks, selectedStaffer]);
+        );
+
+        if (projectFilter !== 'all') {
+            filtered = filtered.filter(t => (t.project_id || t.proyecto?.id || t.proyecto_id)?.toString() === projectFilter);
+        }
+
+        return filtered.sort((a, b) => new Date(b.created_at || b.fecha_inicio) - new Date(a.created_at || a.fecha_inicio));
+    }, [tasks, selectedStaffer, projectFilter]);
 
     // Stats
     const stats = useMemo(() => {
@@ -288,6 +299,19 @@ const TeamView = () => {
                                             <Briefcase size={14} className="text-gray-500" />
                                             Tareas Asignadas
                                         </h4>
+                                        <div className="flex items-center gap-2 no-print">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Proyecto:</span>
+                                            <select
+                                                value={projectFilter}
+                                                onChange={(e) => setProjectFilter(e.target.value)}
+                                                className="text-xs border-gray-200 rounded-lg bg-gray-50 text-gray-700 focus:ring-blue-500 focus:border-blue-500 py-1 pl-2 pr-8"
+                                            >
+                                                <option value="all">Todos los proyectos</option>
+                                                {projects.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
 
                                     {staffTasks.length === 0 ? (
@@ -315,7 +339,8 @@ const TeamView = () => {
                                                     <tbody className="divide-y divide-gray-100">
                                                         {staffTasks.map(task => {
                                                             const isOverdue = !task.terminado && new Date(task.fecha_fin_estimada) < new Date();
-                                                            const project = projects.find(p => p.id === task.proyecto_id);
+                                                            const projectId = task.project_id || task.proyecto?.id || task.proyecto_id;
+                                                            const project = projects.find(p => p.id === projectId);
 
                                                             return (
                                                                 <tr
