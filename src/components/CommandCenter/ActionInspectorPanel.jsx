@@ -137,6 +137,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 condiciona_a: selectedTask.condiciona_a || null, // Direct Column mapping
                 condicionada_por_task: selectedTask.condicionada_por_task || null,
                 condiciona_a_task: selectedTask.condiciona_a_task || null,
+                links_de_interes: selectedTask.links_de_interes || '',
                 fullActions: [],
                 evidence_url: selectedTask.evidence_url || ''
             });
@@ -387,6 +388,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 if (taskForm.AlejoPass !== selectedTask.AlejoPass) updates.AlejoPass = taskForm.AlejoPass;
                 if (taskForm.condicionada_por !== selectedTask.condicionada_por) updates.condicionada_por = taskForm.condicionada_por || null;
                 if (taskForm.condiciona_a !== selectedTask.condiciona_a) updates.condiciona_a = taskForm.condiciona_a || null; // SAVE DIRECTLY
+                if (taskForm.links_de_interes !== selectedTask.links_de_interes) updates.links_de_interes = taskForm.links_de_interes;
                 if (taskForm.evidence_url !== selectedTask.evidence_url) updates.evidence_url = taskForm.evidence_url;
 
                 let updatedTaskData = selectedTask;
@@ -514,6 +516,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                     stage_id: taskForm.stage_id || null,
                     status: taskForm.status || 'Activa',
                     notes: taskForm.notes || '',
+                    links_de_interes: taskForm.links_de_interes || '',
                     evidence_url: taskForm.evidence_url || ''
                 };
                 const newTask = await createTask(taskPayload);
@@ -696,6 +699,11 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                 notesStr={taskForm.notes}
                                 onChange={(newVal) => handleTaskChange('notes', newVal)}
                                 staffers={staffers}
+                            />
+
+                            <LinksManager
+                                linksStr={taskForm.links_de_interes}
+                                onChange={(newVal) => handleTaskChange('links_de_interes', newVal)}
                             />
 
                             <div className="flex items-center gap-2">
@@ -1916,6 +1924,123 @@ const BitacoraManager = ({ notesStr, onChange, staffers = [] }) => {
                         </div>
                     )}
                 </>
+            )}
+        </div>
+    );
+};
+
+// Helper Component: Links Manager
+const LinksManager = ({ linksStr, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [links, setLinks] = useState([]);
+    const [newName, setNewName] = useState('');
+    const [newUrl, setNewUrl] = useState('');
+
+    useEffect(() => {
+        try {
+            const parsed = JSON.parse(linksStr || '[]');
+            setLinks(Array.isArray(parsed) ? parsed : []);
+        } catch (e) {
+            setLinks([]);
+        }
+    }, [linksStr]);
+
+    const handleAdd = () => {
+        if (!newName.trim() || !newUrl.trim()) return;
+
+        // Simple URL validation prefix
+        let formattedUrl = newUrl.trim();
+        if (!/^https?:\/\//i.test(formattedUrl)) {
+            formattedUrl = 'https://' + formattedUrl;
+        }
+
+        const newLinkObj = {
+            nombre: newName.trim(),
+            link: formattedUrl
+        };
+
+        const updated = [...links, newLinkObj];
+        onChange(JSON.stringify(updated));
+
+        setNewName('');
+        setNewUrl('');
+    };
+
+    const handleDelete = (index) => {
+        const updated = links.filter((_, i) => i !== index);
+        onChange(JSON.stringify(updated));
+    };
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`h-6 px-2 rounded flex items-center gap-1.5 transition-colors border ${isOpen ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600'}`}
+                title="Links de Interés"
+            >
+                <Layers size={12} />
+                <span className="text-[9px] font-bold uppercase">Links</span>
+            </button>
+
+            {isOpen && (
+                <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 shadow-xl rounded-lg z-50 p-3 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="flex justify-between items-center border-b border-gray-100 pb-1">
+                        <h4 className="text-[10px] font-bold text-gray-700 uppercase flex items-center gap-1">
+                            <Layers size={10} /> Links de Interés
+                        </h4>
+                        <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                    </div>
+
+                    <div className="max-h-32 overflow-y-auto space-y-1 py-1">
+                        {links.length === 0 && <p className="text-[9px] text-center text-gray-400 italic">No hay links.</p>}
+                        {links.map((li, idx) => (
+                            <div key={idx} className="flex items-center justify-between group bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                <a
+                                    href={li.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-blue-600 hover:underline truncate flex-1 font-medium"
+                                    title={li.link}
+                                >
+                                    {li.nombre}
+                                </a>
+                                <button
+                                    onClick={() => handleDelete(idx)}
+                                    className="text-gray-300 hover:text-red-500 ml-2"
+                                >
+                                    <X size={10} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-2 space-y-1.5">
+                        <input
+                            type="text"
+                            placeholder="Nombre del recurso..."
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            className="w-full text-[10px] border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                        <div className="flex gap-1">
+                            <input
+                                type="text"
+                                placeholder="URL (ej: google.com)"
+                                value={newUrl}
+                                onChange={(e) => setNewUrl(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                                className="flex-1 text-[10px] border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                            />
+                            <button
+                                onClick={handleAdd}
+                                disabled={!newName.trim() || !newUrl.trim()}
+                                className="bg-blue-600 text-white rounded px-2 flex items-center justify-center hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                <Plus size={12} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -89,6 +89,7 @@ export const createTask = async (taskData) => {
         RonaldPass: taskData.RonaldPass || false,
         WietPass: taskData.WietPass || false,
         AlejoPass: taskData.AlejoPass || false,
+        links_de_interes: taskData.links_de_interes || '',
         evidence_url: taskData.evidence_url || null
     };
 
