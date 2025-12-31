@@ -354,6 +354,11 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             if (panelMode === 'action' && selectedAction?.id) {
                 console.log("Mode: ACTION UPDATE");
                 const { tarea, ...updates } = actionForm;
+
+                // Sanitize dates
+                if (updates.fecha_ejecucion === "") updates.fecha_ejecucion = null;
+                if (updates.fecha_fin === "") updates.fecha_fin = null;
+
                 await updateAction(selectedAction.id, updates);
                 dispatch(setSelectedAction({ ...selectedAction, ...updates }));
                 if (onActionUpdated) onActionUpdated({ ...selectedAction, ...updates });
@@ -456,8 +461,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         descripcion: action.descripcion,
                         ejecutor_nombre: action.ejecutor_nombre,
                         ejecutor_texto: action.ejecutor_texto,
-                        fecha_ejecucion: action.fecha_ejecucion,
-                        fecha_fin: action.fecha_fin,
+                        fecha_ejecucion: action.fecha_ejecucion || null,
+                        fecha_fin: action.fecha_fin || null,
                         requiere_aprobacion_ronald: action.requiere_aprobacion_ronald,
                         requiere_aprobacion_wiet: action.requiere_aprobacion_wiet,
                         requiere_aprobacion_alejo: action.requiere_aprobacion_alejo,
@@ -498,6 +503,11 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
             } else if (panelMode === 'create') {
                 const { id, ...createData } = actionForm;
+
+                // Sanitize dates
+                if (createData.fecha_ejecucion === "") createData.fecha_ejecucion = null;
+                if (createData.fecha_fin === "") createData.fecha_fin = null;
+
                 const res = await createAction(createData);
                 const newAction = res && res[0] ? res[0] : res;
                 if (onActionUpdated) onActionUpdated(newAction);
@@ -527,8 +537,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         createAction({
                             tarea_id: newTask.id,
                             descripcion: fa.descripcion,
-                            fecha_ejecucion: fa.fecha_ejecucion,
-                            fecha_fin: fa.fecha_fin,
+                            fecha_ejecucion: fa.fecha_ejecucion || null,
+                            fecha_fin: fa.fecha_fin || null,
                             ejecutor_nombre: fa.ejecutor_nombre || '',
                             ejecutor_texto: fa.ejecutor_texto || '',
                             completado: fa.completado || false,
