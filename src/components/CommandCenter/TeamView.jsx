@@ -76,8 +76,7 @@ const TeamView = () => {
             espacio_uuid: null,
             fecha_inicio: format(new Date(), 'yyyy-MM-dd'),
             fecha_fin_estimada: format(new Date(), 'yyyy-MM-dd'),
-            staff_id: selectedStaffer.id,
-            asignado_a: selectedStaffer.name // Legacy support
+            staff_id: selectedStaffer.id
         }));
     };
 

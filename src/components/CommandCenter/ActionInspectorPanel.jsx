@@ -95,7 +95,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 espacio_uuid: selectedTask.espacio_uuid || null,
                 proyecto_id: selectedTask.proyecto_id || null,
                 terminado: selectedTask.terminado || false,
-                staff_id: selectedTask.staff?.id || selectedTask.staff_id || selectedTask.asignado_a || '',
+                staff_id: selectedTask.staff_id || selectedTask.staff?.id || '',
                 Priority: selectedTask.Priority || '1',
                 stage_id: selectedTask.stage?.id || selectedTask.stage_id || '',
                 status: selectedTask.status || 'Activa',
@@ -125,7 +125,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 espacio_uuid: selectedTask.espacio ? (selectedTask.espacio._id || selectedTask.espacio.id) : (selectedTask.espacio_uuid || null),
                 proyecto_id: selectedTask.proyecto ? selectedTask.proyecto.id : (selectedTask.proyecto_id || null),
                 terminado: selectedTask.terminado || false,
-                staff_id: selectedTask.staff?.id || selectedTask.staff_id || selectedTask.asignado_a || '',
+                staff_id: selectedTask.staff_id || selectedTask.staff?.id || '',
                 Priority: selectedTask.Priority || '1',
                 stage_id: selectedTask.stage?.id || selectedTask.stage_id || '',
                 status: selectedTask.status || 'Activa',
@@ -372,7 +372,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 if (taskForm.fecha_inicio !== selectedTask.fecha_inicio) updates.fecha_inicio = taskForm.fecha_inicio;
                 if (taskForm.fecha_fin_estimada !== selectedTask.fecha_fin_estimada) updates.fecha_fin_estimada = taskForm.fecha_fin_estimada;
                 if (taskForm.terminado !== selectedTask.terminado) updates.terminado = taskForm.terminado;
-                if (taskForm.staff_id !== (selectedTask.staff_id || selectedTask.asignado_a)) updates.staff_id = taskForm.staff_id || null;
+                if (taskForm.staff_id !== selectedTask.staff_id) updates.staff_id = taskForm.staff_id || null;
 
                 // Loose equality for IDs (string vs number)
                 if (taskForm.proyecto_id && taskForm.proyecto_id != (selectedTask.proyecto?.id || selectedTask.project_id)) updates.project_id = taskForm.proyecto_id;

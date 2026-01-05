@@ -78,9 +78,9 @@ export const createTask = async (taskData) => {
     // Build payload with ACTUAL database column names from DATABASE_CONTEXT.md
     const payload = {
         task_description: taskData.task_description,
-        project_id: taskData.proyecto || taskData.project_id || null,
-        staff_id: taskData.asignado_a || taskData.staff_id || null,
-        stage_id: taskData.etapa || taskData.stage_id || null,
+        project_id: taskData.proyecto_id || taskData.proyecto || null,
+        staff_id: taskData.staff_id || taskData.asignado_a || null,
+        stage_id: taskData.stage_id || taskData.etapa || null,
         espacio_uuid: taskData.espacio_uuid || null,
         fecha_inicio: taskData.fecha_inicio,
         fecha_fin_estimada: taskData.fecha_fin_estimada,
