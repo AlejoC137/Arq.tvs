@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import PrintButton from '../common/PrintButton';
 import EvidenceUploader from '../common/EvidenceUploader';
 import SearchableSpaceSelector from '../common/SearchableSpaceSelector';
+import SearchableStaffSelector from '../common/SearchableStaffSelector';
 
 const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const dispatch = useDispatch();
@@ -35,7 +36,9 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const [projects, setProjects] = useState([]);
     const [staffers, setStaffers] = useState([]);
     const [stages, setStages] = useState([]);
-    const [callerName, setCallerName] = useState('');
+    const [callerId, setCallerId] = useState('');
+    const [calledStaffId, setCalledStaffId] = useState('');
+    const [callComment, setCallComment] = useState('');
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -608,8 +611,16 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     // Duplicate handler removed
 
     const handleCallResponsible = async () => {
-        if (!taskForm.staff_id || !selectedTask?.id) {
-            alert("No hay un responsable asignado para llamar.");
+        const caller = staffers.find(s => s.id === callerId);
+        const called = staffers.find(s => s.id === calledStaffId);
+
+        if (!selectedTask?.id) {
+            alert("No hay una tarea seleccionada.");
+            return;
+        }
+
+        if (!callerId || !calledStaffId) {
+            alert("Por favor selecciona quién llama y a quién se llama.");
             return;
         }
 
@@ -617,11 +628,13 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             setSaving(true);
             await createCall({
                 tarea_id: selectedTask.id,
-                llamado_id: taskForm.staff_id,
-                llamador_name: callerName || 'Usuario',
-                proyecto_id: taskForm.proyecto_id || (selectedTask.proyecto?.id)
+                llamado_id: calledStaffId,
+                llamador_name: caller?.name || 'Usuario',
+                proyecto_id: taskForm.proyecto_id || (selectedTask.proyecto?.id),
+                Comments: callComment
             });
-            alert("Llamado al responsable registrado.");
+            alert(`Llamado a ${called?.name} registrado.`);
+            setCallComment('');
             dispatch(fetchPendingCallsCount());
         } catch (error) {
             alert("Error al registrar llamado: " + error.message);
@@ -631,6 +644,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     };
 
     const handleCallSeguimiento = async (forceAll = false) => {
+        // This function might be deprecated or updated to use the new logic
+        // For now, let's keep it but it will use the comment field if available
         if (!selectedTask?.id) return;
 
         const targets = [];
@@ -645,14 +660,17 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
         try {
             setSaving(true);
+            const caller = staffers.find(s => s.id === callerId);
             const calls = targets.map(id => ({
                 tarea_id: selectedTask.id,
                 llamado_id: id,
-                llamador_name: callerName || 'Sistema',
-                proyecto_id: taskForm.proyecto_id || (selectedTask.proyecto?.id)
+                llamador_name: caller?.name || 'Sistema',
+                proyecto_id: taskForm.proyecto_id || (selectedTask.proyecto?.id),
+                Comments: callComment
             }));
             await createMultipleCalls(calls);
             alert(`Llamado a seguimiento registrado (${targets.length} personas).`);
+            setCallComment('');
             dispatch(fetchPendingCallsCount());
         } catch (error) {
             alert("Error al registrar llamados: " + error.message);
@@ -716,52 +734,51 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                 onChange={(newVal) => handleTaskChange('links_de_interes', newVal)}
                             />
 
-                            <div className="flex items-center gap-2">
-                                <ApprovalSwitch
-                                    label="Alejo"
-                                    value={taskForm.AlejoPass}
-                                    onChange={(val) => handlePassToggle('AlejoPass', val)}
+                            <div className="flex items-center gap-3 border-l border-gray-200 pl-3">
+                                <SearchableStaffSelector
+                                    label="Yo soy:"
+                                    staffers={staffers}
+                                    value={callerId}
+                                    onChange={setCallerId}
+                                    placeholder="Mi nombre..."
                                 />
-                                <ApprovalSwitch
-                                    label="Ronald"
-                                    value={taskForm.RonaldPass}
-                                    onChange={(val) => handlePassToggle('RonaldPass', val)}
-                                />
-                                <ApprovalSwitch
-                                    label="Wiet"
-                                    value={taskForm.WietPass}
-                                    onChange={(val) => handlePassToggle('WietPass', val)}
+                                <SearchableStaffSelector
+                                    label="Llamar a:"
+                                    staffers={staffers}
+                                    value={calledStaffId}
+                                    onChange={setCalledStaffId}
+                                    placeholder="Seleccionar..."
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase">Yo soy:</span>
+                            <div className="flex items-center gap-2 border-l border-gray-200 pl-3 flex-1 min-w-[200px]">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase">Comentario:</span>
                                 <input
                                     type="text"
-                                    value={callerName}
-                                    onChange={(e) => setCallerName(e.target.value)}
-                                    placeholder="Tu nombre..."
-                                    className="text-[10px] bg-white border border-gray-200 rounded px-2 py-0.5 focus:ring-1 focus:ring-blue-500 w-24"
+                                    value={callComment}
+                                    onChange={(e) => setCallComment(e.target.value)}
+                                    placeholder="Motivo del llamado..."
+                                    className="flex-1 text-[10px] bg-white border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500"
                                 />
                             </div>
 
-                            {/* Call Buttons Section - High Contrast + "!" icons */}
-                            <div className="flex items-center gap-1.5 px-2 border-x border-gray-100">
+                            {/* Call Buttons Section */}
+                            <div className="flex items-center gap-1.5 px-2 border-l border-gray-100">
                                 <button
                                     onClick={handleCallResponsible}
-                                    className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm"
-                                    title="Llamar al responsable"
+                                    disabled={!callerId || !calledStaffId}
+                                    className={`flex items-center gap-1 px-3 py-1 text-white rounded transition-colors shadow-sm ${!callerId || !calledStaffId ? 'bg-gray-300' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                    title="Registrar llamado"
                                 >
                                     <Phone size={12} />
-                                    <AlertCircle size={10} className="text-blue-200" />
+                                    <span className="text-[10px] font-bold">LLAMAR</span>
                                 </button>
                                 <button
-                                    onClick={handleCallSeguimiento}
-                                    className="flex items-center gap-1 px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-sm"
-                                    title="Llamar a seguimiento (Alejo/Ronald/Wiet)"
+                                    onClick={() => handleCallSeguimiento(false)}
+                                    className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-600 rounded hover:bg-purple-200 transition-colors"
+                                    title="Llamar a seguimiento activo (checks)"
                                 >
                                     <Users size={12} />
-                                    <AlertCircle size={10} className="text-purple-200" />
                                 </button>
                             </div>
 

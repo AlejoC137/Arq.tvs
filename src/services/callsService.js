@@ -12,6 +12,7 @@ export const createCall = async (callData) => {
             llamador_name: callData.llamador_name || 'Sistema',
             llamado_id: callData.llamado_id,
             proyecto_id: callData.proyecto_id || null,
+            Comments: callData.Comments || null,
             created_at: new Date().toISOString()
         }]);
 
@@ -34,6 +35,7 @@ export const createMultipleCalls = async (callsArray) => {
             llamador_name: call.llamador_name || 'Sistema',
             llamado_id: call.llamado_id,
             proyecto_id: call.proyecto_id || null,
+            Comments: call.Comments || null,
             created_at: new Date().toISOString()
         })));
 

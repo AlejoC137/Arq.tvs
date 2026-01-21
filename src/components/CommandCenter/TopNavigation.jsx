@@ -56,7 +56,7 @@ const TopNavigation = () => {
                     className={buttonClass(isCalendarActive('month'))}
                 >
                     <Calendar size={14} />
-                    <span>mes</span>
+                    <span>Mes</span>
                 </button>
 
                 <button
@@ -64,10 +64,10 @@ const TopNavigation = () => {
                     className={buttonClass(isCalendarActive('week'))}
                 >
                     <Calendar size={14} />
-                    <span>semanal</span>
+                    <span>Semanal</span>
                 </button>
 
-                {/* Spaces */}
+                {/* Spaces 
                 <button
                     onClick={() => navigate('/spaces')}
                     className={buttonClass(isActive('spaces'))}
@@ -75,8 +75,8 @@ const TopNavigation = () => {
                     <Building2 size={14} />
                     <span>espacios</span>
                 </button>
-
-                {/* Components */}
+*/}
+                {/* Components 
                 <button
                     onClick={() => navigate('/components')}
                     className={buttonClass(isActive('components'))}
@@ -84,25 +84,25 @@ const TopNavigation = () => {
                     <Box size={14} />
                     <span>componentes</span>
                 </button>
-
+*/}
                 {/* Houses */}
                 <button
                     onClick={() => navigate('/houses')}
                     className={buttonClass(isActive('houses'))}
                 >
                     <Home size={14} />
-                    <span>casas</span>
+                    <span>Casas</span>
                 </button>
 
                 {/* Parcels */}
-                <button
+                {/* <button
                     onClick={() => navigate('/parcels')}
                     className={buttonClass(isActive('parcels'))}
                 >
                     <MapPin size={14} />
                     <span>parcelacion</span>
                 </button>
-
+*/}
                 {/* Team */}
                 <button
                     onClick={() => navigate('/team')}
@@ -132,10 +132,10 @@ const TopNavigation = () => {
                     className={buttonClass(isActive('protocols'))}
                 >
                     <FileText size={14} />
-                    <span>protocolos</span>
+                    <span>Protocolos</span>
                 </button>
 
-                {/* Materials */}
+                {/* Materials
                 <button
                     onClick={() => navigate('/materials')}
                     className={buttonClass(isActive('materials'))}
@@ -143,17 +143,17 @@ const TopNavigation = () => {
                     <Package size={14} />
                     <span>materiales</span>
                 </button>
-
+ */}
                 {/* Directory */}
                 <button
                     onClick={() => navigate('/directory')}
                     className={buttonClass(isActive('directory'))}
                 >
                     <BookOpen size={14} />
-                    <span>directorio</span>
+                    <span>Directorio</span>
                 </button>
 
-                {/* Importer */}
+                {/* Importer 
                 <button
                     onClick={() => {
                         setShowImporter(true);
@@ -164,6 +164,7 @@ const TopNavigation = () => {
                     <Upload size={14} />
                     <span>Importador</span>
                 </button>
+                */}
             </div>
 
             <JsonImporterModal

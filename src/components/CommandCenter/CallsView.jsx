@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getCallsWithDetails, updateCall } from '../../services/callsService';
 import { format } from 'date-fns';
 import { setSelectedTask, fetchPendingCallsCount } from '../../store/actions/appActions';
-import { Bell, User, Briefcase, Calendar, Phone, Users, AlertCircle, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
+import { Bell, User, Briefcase, Calendar, Phone, Users, AlertCircle, CheckCircle2, Circle, Eye, EyeOff, Book } from 'lucide-react';
 
 const CallsView = () => {
     const dispatch = useDispatch();
@@ -227,6 +227,34 @@ const CallsView = () => {
                                                                 Llamado por: {call.llamador_name || 'Sistema'}
                                                             </div>
                                                         </div>
+
+                                                        {/* Call Comments */}
+                                                        {call.Comments && (
+                                                            <div className="mt-2 p-2 bg-blue-50 border-l-2 border-blue-400 text-[11px] text-blue-700 italic">
+                                                                "{call.Comments}"
+                                                            </div>
+                                                        )}
+
+                                                        {/* Last Bitácora Entry */}
+                                                        {task.notes && (
+                                                            <div className="mt-2 bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                                                <div className="text-[9px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1">
+                                                                    <Book size={10} /> Última Bitácora
+                                                                </div>
+                                                                <div className="text-[11px] text-gray-600 line-clamp-2">
+                                                                    {(() => {
+                                                                        try {
+                                                                            const notes = JSON.parse(task.notes);
+                                                                            if (Array.isArray(notes) && notes.length > 0) {
+                                                                                const lastEntry = notes[notes.length - 1];
+                                                                                return lastEntry.text;
+                                                                            }
+                                                                        } catch (e) { }
+                                                                        return task.notes;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="flex flex-col items-end gap-2">
                                                         <button
