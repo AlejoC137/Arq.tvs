@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
@@ -25,35 +26,17 @@
     --ring: 240 10% 3.9%;
     --radius: 0.5rem;
   }
-
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
+  html,
   body {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
     @apply bg-background text-foreground;
   }
 }
@@ -83,7 +66,8 @@
   @apply mb-4 leading-relaxed;
 }
 
-.prose ul, .prose ol {
+.prose ul,
+.prose ol {
   @apply mb-4 ml-6;
 }
 
@@ -178,21 +162,35 @@
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  
+
   /* Hide scrollbars in print */
   * {
     overflow: visible !important;
   }
-  
+
   /* Ensure content fits */
   .print-container {
-    width: 100%;
-    height: auto;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
   }
 
-  /* Force landscape if supported */
+  /* Default to portrait and Letter size */
   @page {
-    size: landscape;
+    size: portrait letter;
     margin: 1cm;
+  }
+
+  /* Utility for landscape if needed (e.g. for calendars) */
+  .print-landscape {
+    page-break-before: always;
+  }
+
+  @media print {
+    .print-landscape-container {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
   }
 }
