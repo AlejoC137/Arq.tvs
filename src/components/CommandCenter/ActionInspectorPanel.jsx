@@ -929,7 +929,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                     )}
                                 </div>
 
-                                {/* Dependencies - Now compact in toolbar */}
+                                {/* Dependencies - Now compact in toolbar 
                                 <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
                                     <div className="w-48">
                                         <TaskDependencySelector
@@ -952,6 +952,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                         />
                                     </div>
                                 </div>
+                                */}
                             </>
                         )}
                     </div>
