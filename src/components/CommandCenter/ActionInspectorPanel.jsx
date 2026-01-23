@@ -1649,7 +1649,10 @@ const ParallelActionCard = ({ action, staffers, onChange, onDelete, onDragStart,
             onDrop={(e) => onDrop(e, index)}
             className={`w-full bg-white border border-gray-200 rounded p-1 shadow-sm relative group flex items-center justify-between cursor-grab active:cursor-grabbing ${action.completado ? 'opacity-60 grayscale' : ''}`}
         >
-            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 rounded-l"></div>
+            <div
+                className="absolute top-0 left-0 w-full h-1 bg-indigo-500 rounded-t transition-colors"
+                style={{ backgroundColor: action.completado ? '#d1d5db' : '#6366f1' }}
+            ></div>
 
             <div className="flex flex-1 items-center gap-4 pl-2">
                 <input
@@ -1708,8 +1711,8 @@ const ConcatenatedActionCard = ({ action, widthPercentage, totalTaskDays, color,
             style={{ width: `${widthPercentage}%` }}
         >
             <div
-                className={`h-full border-t-2 flex flex-col p-1 m-0.5 rounded-sm transition-colors ${action.completado ? 'bg-gray-50 opacity-60 grayscale border-gray-300' : ''}`}
-                style={{ borderTopColor: action.completado ? '#d1d5db' : (color || '#3b82f6') }}
+                className={`h-full border-l-2 flex flex-col p-1 m-0.5 rounded-sm transition-colors ${action.completado ? 'bg-gray-50 opacity-60 grayscale border-gray-300' : ''}`}
+                style={{ borderLeftColor: action.completado ? '#d1d5db' : (color || '#3b82f6') }}
             >
                 {/* Header Area */}
                 <div className="flex justify-between items-start gap-1">
