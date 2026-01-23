@@ -93,3 +93,12 @@ export const toggleInspectorCollapse = (collapsed) => ({
 export const incrementRefreshCounter = () => ({
     type: 'INCREMENT_REFRESH_COUNTER'
 });
+
+export const openSpaceModal = (config = {}) => ({
+    type: 'OPEN_SPACE_MODAL',
+    payload: config // { projectId, editingSpace, onSuccess }
+});
+
+export const closeSpaceModal = () => ({
+    type: 'CLOSE_SPACE_MODAL'
+});

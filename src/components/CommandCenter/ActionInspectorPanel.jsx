@@ -1,4 +1,5 @@
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { handleNativePrint } from '../../utils/printUtils';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearSelection, setSelectedAction, setSelectedTask, fetchPendingCallsCount, toggleInspectorCollapse, incrementRefreshCounter } from '../../store/actions/appActions';
@@ -9,7 +10,7 @@ import { createTask, updateTask, getProjects, deleteTask, getTasksByDate, getSta
 import { createCall, createMultipleCalls } from '../../services/callsService';
 import TaskDependencySelector from './TaskDependencySelector'; // Import Selector
 import { X, Save, CheckCircle, User, MapPin, Layers, Box, Edit3, Briefcase, Trash2, ArrowUp, ArrowDown, GripVertical, Calendar, Plus, AlertCircle, PlayCircle, PauseCircle, Book, Check, Phone, Users, Image as ImageIcon, Loader2, Lock, Unlock } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 import PrintButton from '../common/PrintButton';
 import EvidenceUploader from '../common/EvidenceUploader';
 import SearchableSpaceSelector from '../common/SearchableSpaceSelector';
@@ -26,7 +27,13 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     const [taskForm, setTaskForm] = useState({});
 
     // Local state for Task Components (Actions)
-    const [components, setComponents] = useState([]);
+    const [parallelActions, setParallelActions] = useState([]);
+    const [concatenatedActions, setConcatenatedActions] = useState([]);
+    const [isDraggingUI, setIsDraggingUI] = useState(null);
+    const [draggedIndex, setDraggedIndex] = useState(null);
+    const [draggedType, setDraggedType] = useState(null); // 'parallel' or 'concatenated'
+    const draggingIndexRef = useRef(null);
+    const actionsRef = useRef([]); // To keep a fresh copy for calculations if needed
 
     // Local state for Day Tasks
     const [dayTasks, setDayTasks] = useState([]);
@@ -42,9 +49,10 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [showCallDropdown, setShowCallDropdown] = useState(false);
 
     // DnD State
-    const [draggedIndex, setDraggedIndex] = useState(null);
+
 
     const printRef = useRef(null);
     const handlePrint = () => {
@@ -110,9 +118,12 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             });
             // Load draft fullActions if present (for JSON Importer)
             if (selectedTask.fullActions) {
-                setComponents(selectedTask.fullActions.map((a, i) => ({ ...a, orden: i, _isNew: true })));
+                const actions = selectedTask.fullActions.map((a, i) => ({ ...a, orden: i, _isNew: true }));
+                setParallelActions(actions.filter(a => a.es_paralela));
+                setConcatenatedActions(actions.filter(a => !a.es_paralela));
             } else {
-                setComponents([]);
+                setParallelActions([]);
+                setConcatenatedActions([]);
             }
         } else if (panelMode === 'task' && selectedTask) {
             // Load existing task data into taskForm for editing
@@ -150,11 +161,15 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     // Load Task Data (Actions)
     useEffect(() => {
         if (panelMode === 'task' && selectedTask?.id) {
-            // CRITICAL FIX: Clear previous components immediately to avoid "zombie" state from previous task
-            setComponents([]);
+            setParallelActions([]);
+            setConcatenatedActions([]);
             setLoading(true);
             getTaskActions(selectedTask.id)
-                .then(data => setComponents(data || []))
+                .then(data => {
+                    const actions = data || [];
+                    setParallelActions(actions.filter(a => a.es_paralela));
+                    setConcatenatedActions(actions.filter(a => !a.es_paralela));
+                })
                 .catch(err => console.error(err))
                 .finally(() => setLoading(false));
 
@@ -168,7 +183,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
 
         } else if (panelMode !== 'createTask') {
             // Only clear if NOT in create/preview mode
-            setComponents([]);
+            setParallelActions([]);
+            setConcatenatedActions([]);
             setDayTasks([]);
         }
     }, [selectedTask?.id, selectedDate, panelMode, refreshCounter]); // Refetch if refreshCounter increments
@@ -280,14 +296,17 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
     };
 
     // AUTO-SAVE for Sub-Action in List
-    const handleSubActionChange = async (index, field, value) => {
+    const handleSubActionChange = async (index, field, value, type = 'concatenated') => {
+        const setActions = type === 'parallel' ? setParallelActions : setConcatenatedActions;
+        const actions = type === 'parallel' ? parallelActions : concatenatedActions;
+
         // Special handling for completion
         if (field === 'completado') {
-            const action = components[index];
+            const action = actions[index];
             const newStatus = value; // Checkbox value
 
             // Optimistic Update
-            setComponents(prev => prev.map((a, i) => i === index ? { ...a, completado: newStatus } : a));
+            setActions(prev => prev.map((a, i) => i === index ? { ...a, completado: newStatus } : a));
 
             if (!action._isNew && action.id) {
                 try {
@@ -296,49 +315,113 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 } catch (error) {
                     console.error("Error auto-saving sub-action:", error);
                     // Revert
-                    setComponents(prev => prev.map((a, i) => i === index ? { ...a, completado: !newStatus } : a));
+                    setActions(prev => prev.map((a, i) => i === index ? { ...a, completado: !newStatus } : a));
                 }
             }
         } else {
             // Normal field update (wait for save)
-            setComponents(prev => prev.map((a, i) =>
+            setActions(prev => prev.map((a, i) =>
                 i === index ? { ...a, [field]: value } : a
             ));
         }
     };
 
+    // Resizing logic for concatenated actions
+    const timelineContainerRef = useRef(null);
+
+    const handleResizeMove = (e) => {
+        const index = draggingIndexRef.current;
+        if (index === null || !timelineContainerRef.current) return;
+
+        const containerRect = timelineContainerRef.current.getBoundingClientRect();
+        const containerWidth = containerRect.width;
+        const mouseX = e.clientX - containerRect.left;
+
+        setConcatenatedActions(prev => {
+            const newTasks = [...prev];
+            if (!newTasks[index] || !newTasks[index + 1]) return prev;
+
+            const n = prev.length;
+            const getPerc = (idx) => newTasks[idx].porcentaje_duracion || (100 / n);
+
+            // Calculate cumulative percentage of PREVIOUS tasks
+            let prevTasksWidth = 0;
+            for (let i = 0; i < index; i++) {
+                prevTasksWidth += getPerc(i);
+            }
+
+            let newCurrentPercentage = (mouseX / containerWidth) * 100 - prevTasksWidth;
+
+            // Constraints (Min 5%)
+            if (newCurrentPercentage < 5) newCurrentPercentage = 5;
+
+            const totalPairPercentage = getPerc(index) + getPerc(index + 1);
+            let newNextPercentage = totalPairPercentage - newCurrentPercentage;
+
+            if (newNextPercentage < 5) {
+                newNextPercentage = 5;
+                newCurrentPercentage = totalPairPercentage - 5;
+            }
+
+            newTasks[index].porcentaje_duracion = newCurrentPercentage;
+            newTasks[index + 1].porcentaje_duracion = newNextPercentage;
+            return newTasks;
+        });
+    };
+
+    const handleResizeUp = () => {
+        draggingIndexRef.current = null;
+        setIsDraggingUI(null);
+        document.body.style.cursor = 'default';
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeUp);
+    };
+
+    const handleResizeStart = (index, e) => {
+        e.preventDefault();
+        draggingIndexRef.current = index;
+        setIsDraggingUI(index);
+        document.body.style.cursor = 'col-resize';
+        document.addEventListener('mousemove', handleResizeMove);
+        document.addEventListener('mouseup', handleResizeUp);
+    };
+
+
     // Drag and Drop Handlers
-    const handleDragStart = (e, index) => {
+    const handleDragStart = (e, index, type = 'parallel') => {
         setDraggedIndex(index);
+        setDraggedType(type);
         e.dataTransfer.effectAllowed = "move";
     };
 
     const handleDragOver = (e, index) => {
-        e.preventDefault(); // Necessary to allow dropping
+        e.preventDefault();
         e.dataTransfer.dropEffect = "move";
     };
 
-    const handleDrop = async (e, targetIndex) => {
+    const handleDrop = async (e, targetIndex, type = 'parallel') => {
         e.preventDefault();
-        if (draggedIndex === null || draggedIndex === targetIndex) return;
+        if (draggedIndex === null || draggedIndex === targetIndex || draggedType !== type) return;
 
-        const newComponents = [...components];
-        const draggedItem = newComponents[draggedIndex];
+        const isParallel = type === 'parallel';
+        const list = isParallel ? parallelActions : concatenatedActions;
+        const setter = isParallel ? setParallelActions : setConcatenatedActions;
 
-        // Remove from old pos
-        newComponents.splice(draggedIndex, 1);
-        // Insert at new pos
-        newComponents.splice(targetIndex, 0, draggedItem);
+        const newItems = [...list];
+        const draggedItem = newItems[draggedIndex];
 
-        setComponents(newComponents);
+        newItems.splice(draggedIndex, 1);
+        newItems.splice(targetIndex, 0, draggedItem);
+
+        setter(newItems);
         setDraggedIndex(null);
+        setDraggedType(null);
 
-        // Optimistically update order visually. 
         try {
-            const updates = newComponents.map((action, idx) => ({
+            const updates = newItems.map((action, idx) => ({
                 id: action.id,
                 orden: idx
-            })).filter(a => a.id); // Only update existing actions
+            })).filter(a => a.id);
 
             if (updates.length > 0) {
                 await updateActionsOrder(updates);
@@ -347,6 +430,7 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
             console.error('Error reordering:', error);
         }
     };
+
 
     const handleSaveAction = async (e) => {
         if (e) e.preventDefault();
@@ -458,8 +542,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 }
 
                 // 2. UPDATE/CREATE ACTIONS
-                // We iterate over 'components' state which holds the actions
-                const actionPromises = components.map(async (action, index) => {
+                const allActions = [...parallelActions, ...concatenatedActions];
+                const actionPromises = allActions.map(async (action, index) => {
                     const actionPayload = {
                         descripcion: action.descripcion,
                         ejecutor_nombre: action.ejecutor_nombre,
@@ -469,21 +553,19 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         requiere_aprobacion_ronald: action.requiere_aprobacion_ronald,
                         requiere_aprobacion_wiet: action.requiere_aprobacion_wiet,
                         requiere_aprobacion_alejo: action.requiere_aprobacion_alejo,
-                        // Ensure orden is correct based on current list index
+                        es_paralela: action.es_paralela || false,
+                        porcentaje_duracion: action.porcentaje_duracion || 0,
+                        color_ui: action.color_ui || '#3b82f6',
                         orden: index
                     };
 
                     if (action._isNew) {
-                        // INSERT
                         return createAction({
-                            ...actionPayload,
                             ...actionPayload,
                             tarea_id: selectedTask.id,
                             completado: action.completado || false
                         });
                     } else {
-                        // UPDATE
-                        // We update all potential fields to ensure they are in sync
                         return updateAction(action.id, actionPayload);
                     }
                 });
@@ -534,9 +616,10 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                 };
                 const newTask = await createTask(taskPayload);
 
-                // Create full actions from COMPONENTS state (allows editing before save)
-                if (components && components.length > 0) {
-                    const actionPromises = components.map((fa, index) =>
+                // Create full actions from parallelActions and concatenatedActions
+                const allActions = [...parallelActions, ...concatenatedActions];
+                if (allActions.length > 0) {
+                    const actionPromises = allActions.map((fa, index) =>
                         createAction({
                             tarea_id: newTask.id,
                             descripcion: fa.descripcion,
@@ -548,6 +631,9 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                             requiere_aprobacion_ronald: fa.requiere_aprobacion_ronald || false,
                             requiere_aprobacion_wiet: fa.requiere_aprobacion_wiet || false,
                             requiere_aprobacion_alejo: fa.requiere_aprobacion_alejo || false,
+                            es_paralela: fa.es_paralela || false,
+                            porcentaje_duracion: fa.porcentaje_duracion || 0,
+                            color_ui: fa.color_ui || '#3b82f6',
                             orden: index
                         })
                     );
@@ -588,20 +674,24 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
         dispatch(clearSelection());
         // Clean local state explicitly
         setTaskForm({});
-        setComponents([]);
+        setParallelActions([]);
+        setConcatenatedActions([]);
         setDayTasks([]);
         setIsCollapsed(false);
     };
 
     const handleCreateTaskForDay = () => {
         if (!selectedDate) return;
-        dispatch(initCreateTask({
+        // setTaskForm will happen in useEffect when the panel mode changes to createTask
+        dispatch(setSelectedTask({
             task_description: '',
             fecha_inicio: selectedDate,
             fecha_fin_estimada: selectedDate,
             espacio_uuid: null,
             proyecto_id: null,
         }));
+        // dispatch(initCreateTask(...)) - check if this action exists or just use panelMode?
+        // Note: dispatching setSelectedTask with a draft should trigger the panel if panelMode is correct.
     };
 
     const handleSelectTask = (task) => {
@@ -692,14 +782,15 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
         bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] 
         z-50 flex flex-col transition-all duration-300 ease-in-out
         ${isHidden ? 'translate-y-full' : 'translate-y-0'}
-        ${isCollapsed ? 'h-9' : 'h-[300px]'}
+        ${isCollapsed ? 'h-12' : 'h-[300px]'}
     `;
 
     return (
         <div className={containerClasses}>
-            {/* Header - COMPACTO */}
-            <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50">
-                <div className="flex items-center gap-4">
+            {/* Header - GRID ALIGNED WITH CONTENT */}
+            <div className="grid grid-cols-12 items-center border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 no-print">
+                {/* LEFT HEADER: Matches Task Form Column */}
+                <div className="col-span-4 px-4 py-1.5 flex items-center gap-2 border-r border-gray-100 overflow-hidden min-h-[36px]">
                     <div className="flex items-center gap-2">
                         <div className="flex flex-col justify-center">
                             {panelMode === 'createTask' ? (
@@ -707,9 +798,34 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                             ) : panelMode === 'task' ? (
                                 <>
                                     <span className="text-[8px] font-bold uppercase text-gray-400 leading-none">Editar Tarea:</span>
-                                    <span className="text-[15px] font-bold text-gray-800 uppercase leading-tight line-clamp-1 max-w-md" title={taskForm?.task_description}>
-                                        {taskForm?.task_description || '...'}
-                                    </span>
+                                    <div className="flex items-center gap-1.5 text-[14px] font-bold text-gray-800 uppercase leading-tight max-w-3xl overflow-hidden">
+                                        {(() => {
+                                            const proj = projects.find(p => p.id === taskForm.proyecto_id) || taskForm.proyecto;
+                                            const spc = spaces.find(s => s._id === taskForm.espacio_uuid || s.id === taskForm.espacio_uuid) || taskForm.espacio;
+
+                                            return (
+                                                <>
+                                                    {proj?.name && (
+                                                        <span className="text-blue-600 shrink-0">{proj.name}</span>
+                                                    )}
+                                                    {spc?.nombre && (
+                                                        <span className="text-gray-400 font-medium shrink-0">/</span>
+                                                    )}
+                                                    {spc?.nombre && (
+                                                        <span className="text-orange-600 shrink-0">
+                                                            {spc.nombre}{spc.apellido ? ` ${spc.apellido}` : ''}{spc.piso ? ` P${spc.piso}` : ''}
+                                                        </span>
+                                                    )}
+                                                    {(proj?.name || spc?.nombre) && (
+                                                        <span className="text-gray-300 mx-1 shrink-0">|</span>
+                                                    )}
+                                                    <span className="truncate" title={taskForm?.task_description}>
+                                                        {taskForm?.task_description || '...'}
+                                                    </span>
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
                                 </>
                             ) : panelMode === 'day' ? (
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Tareas del Día: {selectedDate}</span>
@@ -717,140 +833,174 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Detalles</span>
                             )}
                         </div>
-                        {(loading || saving) && <span className="text-[9px] text-blue-500 animate-pulse">{saving ? 'Guardando...' : 'Cargando...'}</span>}
+                        {(loading || saving) && <span className="text-[9px] text-blue-500 animate-pulse shrink-0">{saving ? 'Guardando...' : 'Cargando...'}</span>}
+                    </div>
+                </div>
+
+                {/* RIGHT HEADER: Toolbar and Controls */}
+                <div className="col-span-8 flex items-center justify-between px-4 py-1.5 gap-4">
+                    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
+                        {(panelMode === 'task' || panelMode === 'createTask') && (
+                            <>
+                                <BitacoraManager
+                                    notesStr={taskForm.notes}
+                                    onChange={(newVal) => handleTaskChange('notes', newVal)}
+                                    staffers={staffers}
+                                />
+
+                                <LinksManager
+                                    linksStr={taskForm.links_de_interes}
+                                    onChange={(newVal) => handleTaskChange('links_de_interes', newVal)}
+                                />
+
+                                {/* Calling Dropdown Section */}
+                                <div className="relative border-l border-gray-200 pl-3">
+                                    <button
+                                        onClick={() => setShowCallDropdown(!showCallDropdown)}
+                                        className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all text-[10px] font-bold ${showCallDropdown ? 'bg-blue-100 text-blue-700 shadow-inner' : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-400'}`}
+                                    >
+                                        <Phone size={12} />
+                                        <span>LLAMADA</span>
+                                        {calledStaffId && callerId && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse ml-1" />
+                                        )}
+                                    </button>
+
+                                    {showCallDropdown && createPortal(
+                                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowCallDropdown(false)}>
+                                            <div
+                                                className="bg-white border border-gray-200 shadow-2xl rounded-2xl w-full max-w-sm flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                                                            <Phone size={18} />
+                                                        </div>
+                                                        <h4 className="text-sm font-bold text-gray-800 uppercase tracking-widest">
+                                                            Registro de Llamada
+                                                        </h4>
+                                                    </div>
+                                                    <button onClick={() => setShowCallDropdown(false)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                                                        <X size={18} />
+                                                    </button>
+                                                </div>
+
+                                                <div className="p-6 space-y-4">
+                                                    <SearchableStaffSelector
+                                                        label="Yo soy:"
+                                                        staffers={staffers}
+                                                        value={callerId}
+                                                        onChange={setCallerId}
+                                                        placeholder="Mi nombre..."
+                                                    />
+                                                    <SearchableStaffSelector
+                                                        label="Llamar a:"
+                                                        staffers={staffers}
+                                                        value={calledStaffId}
+                                                        onChange={setCalledStaffId}
+                                                        placeholder="Seleccionar..."
+                                                    />
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-[9px] font-bold text-gray-400 uppercase">Comentario / Motivo:</label>
+                                                        <textarea
+                                                            value={callComment}
+                                                            onChange={(e) => setCallComment(e.target.value)}
+                                                            placeholder="Escribe el motivo del llamado..."
+                                                            className="w-full text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-none transition-all"
+                                                        />
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => {
+                                                            handleCallResponsible();
+                                                            setShowCallDropdown(false);
+                                                        }}
+                                                        disabled={!callerId || !calledStaffId}
+                                                        className={`w-full flex items-center justify-center gap-2 py-3 text-white rounded-xl font-bold text-xs transition-all shadow-lg active:scale-[0.95] ${!callerId || !calledStaffId ? 'bg-gray-300 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
+                                                    >
+                                                        <Phone size={16} fill="currentColor" />
+                                                        REALIZAR LLAMADA
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>,
+                                        document.body
+                                    )}
+                                </div>
+
+                                {/* Dependencies - Now compact in toolbar */}
+                                <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
+                                    <div className="w-48">
+                                        <TaskDependencySelector
+                                            label="Condicionada Por"
+                                            value={taskForm.condicionada_por}
+                                            initialItem={taskForm.condicionada_por_task}
+                                            onChange={(val) => handleTaskChange('condicionada_por', val)}
+                                            onEdit={(item) => handleNavToTask(item.id)}
+                                            placeholder="Buscar..."
+                                        />
+                                    </div>
+                                    <div className="w-48">
+                                        <TaskDependencySelector
+                                            label="Condiciona A"
+                                            value={taskForm.condiciona_a}
+                                            initialItem={taskForm.condiciona_a_task}
+                                            onChange={(val) => handleTaskChange('condiciona_a', val)}
+                                            onEdit={(item) => handleNavToTask(item.id)}
+                                            placeholder="Buscar..."
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
-                    {/* Bitácora & Approvals in Header - Show for Task (Edit) AND CreateTask (Preview) */}
-                    {(panelMode === 'task' || panelMode === 'createTask') && (
-                        <div className="flex items-center gap-3 border-l border-gray-200 pl-3 flex-1">
-                            <BitacoraManager
-                                notesStr={taskForm.notes}
-                                onChange={(newVal) => handleTaskChange('notes', newVal)}
-                                staffers={staffers}
+                    {/* Window Controls */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {showPanel && (panelMode === 'task' || panelMode === 'action' || panelMode === 'day') && (
+                            <PrintButton
+                                onClick={handlePrint}
                             />
-
-                            <LinksManager
-                                linksStr={taskForm.links_de_interes}
-                                onChange={(newVal) => handleTaskChange('links_de_interes', newVal)}
-                            />
-
-                            <div className="flex items-center gap-3 border-l border-gray-200 pl-3">
-                                <SearchableStaffSelector
-                                    label="Yo soy:"
-                                    staffers={staffers}
-                                    value={callerId}
-                                    onChange={setCallerId}
-                                    placeholder="Mi nombre..."
-                                />
-                                <SearchableStaffSelector
-                                    label="Llamar a:"
-                                    staffers={staffers}
-                                    value={calledStaffId}
-                                    onChange={setCalledStaffId}
-                                    placeholder="Seleccionar..."
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-2 border-l border-gray-200 pl-3 flex-1 min-w-[200px]">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase">Comentario:</span>
-                                <input
-                                    type="text"
-                                    value={callComment}
-                                    onChange={(e) => setCallComment(e.target.value)}
-                                    placeholder="Motivo del llamado..."
-                                    className="flex-1 text-[10px] bg-white border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500"
-                                />
-                            </div>
-
-                            {/* Call Buttons Section */}
-                            <div className="flex items-center gap-1.5 px-2 border-l border-gray-100">
-                                <button
-                                    onClick={handleCallResponsible}
-                                    disabled={!callerId || !calledStaffId}
-                                    className={`flex items-center gap-1 px-3 py-1 text-white rounded transition-colors shadow-sm ${!callerId || !calledStaffId ? 'bg-gray-300' : 'bg-blue-600 hover:bg-blue-700'}`}
-                                    title="Registrar llamado"
-                                >
-                                    <Phone size={12} />
-                                    <span className="text-[10px] font-bold">LLAMAR</span>
-                                </button>
-                                <button
-                                    onClick={() => handleCallSeguimiento(false)}
-                                    className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-600 rounded hover:bg-purple-200 transition-colors"
-                                    title="Llamar a seguimiento activo (checks)"
-                                >
-                                    <Users size={12} />
-                                </button>
-                            </div>
-
-                            {/* Dependencies Selectors - Pushed to the right */}
-                            <div className="flex items-center gap-2 w-[450px]">
-                                <div className="flex-1 min-w-0">
-                                    <TaskDependencySelector
-                                        label="Condicionada Por"
-                                        value={taskForm.condicionada_por}
-                                        initialItem={taskForm.condicionada_por_task}
-                                        onChange={(val) => handleTaskChange('condicionada_por', val)}
-                                        onEdit={(item) => handleNavToTask(item.id)}
-                                        placeholder="Buscar..."
-                                    />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <TaskDependencySelector
-                                        label="Condiciona A"
-                                        value={taskForm.condiciona_a}
-                                        initialItem={taskForm.condiciona_a_task}
-                                        onChange={(val) => handleTaskChange('condiciona_a', val)}
-                                        onEdit={(item) => handleNavToTask(item.id)}
-                                        placeholder="Buscar..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-                <div className="flex items-center gap-1.5 no-print">
-                    {showPanel && (panelMode === 'task' || panelMode === 'action' || panelMode === 'day') && (
-                        <PrintButton
-                            onClick={handlePrint}
-                        />
-                    )}
-                    <button
-                        onClick={() => {
-                            const newState = !isCollapsed;
-                            dispatch(toggleInspectorCollapse(newState));
-                            if (onCollapseChange) onCollapseChange(newState);
-                        }}
-                        className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 rounded transition-colors mr-1"
-                        title={isCollapsed ? "Expandir" : "Contraer"}
-                    >
-                        {isCollapsed ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                    </button>
-
-                    {(panelMode === 'task' || panelMode === 'createTask') && (
+                        )}
                         <button
-                            onClick={handleDeleteTask}
-                            disabled={saving || !selectedTask?.id} // Disable delete if new task (draft) doesn't have ID
-                            className="p-1 rounded text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                            title="Eliminar Tarea"
+                            onClick={() => {
+                                const newState = !isCollapsed;
+                                dispatch(toggleInspectorCollapse(newState));
+                                if (onCollapseChange) onCollapseChange(newState);
+                            }}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 rounded transition-colors mr-1"
+                            title={isCollapsed ? "Expandir" : "Contraer"}
                         >
-                            <Trash2 size={14} />
+                            {isCollapsed ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
                         </button>
-                    )}
 
-                    {showPanel && (
-                        <button
-                            onClick={handleSaveAction}
-                            disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 rounded text-[10px] font-bold transition-colors disabled:opacity-50"
-                            title="Guardar"
-                        >
-                            <Save size={12} />
-                            Guardar
+                        {(panelMode === 'task' || panelMode === 'createTask') && (
+                            <button
+                                onClick={handleDeleteTask}
+                                disabled={saving || !selectedTask?.id} // Disable delete if new task (draft) doesn't have ID
+                                className="p-1 rounded text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                title="Eliminar Tarea"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        )}
+
+                        {showPanel && (
+                            <button
+                                onClick={handleSaveAction}
+                                disabled={saving}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 rounded text-[10px] font-bold transition-colors disabled:opacity-50"
+                                title="Guardar"
+                            >
+                                <Save size={12} />
+                                Guardar
+                            </button>
+                        )}
+                        <button onClick={handleClose} className="p-1 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded transition-colors">
+                            <X size={14} />
                         </button>
-                    )}
-                    <button onClick={handleClose} className="p-1 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded transition-colors">
-                        <X size={14} />
-                    </button>
+                    </div>
                 </div>
             </div>
 
@@ -866,270 +1016,379 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                         {(panelMode === 'task' || panelMode === 'createTask') && (
                             <div className="grid grid-cols-12 h-full text-xs">
                                 {/* LEFT: Task Form - NOW EDITABLE */}
-                                <div className="col-span-4 p-2 border-r border-gray-100 overflow-y-auto space-y-1.5">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <h3 className="text-[9px] font-bold text-gray-900 flex items-center gap-1">
-                                            <Layers size={10} className="text-blue-600" /> Datos de la Tarea
-                                        </h3>
-                                    </div>
+                                <div className="col-span-4 border-r border-gray-100 flex overflow-hidden">
+                                    {/* Side header for Task Data */}
+                                    <div className="w-6 flex flex-col items-center py-3 bg-gray-50/50 border-r border-gray-100 gap-4 shrink-0">
+                                        <button
+                                            onClick={() => handleTaskChange('status', taskForm.status === 'Pausada' ? 'Activa' : 'Pausada')}
+                                            className={`w-4 h-4 flex items-center justify-center rounded-full transition-colors ${taskForm.status === 'Pausada' ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                                }`}
+                                            title={taskForm.status === 'Pausada' ? 'Reanudar Tarea' : 'Pausar Tarea'}
+                                        >
+                                            {taskForm.status === 'Pausada' ? <PlayCircle size={10} strokeWidth={3} /> : <PauseCircle size={10} strokeWidth={3} />}
+                                        </button>
 
-                                    {/* Task Description */}
-                                    <div>
-                                        <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Descripción</label>
-                                        <input
-                                            type="text"
-                                            value={taskForm.task_description || ''}
-                                            onChange={(e) => handleTaskChange('task_description', e.target.value)}
-                                            className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                                            placeholder="Descripción..."
-                                        />
-                                    </div>
-
-                                    {/* Task Completed & Responsible Row (EDIT) */}
-                                    <div className="grid grid-cols-2 gap-2 mb-2">
-                                        {/* Task Completed Check */}
-                                        <div className={`transition-opacity duration-200 ${taskForm.terminado ? 'opacity-70' : ''}`}>
-                                            <label className={`flex items-center gap-2 cursor-pointer bg-white border rounded px-2 py-1 transition-all h-full ${taskForm.terminado ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-blue-400'}`}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={taskForm.terminado || false}
-                                                    onChange={handleTaskCompletionToggle}
-                                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500 h-3 w-3"
-                                                />
-                                                <span className={`text-[9px] font-bold uppercase transition-colors ${taskForm.terminado ? 'text-green-700 line-through' : 'text-gray-700'}`}>
-                                                    {taskForm.terminado ? 'Terminada' : 'Terminar'}
-                                                </span>
-                                            </label>
-                                        </div>
-
-                                        {/* Responsible */}
-                                        <div>
-                                            <select
-                                                value={taskForm.staff_id || ''}
-                                                onChange={(e) => handleTaskChange('staff_id', e.target.value)}
-                                                className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors h-full"
-                                            >
-                                                <option value="">- Responsable -</option>
-                                                {staffers.map(s => (
-                                                    <option key={s.id} value={s.id}>{s.name || s.nombre}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-
-                                    {/* Priority, Stage, Status - Single Row (EDIT) */}
-                                    <div className="grid grid-cols-12 gap-1.5 mb-1.5">
-                                        <div className="col-span-2">
-                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Prioridad</label>
-                                            <select
-                                                value={taskForm.Priority || '1'}
-                                                onChange={(e) => handleTaskChange('Priority', e.target.value)}
-                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
-                                            >
-                                                {[1, 2, 3, 4, 5].map(p => <option key={p} value={p}>{p}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="col-span-6">
-                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Etapa (Stage)</label>
-                                            <select
-                                                value={taskForm.stage_id || ''}
-                                                onChange={(e) => handleTaskChange('stage_id', e.target.value)}
-                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
-                                            >
-                                                <option value="">- Seleccionar -</option>
-                                                {stages.map(s => <option key={s.id} value={s.id}>{s.name || s.id}</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="col-span-4">
-                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Estatus</label>
-                                            <select
-                                                value={taskForm.status || 'Activa'}
-                                                onChange={(e) => handleTaskChange('status', e.target.value)}
-                                                className={`w-full border rounded px-1 py-0.5 text-[10px] appearance-none font-bold ${taskForm.status === 'Pausada' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'
+                                        <div className="flex flex-col items-center gap-1 group">
+                                            <button
+                                                onClick={handleTaskCompletionToggle}
+                                                className={`w-4 h-4 flex items-center justify-center rounded border transition-colors ${taskForm.terminado ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-gray-300 text-gray-300 hover:border-green-400'
                                                     }`}
+                                                title={taskForm.terminado ? "Marcar como Pendiente" : "Marcar como Terminado"}
                                             >
-                                                <option value="Activa">Activa</option>
-                                                <option value="Pausada">Pausada</option>
-                                            </select>
+                                                <Check size={10} strokeWidth={4} />
+                                            </button>
+                                            <span className="text-[7px] font-black text-gray-400 uppercase [writing-mode:vertical-rl] rotate-180">TERMINADO</span>
                                         </div>
+
+                                        <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">DATOS DE TAREA</h4>
                                     </div>
 
-                                    {/* Pause Reason (Conditional) */}
-                                    {taskForm.status === 'Pausada' && (
-                                        <div className="mb-2 transition-all">
-                                            <label className="block text-[8px] font-bold text-red-500 uppercase mb-0.5 flex items-center gap-1">
-                                                <AlertCircle size={8} /> Razón de Pausa
-                                            </label>
+                                    <div className="flex-1 p-2 overflow-y-auto space-y-1.5 custom-scrollbar">
+                                        {/* Row 1: All key details in one line */}
+                                        <div className="grid grid-cols-12 gap-1.5 items-end">
+                                            <div className="col-span-2">
+                                                <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Proyecto</label>
+                                                <select
+                                                    value={taskForm.proyecto_id || ''}
+                                                    onChange={(e) => handleTaskChange('proyecto_id', e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded px-1.5 py-1 text-[10px] focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 appearance-none transition-colors"
+                                                >
+                                                    <option value="">- Proyecto -</option>
+                                                    {projects.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
 
-                                            <div className="bg-red-50 border border-red-200 rounded p-1 mb-1">
-                                                {(() => {
-                                                    try {
-                                                        const entries = JSON.parse(taskForm.notes || '[]');
-                                                        if (!Array.isArray(entries) || entries.length === 0) {
-                                                            return <span className="text-[9px] text-gray-400 italic">Sin razón registrada.</span>;
-                                                        }
+                                            <div className="col-span-4">
+                                                <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Espacio</label>
+                                                <SearchableSpaceSelector
+                                                    value={taskForm.espacio_uuid}
+                                                    onChange={(val) => handleTaskChange('espacio_uuid', val)}
+                                                    spaces={spaces}
+                                                    onSpaceCreated={() => {
+                                                        getSpaces().then(setSpaces).catch(console.error);
+                                                    }}
+                                                    placeholder="Seleccionar Espacio..."
+                                                />
+                                            </div>
 
-                                                        // Show only the latest entry (first item)
-                                                        const latest = entries[0];
-                                                        return (
-                                                            <div className="text-[9px]">
-                                                                <div className="flex justify-between font-bold text-red-700 opacity-70 text-[8px] mb-0.5">
-                                                                    <span>{latest.date}</span>
-                                                                    <span>{latest.user}</span>
-                                                                </div>
-                                                                <p className="text-gray-700 leading-tight whitespace-pre-wrap">{latest.text}</p>
-                                                            </div>
-                                                        );
-                                                    } catch (e) {
-                                                        // Legacy text fallback
-                                                        return <p className="text-[9px] text-gray-700 whitespace-pre-wrap">{taskForm.notes || 'Sin razón especificada.'}</p>;
-                                                    }
-                                                })()}
+                                            <div className="col-span-2">
+                                                <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Etapa (Stage)</label>
+                                                <select
+                                                    value={taskForm.stage_id || ''}
+                                                    onChange={(e) => handleTaskChange('stage_id', e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded px-1.5 py-1 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
+                                                >
+                                                    <option value="">- Etapa -</option>
+                                                    {stages.map(s => <option key={s.id} value={s.id}>{s.name || s.id}</option>)}
+                                                </select>
+                                            </div>
+
+                                            <div className="col-span-3">
+                                                <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5 truncate">Responsable</label>
+                                                <select
+                                                    value={taskForm.staff_id || ''}
+                                                    onChange={(e) => handleTaskChange('staff_id', e.target.value)}
+                                                    className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors h-[26px]"
+                                                >
+                                                    <option value="">- Resp -</option>
+                                                    {staffers.map(s => (
+                                                        <option key={s.id} value={s.id}>{s.name || s.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="col-span-1">
+                                                <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Prio.</label>
+                                                <select
+                                                    value={taskForm.Priority || '1'}
+                                                    onChange={(e) => handleTaskChange('Priority', e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded px-1.5 py-1 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none h-[26px]"
+                                                >
+                                                    {[1, 2, 3, 4, 5].map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
                                             </div>
                                         </div>
-                                    )}
 
-                                    {/* Project & Space */}
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                        <div>
-                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Proyecto</label>
-                                            <select
-                                                value={taskForm.proyecto_id || ''}
-                                                onChange={(e) => handleTaskChange('proyecto_id', e.target.value)}
-                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500 appearance-none"
-                                            >
-                                                <option value="">-</option>
-                                                {projects.map(p => (
-                                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                                ))}
-                                            </select>
+                                        {/* Row 2: Description (Full Width) */}
+                                        <div className="grid grid-cols-1 gap-1.5">
+                                            <div>
+                                                <label className="block text-[8px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Descripción</label>
+                                                <input
+                                                    type="text"
+                                                    value={taskForm.task_description || ''}
+                                                    onChange={(e) => handleTaskChange('task_description', e.target.value)}
+                                                    className="w-full text-[10px] bg-white border border-gray-200 rounded px-1.5 py-1 focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                                    placeholder="Descripción de la tarea..."
+                                                />
+                                            </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Espacio</label>
-                                            <SearchableSpaceSelector
-                                                value={taskForm.espacio_uuid}
-                                                onChange={(val) => handleTaskChange('espacio_uuid', val)}
-                                                projectId={taskForm.proyecto_id}
-                                                spaces={spaces}
-                                                onSpaceCreated={() => {
-                                                    // Refresh spaces list after creation
-                                                    getSpaces().then(setSpaces).catch(console.error);
-                                                }}
-                                                placeholder="-"
+                                        {/* Pause Reason (Conditional) */}
+                                        {taskForm.status === 'Pausada' && (
+                                            <div className="mb-2 transition-all">
+                                                <label className="block text-[8px] font-bold text-red-500 uppercase mb-0.5 flex items-center gap-1">
+                                                    <AlertCircle size={8} /> Razón de Pausa
+                                                </label>
+
+                                                <div className="bg-red-50 border border-red-200 rounded p-1 mb-1">
+                                                    {(() => {
+                                                        try {
+                                                            const entries = JSON.parse(taskForm.notes || '[]');
+                                                            if (!Array.isArray(entries) || entries.length === 0) {
+                                                                return <span className="text-[9px] text-gray-400 italic">Sin razón registrada.</span>;
+                                                            }
+
+                                                            // Show only the latest entry (first item)
+                                                            const latest = entries[0];
+                                                            return (
+                                                                <div className="text-[9px]">
+                                                                    <div className="flex justify-between font-bold text-red-700 opacity-70 text-[8px] mb-0.5">
+                                                                        <span>{latest.date}</span>
+                                                                        <span>{latest.user}</span>
+                                                                    </div>
+                                                                    <p className="text-gray-700 leading-tight whitespace-pre-wrap">{latest.text}</p>
+                                                                </div>
+                                                            );
+                                                        } catch (e) {
+                                                            // Legacy text fallback
+                                                            return <p className="text-[9px] text-gray-700 whitespace-pre-wrap">{taskForm.notes || 'Sin razón especificada.'}</p>;
+                                                        }
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Evidence Uploader (Task) */}
+                                        <div className="mt-2">
+                                            <EvidenceUploader
+                                                currentUrl={taskForm.evidence_url}
+                                                onUpload={(url) => handleTaskChange('evidence_url', url)}
+                                                pathPrefix="task"
+                                                label="Evidencia de Tarea"
                                             />
                                         </div>
                                     </div>
-
-                                    {/* Dates */}
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                        <div>
-                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Inicio</label>
-                                            <input
-                                                type="date"
-                                                value={taskForm.fecha_inicio || ''}
-                                                onChange={(e) => handleTaskChange('fecha_inicio', e.target.value)}
-                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[8px] font-bold text-gray-400 uppercase mb-0.5">Fin Est.</label>
-                                            <input
-                                                type="date"
-                                                value={taskForm.fecha_fin_estimada || ''}
-                                                onChange={(e) => handleTaskChange('fecha_fin_estimada', e.target.value)}
-                                                className="w-full bg-white border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:ring-1 focus:ring-blue-500"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Evidence Uploader (Task) */}
-                                    <div className="mt-2">
-                                        <EvidenceUploader
-                                            currentUrl={taskForm.evidence_url}
-                                            onUpload={(url) => handleTaskChange('evidence_url', url)}
-                                            pathPrefix="task"
-                                            label="Evidencia de Tarea"
-                                        />
-                                    </div>
-
-
                                 </div>
 
-                                {/* RIGHT: Task Actions (Editable) */}
-                                <div className="col-span-8 bg-gray-50/50 overflow-y-auto relative">
-                                    <div className="flex items-center justify-between p-2 sticky top-0 bg-gray-50 z-10 border-b border-gray-200 shadow-sm">
-                                        <h3 className="text-[9px] font-bold text-gray-900 flex items-center gap-1">
-                                            <Box size={10} className="text-gray-400" /> Acciones de esta Tarea
-                                        </h3>
-                                        <button
-                                            onClick={() => {
-                                                // Add new action to task
-                                                const newAction = {
-                                                    descripcion: '',
-                                                    ejecutor_nombre: '',
-                                                    fecha_ejecucion: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
-                                                    fecha_fin: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
-                                                    requiere_aprobacion_ronald: false,
-                                                    requiere_aprobacion_wiet: false,
-                                                    requiere_aprobacion_alejo: false,
-                                                    completado: false,
-                                                    tarea_id: selectedTask?.id,
-                                                    _isNew: true
-                                                };
-                                                setComponents(prev => [...prev, newAction]);
-                                            }}
-                                            className="px-2 py-0.5 bg-blue-600 text-white rounded text-[9px] font-bold hover:bg-blue-700 transition-colors"
-                                        >
-                                            + Agregar Acción
-                                        </button>
+                                {/* RIGHT: Task Actions (Timeline View) */}
+                                <div className="col-span-8 bg-gray-50/50 flex flex-col overflow-hidden relative">
+                                    {/* Header */}
+                                    <div className="flex flex-col sticky top-0 bg-gray-50 z-10 border-b border-gray-200 shadow-sm overflow-hidden">
+                                        <div className="flex items-center justify-between p-1.5 px-3">
+                                            {/* Date INICIO (Far Left) */}
+                                            <div className="flex items-center gap-1 bg-white/60 border border-gray-100 rounded px-1.5">
+                                                <span className="text-[7px] font-black text-gray-400 uppercase tracking-tighter">INICIO:</span>
+                                                <input
+                                                    type="date"
+                                                    value={taskForm.fecha_inicio || ''}
+                                                    onChange={(e) => handleTaskChange('fecha_inicio', e.target.value)}
+                                                    className="bg-transparent border-none text-[10px] font-bold text-blue-600 p-0 focus:ring-0 w-24 cursor-pointer"
+                                                />
+                                            </div>
+
+                                            {/* Days Count (Center) */}
+                                            {taskForm.fecha_inicio && taskForm.fecha_fin_estimada && (
+                                                <div className="text-[9px] font-black text-blue-700 bg-blue-50 px-3 py-0.5 rounded-full border border-blue-100 shadow-sm">
+                                                    {differenceInDays(parseISO(taskForm.fecha_fin_estimada), parseISO(taskForm.fecha_inicio)) + 1} DÍAS TOTALES
+                                                </div>
+                                            )}
+
+                                            {/* Date FIN (Far Right) */}
+                                            <div className="flex items-center gap-1 bg-white/60 border border-gray-100 rounded px-1.5">
+                                                <span className="text-[7px] font-black text-gray-400 uppercase tracking-tighter">FIN:</span>
+                                                <input
+                                                    type="date"
+                                                    value={taskForm.fecha_fin_estimada || ''}
+                                                    onChange={(e) => handleTaskChange('fecha_fin_estimada', e.target.value)}
+                                                    className="bg-transparent border-none text-[10px] font-bold text-blue-600 p-0 focus:ring-0 w-24 cursor-pointer text-right"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Day Scale Visualization - ALIGNED WITH TIMELINE BELOW */}
+                                        {taskForm.fecha_inicio && taskForm.fecha_fin_estimada && (
+                                            <div className="h-4 flex relative border-t border-gray-400 bg-white" style={{ paddingLeft: '34px', paddingRight: '6px' }}>
+                                                {(() => {
+                                                    const start = parseISO(taskForm.fecha_inicio);
+                                                    const end = parseISO(taskForm.fecha_fin_estimada);
+                                                    const days = differenceInDays(end, start) + 1;
+                                                    if (days <= 0 || days > 365) return null;
+
+                                                    return Array.from({ length: days }).map((_, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className="h-full border-l border-gray-400 relative flex flex-col justify-end"
+                                                            style={{ width: `${100 / days}%` }}
+                                                        >
+                                                            {/* Only show label for every 5 days or if few days */}
+                                                            {(i % 5 === 0 || days <= 15) && (
+                                                                <span className="absolute bottom-0 left-0.5 text-[9px] font-black text-gray-600">
+                                                                    {i + 1}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ));
+                                                })()}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="space-y-1 p-2">
-                                        {/* Show existing actions from the task */}
+                                    {/* Action Content */}
+                                    <div className="flex-1 overflow-y-auto p-1.5 space-y-2">
                                         {loading ? (
-                                            <div className="text-center py-6 text-[9px] text-gray-400">
-                                                <p>Cargando acciones...</p>
-                                            </div>
-                                        ) : components.length === 0 ? (
-                                            <div className="text-center py-6 text-[9px] text-gray-400">
-                                                <p>No hay acciones en esta tarea</p>
-                                                <p className="text-[8px] mt-0.5">Haz clic en "+ Agregar Acción" para crear</p>
-                                            </div>
+                                            <div className="text-center py-10 text-[9px] text-gray-400">Cargando acciones...</div>
                                         ) : (
-                                            components.map((action, idx) => (
-                                                <FullActionRow
-                                                    key={action.id || idx}
-                                                    index={idx}
-                                                    action={action}
-                                                    staffers={staffers}
-                                                    isFirst={idx === 0}
-                                                    isLast={idx === components.length - 1}
-                                                    onDragStart={handleDragStart}
-                                                    onDragOver={handleDragOver}
-                                                    onDrop={handleDrop}
-                                                    onChange={(field, value) => handleSubActionChange(idx, field, value)}
-                                                    onDelete={async () => {
-                                                        if (action._isNew) {
-                                                            // Remove from local state
-                                                            setComponents(prev => prev.filter((_, i) => i !== idx));
-                                                        } else {
-                                                            // For deletions, user might expect immediate feedback, but given the "Save" context
-                                                            // we could defer. However, deletion is rarely deferred in this UI.
-                                                            // Let's stick to immediate delete for existing items for now, to ensure DB consistency.
-                                                            if (confirm('¿Eliminar esta acción?')) {
-                                                                try {
-                                                                    await deleteAction(action.id);
-                                                                    setComponents(prev => prev.filter(a => a.id !== action.id));
-                                                                } catch (error) {
-                                                                    alert('Error al eliminar: ' + error.message);
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                />
-                                            ))
+                                            <>
+                                                {/* CONCATENATED ACTIONS (Timeline) */}
+                                                <div className="flex-1 flex gap-1 overflow-hidden">
+                                                    {/* Side Title */}
+                                                    <div className="w-6 flex flex-col items-center py-2 bg-gray-50/50 border-r border-gray-100 rounded-l-lg gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                setConcatenatedActions(prev => {
+                                                                    const count = prev.length + 1;
+                                                                    const share = 100 / count;
+                                                                    const newAction = {
+                                                                        descripcion: '',
+                                                                        ejecutor_nombre: '',
+                                                                        fecha_ejecucion: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                                        fecha_fin: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                                        requiere_aprobacion_ronald: false,
+                                                                        requiere_aprobacion_wiet: false,
+                                                                        requiere_aprobacion_alejo: false,
+                                                                        completado: false,
+                                                                        tarea_id: selectedTask?.id,
+                                                                        es_paralela: false,
+                                                                        porcentaje_duracion: share,
+                                                                        color_ui: '#3b82f6',
+                                                                        _isNew: true
+                                                                    };
+                                                                    const factor = (100 - share) / 100;
+                                                                    return [...prev.map(a => ({ ...a, porcentaje_duracion: (a.porcentaje_duracion || 100 / prev.length) * factor })), newAction];
+                                                                });
+                                                            }}
+                                                            className="w-4 h-4 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-colors"
+                                                            title="Añadir Acción al Cronograma"
+                                                        >
+                                                            <Plus size={10} strokeWidth={4} />
+                                                        </button>
+                                                        <h4 className="text-[9px] font-black text-gray-500 uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">CRONOGRAMA</h4>
+                                                    </div>
+
+                                                    <div
+                                                        ref={timelineContainerRef}
+                                                        className="flex-1 flex w-full min-h-[100px] bg-white rounded-r-lg shadow-sm border border-gray-200 overflow-hidden relative select-none"
+                                                    >
+                                                        {concatenatedActions.length === 0 ? (
+                                                            <div className="flex-1 flex items-center justify-center text-[9px] text-gray-300 italic">No hay acciones concatenadas</div>
+                                                        ) : (
+                                                            concatenatedActions.map((action, idx) => (
+                                                                <Fragment key={action.id || `c-${idx}`}>
+                                                                    <ConcatenatedActionCard
+                                                                        action={action}
+                                                                        widthPercentage={action.porcentaje_duracion || (100 / concatenatedActions.length)}
+                                                                        totalTaskDays={taskForm.fecha_inicio && taskForm.fecha_fin_estimada ? differenceInDays(parseISO(taskForm.fecha_fin_estimada), parseISO(taskForm.fecha_inicio)) + 1 : 0}
+                                                                        color={action.color_ui || '#3b82f6'}
+                                                                        staffers={staffers}
+                                                                        isDragging={isDraggingUI !== null}
+                                                                        index={idx}
+                                                                        onDragStart={(e, i) => handleDragStart(e, i, 'concatenated')}
+                                                                        onDragOver={handleDragOver}
+                                                                        onDrop={(e, i) => handleDrop(e, i, 'concatenated')}
+                                                                        onChange={(field, value) => handleSubActionChange(idx, field, value, 'concatenated')}
+                                                                        onDelete={async () => {
+                                                                            if (action._isNew) {
+                                                                                setConcatenatedActions(prev => prev.filter((_, i) => i !== idx));
+                                                                            } else if (confirm('¿Eliminar esta acción parcial?')) {
+                                                                                try {
+                                                                                    await deleteAction(action.id);
+                                                                                    setConcatenatedActions(prev => prev.filter(a => a.id !== action.id));
+                                                                                } catch (error) {
+                                                                                    alert('Error al eliminar: ' + error.message);
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    {idx < concatenatedActions.length - 1 && (
+                                                                        <div
+                                                                            className="w-4 hover:w-6 -ml-2 -mr-2 z-10 cursor-col-resize flex items-center justify-center group/resizer"
+                                                                            onMouseDown={(e) => handleResizeStart(idx, e)}
+                                                                        >
+                                                                            <div className="h-1/2 w-0.5 bg-gray-200 group-hover/resizer:bg-blue-500 rounded-full transition-all flex items-center justify-center">
+                                                                                <GripVertical size={10} className="text-transparent group-hover/resizer:text-white" />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </Fragment>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* PARALLEL ACTIONS (Vertical Transversal) */}
+                                                <div className="flex gap-1">
+                                                    {/* Side Title */}
+                                                    <div className="w-6 flex flex-col items-center py-2 bg-gray-50/50 border-r border-gray-100 rounded-l-lg gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                const newAction = {
+                                                                    descripcion: '',
+                                                                    ejecutor_nombre: '',
+                                                                    fecha_ejecucion: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                                    fecha_fin: selectedTask?.fecha_inicio || format(new Date(), 'yyyy-MM-dd'),
+                                                                    requiere_aprobacion_ronald: false,
+                                                                    requiere_aprobacion_wiet: false,
+                                                                    requiere_aprobacion_alejo: false,
+                                                                    completado: false,
+                                                                    tarea_id: selectedTask?.id,
+                                                                    es_paralela: true,
+                                                                    _isNew: true
+                                                                };
+                                                                setParallelActions(prev => [...prev, newAction]);
+                                                            }}
+                                                            className="w-4 h-4 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
+                                                            title="Añadir Acción Paralela"
+                                                        >
+                                                            <Plus size={10} strokeWidth={4} />
+                                                        </button>
+                                                        <h4 className="text-[9px] font-black text-gray-500 uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">PARALELAS</h4>
+                                                    </div>
+                                                    <div className="flex-1 bg-white border border-dashed border-gray-200 rounded-r-lg p-1 overflow-hidden">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            {parallelActions.length === 0 ? (
+                                                                <div className="text-center py-4 text-[9px] text-gray-300 italic">Sin acciones paralelas</div>
+                                                            ) : (
+                                                                parallelActions.map((action, idx) => (
+                                                                    <ParallelActionCard
+                                                                        key={action.id || `p-${idx}`}
+                                                                        action={action}
+                                                                        staffers={staffers}
+                                                                        index={idx}
+                                                                        onDragStart={(e, i) => handleDragStart(e, i, 'parallel')}
+                                                                        onDragOver={handleDragOver}
+                                                                        onDrop={(e, i) => handleDrop(e, i, 'parallel')}
+                                                                        onChange={(field, value) => handleSubActionChange(idx, field, value, 'parallel')}
+                                                                        onDelete={async () => {
+                                                                            if (action._isNew) {
+                                                                                setParallelActions(prev => prev.filter((_, i) => i !== idx));
+                                                                            } else if (confirm('¿Eliminar esta acción paralela?')) {
+                                                                                try {
+                                                                                    await deleteAction(action.id);
+                                                                                    setParallelActions(prev => prev.filter(a => a.id !== action.id));
+                                                                                } catch (error) {
+                                                                                    alert('Error al eliminar: ' + error.message);
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -1348,7 +1607,8 @@ const ActionInspectorPanel = ({ onActionUpdated, onCollapseChange }) => {
                             </div>
                         )}
                     </div>
-                )}
+                )
+                }
             </div >
         </div >
     );
@@ -1377,139 +1637,123 @@ const ApprovalRow = ({ label, reqField, statusField, data, onChange }) => {
     );
 };
 
-// Componente de fila de acción completa (ULTRA COMPACTO)
-const FullActionRow = ({ action, onChange, onDelete, staffers = [], onMove, isFirst, isLast, onDragStart, onDragOver, onDrop, index }) => {
+// ==========================================
+// COMPONENTE: TARJETA DE ACCIÓN PARALELA
+// ==========================================
+const ParallelActionCard = ({ action, staffers, onChange, onDelete, onDragStart, onDragOver, onDrop, index }) => {
     return (
         <div
-            draggable={!!onDragStart}
-            onDragStart={(e) => onDragStart && onDragStart(e, index)}
-            onDragOver={(e) => onDragOver && onDragOver(e, index)}
-            onDrop={(e) => onDrop && onDrop(e, index)}
-            className={`flex items-center gap-1 p-1 bg-white border border-gray-200 rounded hover:border-blue-300 transition-colors ${onDragStart ? 'cursor-move' : ''} ${action.completado ? 'opacity-60 bg-gray-50' : ''}`}
+            draggable
+            onDragStart={(e) => onDragStart(e, index)}
+            onDragOver={(e) => onDragOver(e, index)}
+            onDrop={(e) => onDrop(e, index)}
+            className={`w-full bg-white border border-gray-200 rounded p-1 shadow-sm relative group flex items-center justify-between cursor-grab active:cursor-grabbing ${action.completado ? 'opacity-60 grayscale' : ''}`}
         >
-            {/* Drag Handle or Arrows */}
-            {onDragStart ? (
-                <div className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing px-1" onMouseDown={(e) => {
-                }}>
-                    <GripVertical size={12} />
-                </div>
-            ) : (
-                <div className="flex flex-col gap-0.5">
-                    <button
-                        onClick={() => onMove && onMove(-1)}
-                        disabled={isFirst}
-                        className="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-default"
+            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 rounded-l"></div>
+
+            <div className="flex flex-1 items-center gap-4 pl-2">
+                <input
+                    type="text"
+                    value={action.descripcion || ''}
+                    onChange={(e) => onChange('descripcion', e.target.value)}
+                    placeholder="Descripción de acción paralela..."
+                    className="flex-1 text-[10px] font-bold text-gray-800 bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300"
+                />
+
+                <div className="flex items-center gap-3">
+                    <select
+                        value={action.ejecutor_nombre || ''}
+                        onChange={(e) => onChange('ejecutor_nombre', e.target.value)}
+                        className="text-[9px] bg-gray-50 border-none rounded px-1 py-0.5 w-max focus:ring-0"
                     >
-                        <ArrowUp size={8} />
-                    </button>
-                    <button
-                        onClick={() => onMove && onMove(1)}
-                        disabled={isLast}
-                        className="p-0.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-20 disabled:hover:bg-transparent disabled:cursor-default"
-                    >
-                        <ArrowDown size={8} />
-                    </button>
+                        <option value="">- Ejecutor -</option>
+                        {staffers.map((s, idx) => (
+                            <option key={s.id || idx} value={s.name}>{s.name}</option>
+                        ))}
+                    </select>
+
+                    <div className="flex items-center gap-1.5 pr-1">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <input
+                                type="checkbox"
+                                checked={!!action.completado}
+                                onChange={(e) => onChange('completado', e.target.checked)}
+                                className="h-3 w-3 rounded text-green-600 focus:ring-green-500"
+                            />
+                            <button onClick={onDelete} className="text-red-400 hover:text-red-600">
+                                <Trash2 size={12} />
+                            </button>
+                        </div>
+                        <span className="text-[8px] text-gray-400 font-medium uppercase tracking-tighter">Transversal</span>
+                    </div>
                 </div>
-            )}
-
-            {/* Descripción */}
-            <input
-                type="text"
-                value={action.descripcion || ''}
-                onChange={(e) => onChange('descripcion', e.target.value)}
-                placeholder="Descripción..."
-                // Prevent drag when interacting with inputs
-                onMouseDown={(e) => e.stopPropagation()}
-                className={`flex-1 text-[10px] bg-transparent border-0 focus:ring-0 px-1 py-0.5 min-w-0 ${action.completado ? 'line-through text-gray-500' : ''}`}
-            />
-
-            {/* Completed Checkbox */}
-            <input
-                type="checkbox"
-                checked={!!action.completado}
-                onChange={(e) => onChange('completado', e.target.checked)}
-                className="h-3 w-3 rounded border-gray-300 text-green-600 focus:ring-green-500 ml-1"
-                title="Completado"
-                onMouseDown={(e) => e.stopPropagation()}
-            />
-
-            {/* Ejecutor - SELECT (Staff) */}
-            <select
-                value={action.ejecutor_nombre || ''}
-                onChange={(e) => onChange('ejecutor_nombre', e.target.value)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="w-20 text-[10px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5 appearance-none"
-                title="Seleccionar Staff"
-            >
-                <option value="">- Prof -</option>
-                {staffers.map((s, idx) => (
-                    <option key={s.id || idx} value={s.name}>{s.name}</option>
-                ))}
-            </select>
-
-            {/* Ejecutor - FREE TEXT */}
-            <input
-                type="text"
-                value={action.ejecutor_texto || ''}
-                onChange={(e) => onChange('ejecutor_texto', e.target.value)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="w-24 text-[10px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
-                placeholder="Ejecutor (Ext)..."
-                title="Ejecutor Externo/Texto"
-            />
-
-            {/* Fecha Inicio */}
-            <input
-                type="date"
-                value={action.fecha_ejecucion || ''}
-                onChange={(e) => onChange('fecha_ejecucion', e.target.value)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="w-24 text-[9px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
-            />
-
-            {/* Fecha Fin */}
-            <input
-                type="date"
-                value={action.fecha_fin || ''}
-                onChange={(e) => onChange('fecha_fin', e.target.value)}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="w-24 text-[9px] bg-gray-50 border border-gray-200 rounded px-1 py-0.5"
-            />
-
-            {/* Aprobaciones (checkboxes compactos) */}
-            <div className="flex items-center gap-0.5 px-1 border-l border-gray-200" onMouseDown={(e) => e.stopPropagation()}>
-                <label className="flex items-center gap-0.5 cursor-pointer" title="Ronald">
-                    <input
-                        type="checkbox"
-                        checked={action.requiere_aprobacion_ronald || false}
-                        onChange={(e) => onChange('requiere_aprobacion_ronald', e.target.checked)}
-                        className="h-3 w-3 rounded border-gray-300 text-blue-600"
-                    />
-                    <span className="text-[8px] text-gray-500">R</span>
-                </label>
-                <label className="flex items-center gap-0.5 cursor-pointer" title="Wiet">
-                    <input
-                        type="checkbox"
-                        checked={action.requiere_aprobacion_wiet || false}
-                        onChange={(e) => onChange('requiere_aprobacion_wiet', e.target.checked)}
-                        className="h-3 w-3 rounded border-gray-300 text-blue-600"
-                    />
-                    <span className="text-[8px] text-gray-500">W</span>
-                </label>
-                <label className="flex items-center gap-0.5 cursor-pointer" title="Alejo">
-                    <input
-                        type="checkbox"
-                        checked={action.requiere_aprobacion_alejo || false}
-                        onChange={(e) => onChange('requiere_aprobacion_alejo', e.target.checked)}
-                        className="h-3 w-3 rounded border-gray-300 text-blue-600"
-                    />
-                    <span className="text-[8px] text-gray-500">A</span>
-                </label>
             </div>
+        </div>
+    );
+};
 
-            <button onClick={onDelete} className="p-1 hover:bg-red-50 text-gray-300 hover:text-red-500 rounded transition-colors" title="Eliminar Acción">
-                <X size={10} />
-            </button>
+// ==========================================
+// COMPONENTE: TARJETA DE ACCIÓN CONCATENADA
+// ==========================================
+const ConcatenatedActionCard = ({ action, widthPercentage, totalTaskDays, color, staffers, onChange, onDelete, isDragging, onDragStart, onDragOver, onDrop, index }) => {
+    const actionDays = totalTaskDays ? ((widthPercentage / 100) * totalTaskDays).toFixed(1) : '0';
+
+    return (
+        <div
+            draggable
+            onDragStart={(e) => onDragStart(e, index)}
+            onDragOver={(e) => onDragOver(e, index)}
+            onDrop={(e) => onDrop(e, index)}
+            className={`relative flex flex-col h-full bg-white overflow-hidden group cursor-grab active:cursor-grabbing border-r border-gray-100 ${isDragging ? '' : 'transition-all duration-300'} ${action.completado ? 'opacity-60 grayscale' : ''}`}
+            style={{ width: `${widthPercentage}%` }}
+        >
+            <div
+                className={`h-full border-t-2 flex flex-col p-1 m-0.5 rounded-sm transition-colors ${action.completado ? 'bg-gray-50 opacity-60 grayscale border-gray-300' : ''}`}
+                style={{ borderTopColor: action.completado ? '#d1d5db' : (color || '#3b82f6') }}
+            >
+                {/* Header Area */}
+                <div className="flex justify-between items-start gap-1">
+                    <div className="flex-1 min-w-0">
+                        <textarea
+                            value={action.descripcion || ''}
+                            onChange={(e) => onChange('descripcion', e.target.value)}
+                            placeholder="Acción parcial..."
+                            className="w-full text-[10px] font-black leading-tight text-gray-900 bg-transparent border-none p-0 resize-none focus:ring-0 line-clamp-2 placeholder:text-gray-300"
+                            rows={2}
+                        />
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                        <input
+                            type="checkbox"
+                            checked={!!action.completado}
+                            onChange={(e) => onChange('completado', e.target.checked)}
+                            className="h-3 w-3 rounded text-green-600 focus:ring-green-500"
+                        />
+                        <button onClick={onDelete} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Trash2 size={10} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Details Area - COMPACT: Executor + Days Count */}
+                <div className="mt-auto flex items-center justify-between gap-1 overflow-hidden border-t border-gray-50 pt-1">
+                    <div className="flex-1 min-w-0">
+                        <select
+                            value={action.ejecutor_nombre || ''}
+                            onChange={(e) => onChange('ejecutor_nombre', e.target.value)}
+                            className="w-full text-[9px] font-bold text-blue-700 bg-blue-50/50 border-none rounded px-1 py-0 focus:ring-1 focus:ring-blue-100 appearance-none truncate cursor-pointer hover:bg-blue-100 transition-colors"
+                        >
+                            <option value="">- Ejecutor -</option>
+                            {staffers.map((s, idx) => (
+                                <option key={s.id || idx} value={s.short_name || s.name || s.nombre}>{s.short_name || s.name || s.nombre}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <span className="text-[9px] font-black text-gray-500 whitespace-nowrap bg-gray-100 px-1 rounded">
+                        {actionDays}d
+                    </span>
+                </div>
+            </div>
         </div>
     );
 };
@@ -1719,94 +1963,121 @@ const BitacoraManager = ({ notesStr, onChange, staffers = [] }) => {
                 <span className="text-[9px] font-bold uppercase">Bitácora</span>
             </button>
 
-            {isOpen && (
-                <>
+            {isOpen && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => { setIsOpen(false); setPreviewImageUrl(null); }}>
                     {/* Main Bitacora Panel */}
-                    <div className="absolute bottom-full left-0 mb-2 w-[500px] bg-white border border-gray-200 shadow-xl rounded-lg z-50 p-3 flex flex-col gap-2">
-                        <div className="flex justify-between items-center border-b border-gray-100 pb-1">
-                            <h4 className="text-[10px] font-bold text-gray-700 uppercase flex items-center gap-1">
-                                <Book size={10} /> Historial de Cambios
-                            </h4>
+                    <div
+                        className="bg-white border border-gray-200 shadow-2xl rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                             <div className="flex items-center gap-2">
+                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                                    <Book size={20} />
+                                </div>
+                                <h4 className="text-base font-bold text-gray-800 uppercase tracking-wide">
+                                    Historial de Bitácora
+                                </h4>
+                            </div>
+
+                            <div className="flex items-center gap-3">
                                 <button
                                     onClick={handleAdminLogin}
-                                    className={`text-[9px] flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors relative ${isAdminMode ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                    className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all relative ${isAdminMode ? 'bg-green-100 text-green-700 font-bold border border-green-200' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
                                     title="Modo Administrador"
                                 >
-                                    {isAdminMode ? <Unlock size={10} /> : <Lock size={10} />}
-                                    {isAdminMode && "Admin"}
+                                    {isAdminMode ? <Unlock size={14} /> : <Lock size={14} />}
+                                    <span>{isAdminMode ? "Admin Activo" : "Admin"}</span>
                                 </button>
 
-                                {/* Password Input Popover */}
+                                {/* Password Input Popover - Adjusted for modal */}
                                 {showAdminInput && (
-                                    <div className="absolute top-8 right-8 bg-white shadow-xl border border-gray-200 rounded p-2 z-[60] flex flex-col gap-2 w-48 animate-in fade-in zoom-in-95 duration-100">
-                                        <p className="text-[10px] font-bold text-gray-700">Ingrese Código:</p>
+                                    <div className="absolute top-16 right-16 bg-white shadow-2xl border border-gray-200 rounded-xl p-4 z-[110] flex flex-col gap-3 w-56 animate-in slide-in-from-top-2 duration-200">
+                                        <p className="text-xs font-bold text-gray-700">Acceso Administrador:</p>
                                         <input
                                             type="password"
                                             autoFocus
                                             value={adminCodeInput}
                                             onChange={(e) => setAdminCodeInput(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && confirmAdminLogin()}
-                                            className="w-full text-[10px] border border-gray-300 rounded px-1.5 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
-                                            placeholder="••••"
+                                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                            placeholder="Código..."
                                         />
-                                        <div className="flex justify-end gap-1">
-                                            <button onClick={() => setShowAdminInput(false)} className="text-[9px] px-2 py-1 bg-gray-100 rounded text-gray-600 hover:bg-gray-200">Cancelar</button>
-                                            <button onClick={confirmAdminLogin} className="text-[9px] px-2 py-1 bg-blue-600 rounded text-white hover:bg-blue-700">Confirmar</button>
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => setShowAdminInput(false)} className="text-xs px-3 py-1.5 bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 transition-colors">Cancelar</button>
+                                            <button onClick={confirmAdminLogin} className="text-xs px-3 py-1.5 bg-blue-600 rounded-lg text-white hover:bg-blue-700 transition-colors">Entrar</button>
                                         </div>
                                     </div>
                                 )}
 
-                                <button onClick={() => { setIsOpen(false); setPreviewImageUrl(null); }} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                                <button
+                                    onClick={() => { setIsOpen(false); setPreviewImageUrl(null); }}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
                         </div>
 
-                        <div className="max-h-[300px] overflow-y-auto space-y-2 p-1 bg-gray-50 rounded border border-gray-100">
-                            {entries.length === 0 && <p className="text-[9px] text-center text-gray-400 italic py-2">No hay registros aún.</p>}
+                        {/* Modal Body - Scrollable Area */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/30">
+                            {entries.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-12 text-gray-400 italic">
+                                    <Book size={48} className="mb-3 opacity-20" />
+                                    <p className="text-sm">No hay registros aún.</p>
+                                </div>
+                            )}
+
                             {entries.map((e, idx) => (
-                                <div key={idx} className={`bg-white p-2 rounded shadow-sm border ${editModeIndex === idx ? 'border-blue-300 ring-2 ring-blue-50' : 'border-gray-100'}`}>
+                                <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border transition-all ${editModeIndex === idx ? 'border-blue-400 ring-4 ring-blue-50' : 'border-gray-100 hover:border-gray-200'}`}>
                                     {editModeIndex === idx ? (
                                         // EDIT MODE
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex justify-between items-start gap-2">
-                                                <div className="flex flex-col gap-1 flex-1">
-                                                    <label className="text-[8px] font-bold text-gray-500">Fecha/Hora</label>
+                                        <div className="flex flex-col gap-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha/Hora</label>
                                                     <input
                                                         type="text"
                                                         value={editData.date}
                                                         onChange={(ev) => setEditData({ ...editData, date: ev.target.value })}
-                                                        className="text-[9px] border border-gray-300 rounded px-1 py-0.5 w-full"
+                                                        className="text-xs border border-gray-200 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 transition-all outline-none"
                                                     />
                                                 </div>
-                                                <div className="flex flex-col gap-1 flex-1">
-                                                    <label className="text-[8px] font-bold text-gray-500">Usuario</label>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuario</label>
                                                     <input
                                                         type="text"
                                                         value={editData.user}
                                                         onChange={(ev) => setEditData({ ...editData, user: ev.target.value })}
-                                                        className="text-[9px] border border-gray-300 rounded px-1 py-0.5 w-full"
+                                                        className="text-xs border border-gray-200 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 transition-all outline-none"
                                                     />
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-col gap-1">
-                                                <label className="text-[8px] font-bold text-gray-500">Nota</label>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nota descriptiva</label>
                                                 <textarea
                                                     value={editData.text}
                                                     onChange={(ev) => setEditData({ ...editData, text: ev.target.value })}
-                                                    className="w-full text-[10px] border border-gray-300 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                                    rows={3}
+                                                    className="w-full text-sm border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px] transition-all"
+                                                    rows={4}
                                                 />
                                             </div>
 
-                                            <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-1">
+                                            <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                                                 <div className="flex items-center gap-2">
-                                                    {/* Edit Image Controls */}
                                                     {editData.imageUrl ? (
-                                                        <div className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
-                                                            <ImageIcon size={10} className="text-blue-500" />
-                                                            <span className="text-[8px] text-gray-500">Imagen adjunta</span>
-                                                            <button onClick={() => handleDeleteEntryImage(idx)} className="text-red-500 hover:bg-red-50 rounded p-0.5"><Trash2 size={10} /></button>
+                                                        <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+                                                            <ImageIcon size={14} className="text-blue-500" />
+                                                            <span className="text-[10px] font-bold text-blue-700 uppercase">Imagen adjunta</span>
+                                                            <button
+                                                                onClick={() => handleDeleteEntryImage(idx)}
+                                                                className="text-red-500 hover:bg-red-100 rounded-full p-1 transition-colors"
+                                                                title="Eliminar imagen"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                            </button>
                                                         </div>
                                                     ) : (
                                                         <div className="relative">
@@ -1817,43 +2088,57 @@ const BitacoraManager = ({ notesStr, onChange, staffers = [] }) => {
                                                                 accept="image/*"
                                                                 onChange={(evt) => evt.target.files[0] && handleUpdateEntryImage(idx, evt.target.files[0])}
                                                             />
-                                                            <label htmlFor={`edit-mode-img-${idx}`} className="flex items-center gap-1 text-[9px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100">
-                                                                <Plus size={10} /> Add Img
+                                                            <label htmlFor={`edit-mode-img-${idx}`} className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-blue-100 transition-all uppercase">
+                                                                <Plus size={14} /> Adjuntar Imagen
                                                             </label>
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button onClick={handleCancelEdit} className="px-2 py-1 bg-white border border-gray-200 text-gray-600 text-[9px] rounded hover:bg-gray-50">Cancelar</button>
-                                                    <button onClick={() => handleSaveEdit(idx)} className="px-2 py-1 bg-blue-600 text-white text-[9px] rounded hover:bg-blue-700 flex items-center gap-1"><Save size={10} /> Guardar</button>
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={handleCancelEdit} className="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-50 transition-all uppercase">Cancelar</button>
+                                                    <button onClick={() => handleSaveEdit(idx)} className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-all uppercase shadow-md active:scale-95">
+                                                        <Save size={14} /> Guardar Cambios
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
                                     ) : (
                                         // VIEW MODE
                                         <>
-                                            <div className="flex justify-between items-center text-[8px] text-gray-400 mb-1 border-b border-gray-50 pb-0.5">
-                                                <span>{e.date}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-blue-600 bg-blue-50 px-1 rounded">{e.user}</span>
-                                                    {isAdminMode && (
-                                                        <div className="flex items-center gap-1">
-                                                            <button onClick={() => handleStartEdit(idx, e)} className="text-gray-400 hover:text-blue-500" title="Editar entrada"><Edit3 size={10} /></button>
-                                                            <button onClick={() => handleDeleteEntry(idx)} className="text-gray-400 hover:text-red-500" title="Eliminar entrada"><Trash2 size={10} /></button>
-                                                        </div>
-                                                    )}
+                                            <div className="flex justify-between items-start mb-2 border-b border-gray-50 pb-2">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{e.date}</span>
+                                                    <span className="text-xs font-black text-blue-600 uppercase mt-0.5 tracking-tight">{e.user}</span>
                                                 </div>
+                                                {isAdminMode && (
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => handleStartEdit(idx, e)}
+                                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                            title="Editar entrada"
+                                                        >
+                                                            <Edit3 size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteEntry(idx)}
+                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                            title="Eliminar entrada"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <p className="text-[9px] text-gray-800 whitespace-pre-wrap leading-relaxed">{e.text}</p>
+                                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed font-medium">{e.text}</p>
 
                                             {e.imageUrl && (
-                                                <div className="mt-1.5 flex items-center gap-2">
+                                                <div className="mt-3">
                                                     <button
                                                         onClick={() => setPreviewImageUrl(previewImageUrl === e.imageUrl ? null : e.imageUrl)}
-                                                        className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-[9px] transition-colors ${previewImageUrl === e.imageUrl ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-blue-600'}`}
+                                                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${previewImageUrl === e.imageUrl ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-white hover:bg-blue-50 border-blue-100 text-blue-600 uppercase'}`}
                                                     >
-                                                        <ImageIcon size={10} />
-                                                        {previewImageUrl === e.imageUrl ? 'Ocultar' : 'Ver'}
+                                                        <ImageIcon size={14} />
+                                                        {previewImageUrl === e.imageUrl ? 'Cerrar Vista Previa' : 'Ver Imagen Adjunta'}
                                                     </button>
                                                 </div>
                                             )}
@@ -1863,94 +2148,107 @@ const BitacoraManager = ({ notesStr, onChange, staffers = [] }) => {
                             ))}
                         </div>
 
-                        <div className="flex gap-1 items-end pt-1 border-t border-gray-100 flex-col">
-                            <select
-                                value={selectedAuthorId}
-                                onChange={(e) => setSelectedAuthorId(e.target.value)}
-                                className="w-full text-[10px] border border-gray-200 rounded p-1 mb-1 focus:ring-1 focus:ring-blue-500 bg-white"
-                            >
-                                <option value="">- Quién escribe? -</option>
-                                {staffers.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                            </select>
-                            <div className="flex gap-1 w-full items-end">
-                                <div className="flex-1 relative">
-                                    <textarea
-                                        value={newEntry}
-                                        onChange={(e) => setNewEntry(e.target.value)}
-                                        placeholder="Escribe una nueva nota..."
-                                        rows={3}
-                                        className="w-full text-[10px] border border-gray-200 rounded p-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleAdd();
-                                            }
-                                        }}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    {/* Image Attachment Trigger */}
-                                    <input
-                                        type="file"
-                                        id="bitacora-img-upload"
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={handleImageSelect}
-                                        disabled={uploading}
-                                    />
-                                    <label
-                                        htmlFor="bitacora-img-upload"
-                                        className={`p-1.5 rounded cursor-pointer transition-colors flex items-center justify-center h-8 w-8 ${attachedImage ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400 hover:bg-blue-50 hover:text-blue-500'} border border-transparent hover:border-blue-200`}
-                                        title={attachedImage ? "Imagen adjunta (Click para cambiar)" : "Adjuntar imagen"}
-                                    >
-                                        {uploading ? (
-                                            <Loader2 size={12} className="animate-spin" />
-                                        ) : attachedImage ? (
-                                            <CheckCircle size={12} />
-                                        ) : (
-                                            <ImageIcon size={14} />
-                                        )}
-                                    </label>
+                        {/* Modal Footer - New Entry Form */}
+                        <div className="p-6 bg-white border-t border-gray-100 shadow-[0_-10px_20px_-15px_rgba(0,0,0,0.1)]">
+                            <div className="max-w-xl mx-auto space-y-3">
+                                <SearchableStaffSelector
+                                    staffers={staffers}
+                                    value={selectedAuthorId}
+                                    onChange={setSelectedAuthorId}
+                                    placeholder="¿Quién está registrando?"
+                                    label="Responsable del Registro"
+                                />
 
-                                    <button
-                                        onClick={handleAdd}
-                                        disabled={(!newEntry.trim() && !attachedImage) || !selectedAuthorId || uploading}
-                                        className="bg-blue-600 text-white rounded p-1.5 h-8 w-8 flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm min-w-[32px]"
-                                    >
-                                        <Plus size={14} />
-                                    </button>
+                                <div className="flex gap-3 items-end">
+                                    <div className="flex-1">
+                                        <textarea
+                                            value={newEntry}
+                                            onChange={(e) => setNewEntry(e.target.value)}
+                                            placeholder="Describa el avance o incidencia..."
+                                            rows={2}
+                                            className="w-full text-sm border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 bg-gray-50/50 outline-none transition-all placeholder:text-gray-400"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleAdd();
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <input
+                                            type="file"
+                                            id="bitacora-img-upload"
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={handleImageSelect}
+                                            disabled={uploading}
+                                        />
+                                        <label
+                                            htmlFor="bitacora-img-upload"
+                                            className={`flex items-center justify-center h-10 w-10 rounded-xl border-2 transition-all cursor-pointer ${attachedImage ? 'bg-green-50 border-green-200 text-green-600' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50'}`}
+                                            title={attachedImage ? "Imagen seleccionada" : "Adjuntar foto"}
+                                        >
+                                            {uploading ? <Loader2 size={18} className="animate-spin" /> : attachedImage ? <CheckCircle size={18} /> : <ImageIcon size={20} />}
+                                        </label>
+
+                                        <button
+                                            onClick={handleAdd}
+                                            disabled={(!newEntry.trim() && !attachedImage) || !selectedAuthorId || uploading}
+                                            className="flex items-center justify-center h-10 w-10 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-30 disabled:grayscale transition-all shadow-lg active:scale-90"
+                                            title="Registrar Nota"
+                                        >
+                                            <Plus size={24} />
+                                        </button>
+                                    </div>
                                 </div>
+                                {attachedImage && (
+                                    <div className="flex items-center justify-between bg-green-50 px-3 py-1.5 rounded-lg border border-green-100 animate-in fade-in slide-in-from-left-2 duration-200">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                            <span className="text-[10px] font-bold text-green-700 uppercase">Foto lista para subir</span>
+                                        </div>
+                                        <button onClick={() => setAttachedImage(null)} className="p-1 text-red-500 hover:bg-red-100 rounded-full transition-colors"><X size={12} /></button>
+                                    </div>
+                                )}
                             </div>
-                            {attachedImage && (
-                                <div className="w-full text-[8px] text-green-600 flex items-center justify-between bg-green-50 px-1.5 py-0.5 rounded">
-                                    <span className="truncate max-w-[200px]">Imagen lista para adjuntar</span>
-                                    <button onClick={() => setAttachedImage(null)} className="text-red-400 hover:text-red-600"><X size={8} /></button>
-                                </div>
-                            )}
                         </div>
                     </div>
 
-                    {/* Side Preview Panel */}
-                    {previewImageUrl && (
-                        <div className="absolute bottom-full left-[512px] mb-2 w-[400px] h-[400px] bg-white border border-gray-200 shadow-xl rounded-lg z-50 flex flex-col overflow-hidden">
-                            <div className="flex justify-between items-center p-2 border-b border-gray-100 bg-gray-50">
-                                <h4 className="text-[10px] font-bold text-gray-700 uppercase flex items-center gap-1">
-                                    <ImageIcon size={10} /> Vista Previa
-                                </h4>
-                                <button onClick={() => setPreviewImageUrl(null)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                    {/* Side Preview Panel - Adjusted for centered layout */}
+                    {previewImageUrl && createPortal(
+                        <div
+                            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-8"
+                            onClick={() => setPreviewImageUrl(null)}
+                        >
+                            <div
+                                className="relative bg-white rounded-2xl overflow-hidden shadow-2xl max-w-5xl max-h-full flex flex-col"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-white">
+                                    <h4 className="text-xs font-black text-gray-800 uppercase flex items-center gap-2">
+                                        <ImageIcon size={16} className="text-blue-500" /> Detalle de Evidencia
+                                    </h4>
+                                    <button
+                                        onClick={() => setPreviewImageUrl(null)}
+                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    >
+                                        <X size={24} />
+                                    </button>
+                                </div>
+                                <div className="p-2 bg-zinc-900 rounded-b-2xl overflow-hidden">
+                                    <img
+                                        src={previewImageUrl}
+                                        alt="Evidence Full View"
+                                        className="max-w-full max-h-[80vh] object-contain shadow-2xl"
+                                    />
+                                </div>
                             </div>
-                            <div className="flex-1 p-2 flex items-center justify-center bg-gray-900 overflow-hidden relative group">
-                                <img
-                                    src={previewImageUrl}
-                                    alt="Evidence"
-                                    className="max-w-full max-h-full object-contain"
-                                />
-                            </div>
-                        </div>
+                        </div>,
+                        document.body
                     )}
-                </>
+                </div>,
+                document.body
             )}
         </div>
     );
@@ -2009,65 +2307,93 @@ const LinksManager = ({ linksStr, onChange }) => {
                 <span className="text-[9px] font-bold uppercase">Links</span>
             </button>
 
-            {isOpen && (
-                <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 shadow-xl rounded-lg z-50 p-3 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="flex justify-between items-center border-b border-gray-100 pb-1">
-                        <h4 className="text-[10px] font-bold text-gray-700 uppercase flex items-center gap-1">
-                            <Layers size={10} /> Links de Interés
-                        </h4>
-                        <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
-                    </div>
-
-                    <div className="max-h-32 overflow-y-auto space-y-1 py-1">
-                        {links.length === 0 && <p className="text-[9px] text-center text-gray-400 italic">No hay links.</p>}
-                        {links.map((li, idx) => (
-                            <div key={idx} className="flex items-center justify-between group bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                <a
-                                    href={li.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[10px] text-blue-600 hover:underline truncate flex-1 font-medium"
-                                    title={li.link}
-                                >
-                                    {li.nombre}
-                                </a>
-                                <button
-                                    onClick={() => handleDelete(idx)}
-                                    className="text-gray-300 hover:text-red-500 ml-2"
-                                >
-                                    <X size={10} />
-                                </button>
+            {isOpen && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setIsOpen(false)}>
+                    <div
+                        className="bg-white border border-gray-200 shadow-2xl rounded-2xl w-full max-w-sm flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                    <Layers size={18} />
+                                </div>
+                                <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                                    Links de Interés
+                                </h4>
                             </div>
-                        ))}
-                    </div>
-
-                    <div className="border-t border-gray-100 pt-2 space-y-1.5">
-                        <input
-                            type="text"
-                            placeholder="Nombre del recurso..."
-                            value={newName}
-                            onChange={(e) => setNewName(e.target.value)}
-                            className="w-full text-[10px] border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
-                        />
-                        <div className="flex gap-1">
-                            <input
-                                type="text"
-                                placeholder="URL (ej: google.com)"
-                                value={newUrl}
-                                onChange={(e) => setNewUrl(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                                className="flex-1 text-[10px] border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
-                            />
-                            <button
-                                onClick={handleAdd}
-                                disabled={!newName.trim() || !newUrl.trim()}
-                                className="bg-blue-600 text-white rounded px-2 flex items-center justify-center hover:bg-blue-700 disabled:opacity-50"
-                            >
-                                <Plus size={12} />
+                            <button onClick={() => setIsOpen(false)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                                <X size={18} />
                             </button>
                         </div>
+
+                        <div className="max-h-[300px] overflow-y-auto p-4 space-y-2">
+                            {links.length === 0 && (
+                                <div className="py-8 text-center text-gray-400 italic flex flex-col items-center gap-2">
+                                    <Layers size={32} className="opacity-20" />
+                                    <p className="text-xs font-medium">No hay links vinculados.</p>
+                                </div>
+                            )}
+                            {links.map((li, idx) => (
+                                <div key={idx} className="flex items-center justify-between group bg-white hover:bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 hover:border-indigo-200 transition-all shadow-sm">
+                                    <div className="flex flex-col flex-1 min-w-0">
+                                        <a
+                                            href={li.link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-indigo-600 hover:text-indigo-800 font-bold truncate transition-colors"
+                                            title={li.link}
+                                        >
+                                            {li.nombre}
+                                        </a>
+                                        <span className="text-[9px] text-gray-400 truncate mt-0.5">{li.link}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDelete(idx)}
+                                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all ml-2"
+                                        title="Eliminar link"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="p-6 bg-white border-t border-gray-50 space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Título</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: Planos de la obra"
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    className="w-full text-xs border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-gray-300"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">URL / Link</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="drive.google.com/..."
+                                        value={newUrl}
+                                        onChange={(e) => setNewUrl(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                                        className="flex-1 text-xs border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-gray-300"
+                                    />
+                                    <button
+                                        onClick={handleAdd}
+                                        disabled={!newName.trim() || !newUrl.trim()}
+                                        className="bg-indigo-600 text-white rounded-xl px-4 hover:bg-indigo-700 disabled:opacity-30 transition-all shadow-lg shadow-indigo-200 active:scale-90 flex items-center justify-center"
+                                    >
+                                        <Plus size={20} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

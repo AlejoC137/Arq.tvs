@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Building2, Box, Search, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { getSpaces, createSpace, updateSpace, deleteSpace, getAllSpacesAndElements, getStages, getSpaceDetails } from '../../services/spacesService';
 import { getSpaceComponents, createSpaceComponent, getComponents } from '../../services/componentsService';
 import { getProjects } from '../../services/projectsService';
 import AddComponentModal from './AddComponentModal';
-import SpaceModal from '../common/SpaceModal';
+import { openSpaceModal } from '../../store/actions/appActions';
 
 const SpacesView = () => {
+    const dispatch = useDispatch();
     const { refreshCounter } = useSelector(state => state.app);
     const [spaces, setSpaces] = useState([]);
     const [selectedSpace, setSelectedSpace] = useState(null);
@@ -18,17 +19,13 @@ const SpacesView = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // CRUD states for spaces
-    const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false);
     const [editingSpace, setEditingSpace] = useState(null);
     const [spaceFormData, setSpaceFormData] = useState({
         nombre: '',
         apellido: '',
         tipo: 'Espacio',
         piso: '',
-        proyecto: '',
-        etapa: '',
-        componentes: '',
-        tareas: ''
+        componentes: ''
     });
     const [savingSpace, setSavingSpace] = useState(false);
 
@@ -44,13 +41,7 @@ const SpacesView = () => {
 
     const loadDropdownOptions = async () => {
         try {
-            const [projects, stages, comps] = await Promise.all([
-                getProjects(),
-                getStages(),
-                getComponents()
-            ]);
-            setProjectOptions(projects || []);
-            setStageOptions(stages || []);
+            const comps = await getComponents();
             setComponentOptions(comps || []);
         } catch (error) {
             console.error('Error loading dropdown options:', error);
@@ -107,10 +98,7 @@ const SpacesView = () => {
                 apellido: details.apellido || '',
                 tipo: details.tipo || 'Espacio',
                 piso: details.piso || '',
-                proyecto: details.proyecto || '',
-                etapa: details.etapa || '',
-                componentes: details.componentes || '',
-                tareas: details.tareas || ''
+                componentes: details.componentes || ''
             });
             setEditingSpace(details);
         } catch (error) {
@@ -120,8 +108,9 @@ const SpacesView = () => {
 
     // CRUD handlers for spaces
     const handleOpenAddModal = () => {
-        setEditingSpace(null);
-        setIsSpaceModalOpen(true);
+        dispatch(openSpaceModal({
+            onSuccess: loadSpaces
+        }));
     };
 
     const handleSaveSpace = async () => {
@@ -134,9 +123,7 @@ const SpacesView = () => {
         try {
             // Convert empty strings to null for UUID fields
             const dataToSave = {
-                ...spaceFormData,
-                proyecto: spaceFormData.proyecto || null,
-                etapa: spaceFormData.etapa || null,
+                ...spaceFormData
             };
 
             if (editingSpace) {
@@ -263,11 +250,9 @@ const SpacesView = () => {
                                             `}>
                                                 {space.tipo}
                                             </span>
-                                            {space.proyectoData?.name && (
-                                                <span className="text-green-600">🏠 {space.proyectoData.name}</span>
-                                            )}
+                                            {/* Removed project name indicator */}
                                             {space.piso && (
-                                                <span>P{space.piso}</span>
+                                                <span className="bg-blue-100 text-blue-600 px-1 rounded">P{space.piso}</span>
                                             )}
                                         </div>
                                     </div>
@@ -296,7 +281,7 @@ const SpacesView = () => {
                             <div className="p-3 flex items-center justify-between">
                                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                     <Edit2 size={14} className="text-blue-600" />
-                                    {selectedSpace.nombre}{selectedSpace.apellido ? ` ${selectedSpace.apellido}` : ''}
+                                    {selectedSpace.nombre}{selectedSpace.apellido ? ` ${selectedSpace.apellido}` : ''}{selectedSpace.piso ? ` P${selectedSpace.piso}` : ''}
                                     <span className={`text-xs px-1.5 py-0.5 rounded ${selectedSpace.tipo === 'Espacio' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                         {selectedSpace.tipo}
                                     </span>
@@ -351,42 +336,7 @@ const SpacesView = () => {
                                         placeholder="1, 2..."
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-gray-600 mb-0.5">Proyecto</label>
-                                    <select
-                                        value={spaceFormData.proyecto}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, proyecto: e.target.value })}
-                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">-- Ninguno --</option>
-                                        {projectOptions.map((proj) => (
-                                            <option key={proj.id} value={proj.id}>{proj.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-gray-600 mb-0.5">Etapa</label>
-                                    <select
-                                        value={spaceFormData.etapa}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, etapa: e.target.value })}
-                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">-- Ninguna --</option>
-                                        {stageOptions.map((stage) => (
-                                            <option key={stage.id} value={stage.id}>{stage.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-gray-600 mb-0.5">Tareas (IDs)</label>
-                                    <input
-                                        type="text"
-                                        value={spaceFormData.tareas}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, tareas: e.target.value })}
-                                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="ID1, ID2..."
-                                    />
-                                </div>
+                                {/* Removed Proyecto, Etapa, and Tareas fields as requested */}
                             </div>
                         </div>
 
@@ -457,14 +407,6 @@ const SpacesView = () => {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onSave={handleAddComponent}
-            />
-
-            {/* Space/Element CRUD Modal */}
-            <SpaceModal
-                isOpen={isSpaceModalOpen}
-                onClose={() => setIsSpaceModalOpen(false)}
-                onSuccess={loadSpaces}
-                editingSpace={editingSpace}
             />
         </div>
     );

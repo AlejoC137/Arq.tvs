@@ -10,10 +10,7 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
         apellido: '',
         tipo: 'Espacio',
         piso: '',
-        proyecto: defaultProjectId || '',
-        etapa: '',
-        componentes: '',
-        tareas: ''
+        componentes: ''
     });
     const [savingSpace, setSavingSpace] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -34,10 +31,7 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
                     apellido: '',
                     tipo: 'Espacio',
                     piso: '',
-                    proyecto: defaultProjectId || '',
-                    etapa: '',
-                    componentes: '',
-                    tareas: ''
+                    componentes: ''
                 });
             }
         }
@@ -45,13 +39,7 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
 
     const loadDropdownOptions = async () => {
         try {
-            const [projects, stages, comps] = await Promise.all([
-                getProjects(),
-                getStages(),
-                getComponents()
-            ]);
-            setProjectOptions(projects || []);
-            setStageOptions(stages || []);
+            const comps = await getComponents();
             setComponentOptions(comps || []);
         } catch (error) {
             console.error('Error loading dropdown options:', error);
@@ -67,10 +55,7 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
                 apellido: details.apellido || '',
                 tipo: details.tipo || 'Espacio',
                 piso: details.piso || '',
-                proyecto: details.proyecto || '',
-                etapa: details.etapa || '',
-                componentes: details.componentes || '',
-                tareas: details.tareas || ''
+                componentes: details.componentes || ''
             });
         } catch (error) {
             console.error('Error loading space details:', error);
@@ -88,9 +73,7 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
         setSavingSpace(true);
         try {
             const dataToSave = {
-                ...spaceFormData,
-                proyecto: spaceFormData.proyecto || null,
-                etapa: spaceFormData.etapa || null,
+                ...spaceFormData
             };
 
             let saved;
@@ -190,45 +173,9 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
                                 </div>
                             </div>
 
-                            {/* Proyecto y Etapa */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Proyecto
-                                    </label>
-                                    <select
-                                        value={spaceFormData.proyecto}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, proyecto: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">-- Seleccionar proyecto --</option>
-                                        {projectOptions.map((proj) => (
-                                            <option key={proj.id} value={proj.id}>
-                                                {proj.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Etapa
-                                    </label>
-                                    <select
-                                        value={spaceFormData.etapa}
-                                        onChange={(e) => setSpaceFormData({ ...spaceFormData, etapa: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="">-- Seleccionar etapa --</option>
-                                        {stageOptions.map((stage) => (
-                                            <option key={stage.id} value={stage.id}>
-                                                {stage.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
+                            {/* Proyecto y Etapa removed */}
 
-                            {/* Componentes */}
+                            {/* Componentes 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Componentes
@@ -268,20 +215,7 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
                                     {(spaceFormData.componentes?.split(',').filter(Boolean).length || 0)} componente(s) seleccionado(s)
                                 </p>
                             </div>
-
-                            {/* Tareas */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Tareas
-                                </label>
-                                <textarea
-                                    value={spaceFormData.tareas}
-                                    onChange={(e) => setSpaceFormData({ ...spaceFormData, tareas: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    rows={3}
-                                    placeholder="IDs de tareas separados por coma, o descripción de tareas..."
-                                />
-                            </div>
+*/}
                         </>
                     )}
                 </div>
@@ -308,8 +242,8 @@ const SpaceModal = ({ isOpen, onClose, onSuccess, editingSpace = null, defaultPr
                         )}
                     </button>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

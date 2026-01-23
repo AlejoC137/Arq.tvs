@@ -11,7 +11,6 @@ import CalendarFilterBar from './CalendarFilterBar';
 import PrintButton from '../common/PrintButton';
 import HouseGanttModal from './ProjectTimeline/HouseGanttModal';
 import HouseReportModal from '../Reports/HouseReportModal';
-import SpaceModal from '../common/SpaceModal';
 import SearchableSpaceSelector from '../common/SearchableSpaceSelector';
 
 const HousesView = ({ mode }) => {

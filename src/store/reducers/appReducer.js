@@ -17,7 +17,14 @@ const initialState = {
     },
     pendingCallsCount: 0,
     isInspectorCollapsed: false,
-    refreshCounter: 0
+    refreshCounter: 0,
+    // Global Modals State
+    isSpaceModalOpen: false,
+    spaceModalConfig: {
+        projectId: null,
+        editingSpace: null,
+        onSuccess: null
+    }
 };
 
 export const appReducer = (state = initialState, action) => {
@@ -58,6 +65,26 @@ export const appReducer = (state = initialState, action) => {
             return { ...state, isInspectorCollapsed: action.payload !== undefined ? action.payload : !state.isInspectorCollapsed };
         case 'INCREMENT_REFRESH_COUNTER':
             return { ...state, refreshCounter: state.refreshCounter + 1 };
+        case 'OPEN_SPACE_MODAL':
+            return {
+                ...state,
+                isSpaceModalOpen: true,
+                spaceModalConfig: {
+                    projectId: action.payload.projectId || null,
+                    editingSpace: action.payload.editingSpace || null,
+                    onSuccess: action.payload.onSuccess || null
+                }
+            };
+        case 'CLOSE_SPACE_MODAL':
+            return {
+                ...state,
+                isSpaceModalOpen: false,
+                spaceModalConfig: {
+                    projectId: null,
+                    editingSpace: null,
+                    onSuccess: null
+                }
+            };
         default:
             return state;
     }

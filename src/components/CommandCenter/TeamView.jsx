@@ -1,14 +1,163 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Users, User, Briefcase, Plus, X, Save, Loader2, Calendar, UserPlus, Pencil, Trash2 } from 'lucide-react';
+import { Users, User, Briefcase, Plus, X, Save, Loader2, Calendar, UserPlus, Pencil, Trash2, ChevronDown, ChevronUp, MessageSquare, Box } from 'lucide-react';
 import { getStaffers, deleteStaff } from '../../services/spacesService';
 import { getTasks, getProjects } from '../../services/tasksService';
+import { getTaskActions } from '../../services/actionsService';
 import { format } from 'date-fns';
 import { setSelectedTask, initCreateTask } from '../../store/actions/appActions';
 import AddMemberModal from './AddMemberModal';
 import PrintButton from '../common/PrintButton';
 import PDFModal from '../common/PDFModal';
 import TeamReport from '../Reports/TeamReport';
+
+// Sub-componente para cada fila de tarea con acordeón de acciones
+const TaskRow = ({ task, project, onTaskClick }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [actions, setActions] = useState([]);
+    const [loadingActions, setLoadingActions] = useState(false);
+
+    const toggleActions = async (e) => {
+        e.stopPropagation();
+        const newExpanded = !isExpanded;
+        setIsExpanded(newExpanded);
+
+        if (newExpanded && actions.length === 0) {
+            setLoadingActions(true);
+            try {
+                const data = await getTaskActions(task.id);
+                setActions(data);
+            } catch (error) {
+                console.error("Error fetching actions:", error);
+            } finally {
+                setLoadingActions(false);
+            }
+        }
+    };
+
+    const latestNote = useMemo(() => {
+        try {
+            const notes = JSON.parse(task.notes || '[]');
+            return Array.isArray(notes) && notes.length > 0 ? notes[0] : null;
+        } catch (e) {
+            return task.notes ? { text: task.notes, user: 'System', date: '-' } : null;
+        }
+    }, [task.notes]);
+
+    const isOverdue = !task.terminado && task.fecha_fin_estimada && new Date(task.fecha_fin_estimada) < new Date();
+
+    return (
+        <>
+            <tr
+                onClick={() => onTaskClick(task)}
+                className={`hover:bg-blue-50/50 cursor-pointer transition-colors group ${isExpanded ? 'bg-blue-50/30' : ''}`}
+            >
+                <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                        {/* Single line: Project, Space, Description */}
+                        <div className="flex items-center flex-wrap gap-2 leading-tight">
+                            {(project || task.proyecto) && (
+                                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                                    {project?.name || task.proyecto?.name}
+                                </span>
+                            )}
+                            {task.espacio && (
+                                <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                                    {task.espacio.nombre} {task.espacio.apellido || ''} {task.espacio.piso ? ` P${task.espacio.piso}` : ''}
+                                </span>
+                            )}
+                            <span className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors text-xs truncate">
+                                {task.task_description}
+                            </span>
+                        </div>
+
+                        {/* Latest Bitácora */}
+                        {latestNote && (
+                            <div className="mt-1 flex items-start gap-1.5 bg-gray-50 p-1.5 rounded border border-gray-100">
+                                <MessageSquare size={10} className="text-gray-400 mt-0.5 shrink-0" />
+                                <div className="text-[10px] text-gray-600 leading-tight italic">
+                                    <span className="font-bold text-gray-400 not-italic mr-1">{latestNote.user}:</span>
+                                    {latestNote.text}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </td>
+
+                <td className="px-4 py-3 text-gray-600 text-xs">
+                    {task.fecha_fin_estimada ? (
+                        <span className={isOverdue ? 'text-red-500 font-bold' : ''}>
+                            {format(new Date(task.fecha_fin_estimada), 'dd/MM/yyyy')}
+                        </span>
+                    ) : '-'}
+                </td>
+
+                <td className="px-4 py-3">
+                    {task.terminado ? (
+                        <span className="inline-flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            Completada
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            Activa
+                        </span>
+                    )}
+                </td>
+
+                <td className="px-4 py-3 text-right">
+                    <button
+                        onClick={toggleActions}
+                        className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-blue-600"
+                    >
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                </td>
+            </tr>
+
+            {/* Actions Dropdown */}
+            {isExpanded && (
+                <tr className="bg-gray-50/50">
+                    <td colSpan="4" className="px-12 py-3 border-b border-gray-100">
+                        <div className="space-y-1 max-w-2xl">
+                            <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                <Box size={10} /> Acciones de esta Tarea
+                            </h5>
+                            {loadingActions ? (
+                                <div className="flex items-center gap-2 text-[10px] text-gray-400 italic py-2">
+                                    <Loader2 size={12} className="animate-spin" />
+                                    Cargando acciones...
+                                </div>
+                            ) : actions.length === 0 ? (
+                                <div className="text-[10px] text-gray-400 italic py-2">No hay acciones registradas para esta tarea</div>
+                            ) : (
+                                <div className="grid gap-1">
+                                    {actions.map(action => (
+                                        <div key={action.id} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0 hover:bg-white px-3 rounded-md transition-all">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-2 h-2 rounded-full shadow-sm ${action.completado ? 'bg-green-500' : 'bg-blue-400 animate-pulse'}`} />
+                                                <span className={`text-xs ${action.completado ? 'text-gray-400 line-through' : 'text-gray-700 font-medium'}`}>
+                                                    {action.descripcion}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-[10px] text-gray-400 font-medium">
+                                                {action.ejecutor_nombre && (
+                                                    <span className="bg-gray-100 px-1.5 py-0.5 rounded">{action.ejecutor_nombre}</span>
+                                                )}
+                                                {action.fecha_ejecucion && (
+                                                    <span>{format(new Date(action.fecha_ejecucion), 'dd/MM/yyyy')}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+};
 
 const TeamView = () => {
     const dispatch = useDispatch();
@@ -183,7 +332,7 @@ const TeamView = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className={`font-medium text-sm truncate ${selectedStaffer?.id === staffer.id ? 'text-blue-700' : 'text-gray-700'}`}>
-                                                {staffer.name}
+                                                {staffer.name} {staffer.apellido || ''}
                                             </div>
                                             {staffer.role_description && (
                                                 <div className="text-xs text-gray-500 truncate mt-0.5">
@@ -212,7 +361,7 @@ const TeamView = () => {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3">
                                                 <h3 className="text-xl font-bold text-gray-900 mb-1">
-                                                    {selectedStaffer.name}
+                                                    {selectedStaffer.name} {selectedStaffer.apellido || ''}
                                                 </h3>
                                                 <div className="flex gap-1 no-print">
                                                     <PrintButton
@@ -329,53 +478,24 @@ const TeamView = () => {
                                                 <table className="w-full text-sm text-left">
                                                     <thead className="bg-gray-50 text-xs text-gray-500 uppercase font-bold border-b border-gray-100">
                                                         <tr>
-                                                            <th className="px-4 py-3">Descripción</th>
-                                                            <th className="px-4 py-3 w-32">Proyecto</th>
+                                                            <th className="px-4 py-3">Información de la Tarea</th>
                                                             <th className="px-4 py-3 w-32">Fecha Fin</th>
                                                             <th className="px-4 py-3 w-24">Estado</th>
+                                                            <th className="px-4 py-3 w-10"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100">
                                                         {staffTasks.map(task => {
-                                                            const isOverdue = !task.terminado && new Date(task.fecha_fin_estimada) < new Date();
                                                             const projectId = task.project_id || task.proyecto?.id || task.proyecto_id;
                                                             const project = projects.find(p => p.id === projectId);
 
                                                             return (
-                                                                <tr
+                                                                <TaskRow
                                                                     key={task.id}
-                                                                    onClick={() => handleTaskClick(task)}
-                                                                    className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
-                                                                >
-                                                                    <td className="px-4 py-3">
-                                                                        <div className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors">
-                                                                            {task.task_description}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 truncate max-w-[120px]">
-                                                                            {project?.name || task.proyecto?.name || '-'}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-gray-600 text-xs">
-                                                                        {task.fecha_fin_estimada ? (
-                                                                            <span className={isOverdue ? 'text-red-500 font-bold' : ''}>
-                                                                                {format(new Date(task.fecha_fin_estimada), 'dd/MM/yyyy')}
-                                                                            </span>
-                                                                        ) : '-'}
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        {task.terminado ? (
-                                                                            <span className="inline-flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                                Completada
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="inline-flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                                Activa
-                                                                            </span>
-                                                                        )}
-                                                                    </td>
-                                                                </tr>
+                                                                    task={task}
+                                                                    project={project}
+                                                                    onTaskClick={handleTaskClick}
+                                                                />
                                                             );
                                                         })}
                                                     </tbody>

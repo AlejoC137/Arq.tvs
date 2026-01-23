@@ -10,7 +10,7 @@ export const getTasks = async () => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo),
+            espacio:Espacio_Elemento(_id, nombre, tipo, apellido, piso),
             staff:Staff(id, name),
             stage:Stage(id, name),
             condicionada_por_task:Tareas!condicionada_por(id, task_description),
@@ -34,7 +34,7 @@ export const getTaskById = async (taskId) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo),
+            espacio:Espacio_Elemento(_id, nombre, tipo, apellido, piso),
             staff:Staff(id, name),
             stage:Stage(id, name),
             condicionada_por_task:Tareas!condicionada_por(id, task_description),
@@ -104,7 +104,7 @@ export const createTask = async (taskData) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo),
+            espacio:Espacio_Elemento(_id, nombre, tipo, apellido, piso),
             staff:Staff(id, name),
             stage:Stage(id, name),
             condicionada_por_task:Tareas!condicionada_por(id, task_description),
@@ -129,7 +129,7 @@ export const updateTask = async (taskId, updates) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo),
+            espacio:Espacio_Elemento(_id, nombre, tipo, apellido, piso),
             staff:Staff(id, name),
             stage:Stage(id, name),
             condicionada_por_task:Tareas!condicionada_por(id, task_description),
@@ -199,7 +199,7 @@ export const getTasksByDate = async (dateStr) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo),
+            espacio:Espacio_Elemento(_id, nombre, tipo, apellido, piso),
             staff:Staff(id, name),
             stage:Stage(id, name),
             condicionada_por_task:Tareas!condicionada_por(id, task_description),
@@ -229,7 +229,7 @@ export const getWeeklyTasks = async (currentDate = new Date()) => {
         .select(`
           *,
           proyecto:Proyectos(id, name),
-          espacio:Espacio_Elemento(_id, nombre, tipo),
+          espacio:Espacio_Elemento(_id, nombre, tipo, apellido, piso),
           staff:Staff(id, name),
           stage:Stage(id, name),
           condicionada_por_task:Tareas!condicionada_por(id, task_description),
@@ -253,7 +253,7 @@ export const getTasksByProject = async (projectId) => {
         .select(`
             *,
             proyecto:Proyectos(id, name),
-            espacio:Espacio_Elemento(_id, nombre, tipo),
+            espacio:Espacio_Elemento(_id, nombre, tipo, apellido, piso),
             staff:Staff(id, name),
             stage:Stage(id, name),
             condicionada_por_task:Tareas!condicionada_por(id, task_description),

@@ -16,6 +16,8 @@ import MaterialsView from './components/CommandCenter/MaterialsView';
 import DirectoryView from './components/CommandCenter/DirectoryView';
 import CallsView from './components/CommandCenter/CallsView';
 import ActionInspectorPanel from './components/CommandCenter/ActionInspectorPanel';
+import SpaceModal from './components/common/SpaceModal';
+import { closeSpaceModal } from './store/actions/appActions';
 import { Activity, Database, Layers } from 'lucide-react';
 
 
@@ -39,31 +41,57 @@ function App() {
     // Using explicit tailwind colors as backup in class string or relying on defaults
     // The structure assumes css variables are present.
 
+    const { panelMode, isInspectorCollapsed: isCollapsed } = useSelector(state => state.app);
+    const showInspector = ['action', 'task', 'create', 'createTask', 'day'].includes(panelMode);
+
+    // Dynamic padding to prevent ActionInspectorPanel from covering background content
+    // Collapsed: 48px (h-12), Expanded: 300px
+    const bottomPadding = !showInspector ? '0px' : (isCollapsed ? '48px' : '300px');
+
+    const spaceModalConfig = useSelector(state => state.app.spaceModalConfig);
+
     return (
         <div className="h-screen w-screen overflow-hidden bg-gray-50 flex flex-col">
             <TopNavigation />
-            <div className="flex-1 overflow-hidden relative">
-                <Routes>
-                    <Route path="/" element={<Navigate to="/calendar/week" replace />} />
-                    <Route path="/calendar" element={<Navigate to="/calendar/week" replace />} />
-                    <Route path="/calendar/:view" element={<CalendarContainer />} />
-                    <Route path="/spaces" element={<SpacesView />} />
-                    <Route path="/components" element={<ComponentsView />} />
-                    <Route path="/houses" element={<HousesView />} />
-                    <Route path="/houses/:id" element={<HousesView />} />
-                    <Route path="/houses/:id/cronograma" element={<HousesView />} />
-                    <Route path="/houses/:id/informe" element={<HousesView />} />
-                    <Route path="/parcels" element={<HousesView mode="parcels" />} />
-                    <Route path="/team" element={<TeamView />} />
-                    <Route path="/protocols" element={<ProtocolsView />} />
-                    <Route path="/materials" element={<MaterialsView />} />
-                    <Route path="/directory" element={<DirectoryView />} />
-                    <Route path="/calls" element={<CallsView />} />
-                    <Route path="*" element={<Navigate to="/calendar/week" replace />} />
-                </Routes>
+            <div className="flex-1 overflow-hidden relative flex flex-col">
+                <div
+                    className="flex-1 overflow-hidden transition-all duration-300 ease-in-out"
+                    style={{ paddingBottom: bottomPadding }}
+                >
+                    <Routes>
+                        <Route path="/" element={<Navigate to="/calendar/week" replace />} />
+                        <Route path="/calendar" element={<Navigate to="/calendar/week" replace />} />
+                        <Route path="/calendar/:view" element={<CalendarContainer />} />
+                        <Route path="/spaces" element={<SpacesView />} />
+                        <Route path="/components" element={<ComponentsView />} />
+                        <Route path="/houses" element={<HousesView />} />
+                        <Route path="/houses/:id" element={<HousesView />} />
+                        <Route path="/houses/:id/cronograma" element={<HousesView />} />
+                        <Route path="/houses/:id/informe" element={<HousesView />} />
+                        <Route path="/parcels" element={<HousesView mode="parcels" />} />
+                        <Route path="/team" element={<TeamView />} />
+                        <Route path="/protocols" element={<ProtocolsView />} />
+                        <Route path="/materials" element={<MaterialsView />} />
+                        <Route path="/directory" element={<DirectoryView />} />
+                        <Route path="/calls" element={<CallsView />} />
+                        <Route path="*" element={<Navigate to="/calendar/week" replace />} />
+                    </Routes>
+                </div>
 
                 <ActionInspectorPanel />
             </div>
+
+            {/* Global Modals */}
+            <SpaceModal
+                isOpen={useSelector(state => state.app.isSpaceModalOpen)}
+                onClose={() => dispatch(closeSpaceModal())}
+                onSuccess={(newSpace) => {
+                    if (spaceModalConfig.onSuccess) spaceModalConfig.onSuccess(newSpace);
+                    dispatch(closeSpaceModal());
+                }}
+                editingSpace={spaceModalConfig.editingSpace}
+                defaultProjectId={spaceModalConfig.projectId}
+            />
         </div>
     );
 }

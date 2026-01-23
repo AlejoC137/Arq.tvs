@@ -6,7 +6,7 @@ import supabase from '../config/supabaseClient';
 export const getSpaces = async () => {
     const { data, error } = await supabase
         .from('Espacio_Elemento')
-        .select('_id, nombre, tipo, apellido, proyecto, piso')
+        .select('_id, nombre, tipo, apellido, piso')
         .eq('tipo', 'Espacio')
         .order('nombre', { ascending: true });
 
@@ -23,7 +23,7 @@ export const getSpaces = async () => {
 export const getSpaceDetails = async (espacioId) => {
     const { data, error } = await supabase
         .from('Espacio_Elemento')
-        .select('_id, nombre, tipo, piso, proyecto, etapa, componentes, tareas, apellido')
+        .select('_id, nombre, tipo, piso, componentes, apellido')
         .eq('_id', espacioId)
         .single();
 
@@ -87,8 +87,7 @@ export const getAllSpacesAndElements = async () => {
     const { data, error } = await supabase
         .from('Espacio_Elemento')
         .select(`
-            _id, nombre, tipo, apellido, piso, proyecto, etapa,
-            proyectoData:Proyectos!proyecto(id, name)
+            _id, nombre, tipo, apellido, piso
         `)
         .order('tipo', { ascending: true })
         .order('nombre', { ascending: true });

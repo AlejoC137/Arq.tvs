@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, ChevronDown, CheckCircle, Plus } from 'lucide-react';
-import SpaceModal from './SpaceModal';
+import { useDispatch } from 'react-redux';
+import { openSpaceModal } from '../../store/actions/appActions';
 
 /**
  * Selector de Espacios con Búsqueda Integrada y Creador de Espacios
@@ -16,24 +17,19 @@ import SpaceModal from './SpaceModal';
 const SearchableSpaceSelector = ({
     value,
     onChange,
-    projectId,
     spaces = [],
     onSpaceCreated,
     placeholder = "- Seleccionar Espacio -",
     className = ""
 }) => {
+    const dispatch = useDispatch();
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isSpaceModalOpen, setIsSpaceModalOpen] = useState(false);
     const wrapperRef = useRef(null);
 
     // Filtrar espacios por proyecto y término de búsqueda
     const filteredSpaces = useMemo(() => {
         return spaces.filter(s => {
-            // Filtrar por ID de proyecto (si se proporciona)
-            // Manejamos comparación flexible por si los IDs vienen como string/number
-            if (projectId && s.proyecto && String(s.proyecto) !== String(projectId)) return false;
-
             // Búsqueda por término
             const term = searchTerm.toLowerCase();
             return (
@@ -42,7 +38,7 @@ const SearchableSpaceSelector = ({
                 s.piso?.toString().toLowerCase().includes(term)
             );
         });
-    }, [spaces, projectId, searchTerm]);
+    }, [spaces, searchTerm]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -65,9 +61,16 @@ const SearchableSpaceSelector = ({
         ? `${selectedSpace.nombre}${selectedSpace.apellido ? ` ${selectedSpace.apellido}` : ''}${selectedSpace.piso ? ` P${selectedSpace.piso}` : ''}`
         : value || placeholder;
 
-    const handleSpaceCreated = async (newSpace) => {
-        if (onSpaceCreated) await onSpaceCreated();
+    const handleSpaceCreated = (newSpace) => {
+        if (onSpaceCreated) onSpaceCreated();
         onChange(newSpace._id || newSpace.id);
+        setIsOpen(false);
+    };
+
+    const handleOpenCreator = () => {
+        dispatch(openSpaceModal({
+            onSuccess: handleSpaceCreated
+        }));
         setIsOpen(false);
     };
 
@@ -87,16 +90,28 @@ const SearchableSpaceSelector = ({
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[100] max-h-64 flex flex-col overflow-hidden">
                     {/* Buscador */}
                     <div className="p-2 border-b border-gray-100 bg-gray-50 flex flex-col gap-2">
-                        <div className="relative">
-                            <Search size={12} className="absolute left-2 top-2 text-gray-400" />
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="Buscar espacio..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500"
-                            />
+                        <div className="flex items-center gap-1.5">
+                            <div className="relative flex-1">
+                                <Search size={12} className="absolute left-2 top-2.5 text-gray-400" />
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Buscar espacio..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-7 pr-2 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 transition-all"
+                                />
+                            </div>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenCreator();
+                                }}
+                                className="p-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-600 hover:text-white transition-all shadow-sm shrink-0"
+                                title="Crear Nuevo Espacio"
+                            >
+                                <Plus size={16} />
+                            </button>
                         </div>
                     </div>
 
@@ -131,23 +146,8 @@ const SearchableSpaceSelector = ({
                         )}
                     </div>
 
-                    {/* Footer - Crear Espacio */}
-                    <div
-                        onClick={() => { setIsSpaceModalOpen(true); setIsOpen(false); }}
-                        className="p-2.5 border-t border-gray-100 bg-gray-50 cursor-pointer hover:bg-blue-50 transition-colors flex items-center gap-2 text-blue-600"
-                    >
-                        <Plus size={14} />
-                        <span className="text-xs font-bold">Abrir Creador de Espacios</span>
-                    </div>
                 </div>
             )}
-
-            <SpaceModal
-                isOpen={isSpaceModalOpen}
-                onClose={() => setIsSpaceModalOpen(false)}
-                onSuccess={handleSpaceCreated}
-                defaultProjectId={projectId}
-            />
         </div>
     );
 };
