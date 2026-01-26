@@ -47,8 +47,8 @@ export const getProtocolCategories = async () => {
         return [];
     }
 
-    // Extraer categorías únicas
-    const uniqueCategories = [...new Set(data.map(p => p.Categoria).filter(Boolean))].sort();
+    // Extraer categorías únicas sustanciales e incluir 'Proveedores' por defecto
+    const uniqueCategories = [...new Set(['Proveedores', ...data.map(p => p.Categoria).filter(Boolean)])].sort();
     return uniqueCategories;
 };
 
