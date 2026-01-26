@@ -38,7 +38,9 @@ const ProtocolsView = () => {
     // Selection logic based on URL
     useEffect(() => {
         if (protocols.length > 0 && protocolName) {
-            const protocol = protocols.find(p => p.Nombre === decodeURIComponent(protocolName));
+            // Reverse underscore back to space for matching
+            const decodedName = decodeURIComponent(protocolName).replace(/_/g, ' ');
+            const protocol = protocols.find(p => p.Nombre === decodedName);
             if (protocol && (!selectedProtocol || selectedProtocol.id !== protocol.id)) {
                 setSelectedProtocol(protocol);
             }
@@ -50,7 +52,9 @@ const ProtocolsView = () => {
     const handleSelectProtocol = (protocol) => {
         setSelectedProtocol(protocol);
         if (protocol) {
-            navigate(`/protocols/${encodeURIComponent(protocol.Nombre)}`);
+            // Replace spaces with underscores for the URL
+            const urlName = encodeURIComponent(protocol.Nombre.replace(/ /g, '_'));
+            navigate(`/protocols/${urlName}`);
         } else {
             navigate('/protocols');
         }
