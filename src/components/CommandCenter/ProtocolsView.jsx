@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { handleNativePrint } from '../../utils/printUtils';
 import { FileText, Search, User, Calendar, Tag, Edit, Plus, Save, X } from 'lucide-react';
 import { getProtocols, getProtocolCategories, createProtocol, updateProtocol } from '../../services/protocolsService';
+import { getStaffers } from '../../services/spacesService';
 import ReactMarkdown from 'react-markdown';
 import PrintButton from '../common/PrintButton';
 
@@ -12,6 +13,7 @@ const ProtocolsView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedProtocol, setSelectedProtocol] = useState(null);
+    const [staff, setStaff] = useState([]);
 
     // Creation/Editing State
     const [isCreating, setIsCreating] = useState(false);
@@ -20,7 +22,8 @@ const ProtocolsView = () => {
     const [newProtocol, setNewProtocol] = useState({
         Nombre: '',
         Categoria: '',
-        Contenido: ''
+        Contenido: '',
+        Editor: ''
     });
 
     useEffect(() => {
@@ -30,12 +33,14 @@ const ProtocolsView = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [protocolsData, categoriesData] = await Promise.all([
+            const [protocolsData, categoriesData, staffData] = await Promise.all([
                 getProtocols(),
-                getProtocolCategories()
+                getProtocolCategories(),
+                getStaffers()
             ]);
             setProtocols(protocolsData || []);
             setCategories(categoriesData || []);
+            setStaff(staffData || []);
         } catch (error) {
             console.error('Error loading protocols:', error);
         } finally {
@@ -67,7 +72,7 @@ const ProtocolsView = () => {
         setIsCreating(true);
         setIsEditing(false);
         setSelectedProtocol(null);
-        setNewProtocol({ Nombre: '', Categoria: '', Contenido: '' });
+        setNewProtocol({ Nombre: '', Categoria: '', Contenido: '', Editor: '' });
     };
 
     const handleStartEdit = () => {
@@ -75,7 +80,8 @@ const ProtocolsView = () => {
         setNewProtocol({
             Nombre: selectedProtocol.Nombre,
             Categoria: selectedProtocol.Categoria,
-            Contenido: selectedProtocol.Contenido || ''
+            Contenido: selectedProtocol.Contenido || '',
+            Editor: selectedProtocol.Editor || ''
         });
         setIsEditing(true);
         setIsCreating(false);
@@ -84,22 +90,27 @@ const ProtocolsView = () => {
     const handleCancelCreate = () => {
         setIsCreating(false);
         setIsEditing(false);
-        setNewProtocol({ Nombre: '', Categoria: '', Contenido: '' });
+        setNewProtocol({ Nombre: '', Categoria: '', Contenido: '', Editor: '' });
     };
 
     const handleSaveProtocol = async () => {
         if (!newProtocol.Nombre.trim()) return alert('El nombre es obligatorio');
 
         setSaving(true);
+        const protocolToSave = {
+            ...newProtocol,
+            FechaUpdate: new Date().toISOString()
+        };
+
         try {
             if (isEditing && selectedProtocol) {
-                const updated = await updateProtocol(selectedProtocol.id, newProtocol);
+                const updated = await updateProtocol(selectedProtocol.id, protocolToSave);
                 setProtocols(protocols.map(p => p.id === updated.id ? updated : p));
                 setCategories([...new Set([...categories, updated.Categoria].filter(Boolean))].sort());
                 setIsEditing(false);
                 setSelectedProtocol(updated);
             } else {
-                const created = await createProtocol(newProtocol);
+                const created = await createProtocol(protocolToSave);
                 setProtocols([created, ...protocols]);
                 setCategories([...new Set([...categories, created.Categoria].filter(Boolean))].sort());
                 setIsCreating(false);
@@ -245,6 +256,19 @@ const ProtocolsView = () => {
                                 <datalist id="categories-list">
                                     {categories.map(cat => <option key={cat} value={cat} />)}
                                 </datalist>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Editor (Staff)</label>
+                                <select
+                                    value={newProtocol.Editor}
+                                    onChange={e => setNewProtocol({ ...newProtocol, Editor: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="">Seleccionar editor...</option>
+                                    {staff.map(s => (
+                                        <option key={s.id} value={s.name}>{s.name}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="flex-1">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Contenido (Markdown soportado)</label>
