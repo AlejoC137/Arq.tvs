@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { handleNativePrint } from '../../utils/printUtils';
-import { FileText, Search, User, Calendar, Tag, Edit, Plus, Save, X } from 'lucide-react';
+import { FileText, Search, User, Calendar, Tag, Edit, Plus, Save, X, Bold, Italic, Type, List, Link, Eye, Code, Download } from 'lucide-react';
 import { getProtocols, getProtocolCategories, createProtocol, updateProtocol } from '../../services/protocolsService';
 import { getStaffers } from '../../services/spacesService';
 import ReactMarkdown from 'react-markdown';
@@ -14,6 +15,9 @@ const ProtocolsView = () => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedProtocol, setSelectedProtocol] = useState(null);
     const [staff, setStaff] = useState([]);
+    const navigate = useNavigate();
+    const { protocolName } = useParams();
+    const isFirstLoad = useRef(true);
 
     // Creation/Editing State
     const [isCreating, setIsCreating] = useState(false);
@@ -25,10 +29,32 @@ const ProtocolsView = () => {
         Contenido: '',
         Editor: ''
     });
+    const [viewMode, setViewMode] = useState('code'); // 'code' | 'visual'
 
     useEffect(() => {
         loadData();
     }, []);
+
+    // Selection logic based on URL
+    useEffect(() => {
+        if (protocols.length > 0 && protocolName) {
+            const protocol = protocols.find(p => p.Nombre === decodeURIComponent(protocolName));
+            if (protocol && (!selectedProtocol || selectedProtocol.id !== protocol.id)) {
+                setSelectedProtocol(protocol);
+            }
+        } else if (protocols.length > 0 && !protocolName && selectedProtocol) {
+            setSelectedProtocol(null);
+        }
+    }, [protocolName, protocols]);
+
+    const handleSelectProtocol = (protocol) => {
+        setSelectedProtocol(protocol);
+        if (protocol) {
+            navigate(`/protocols/${encodeURIComponent(protocol.Nombre)}`);
+        } else {
+            navigate('/protocols');
+        }
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -47,9 +73,33 @@ const ProtocolsView = () => {
             setLoading(false);
         }
     };
-    const printRef = useRef(null);
-    const handlePrint = () => {
-        handleNativePrint('protocols-view-print-view', `Protocolo_${selectedProtocol?.Nombre || 'Detalle'}`);
+    const contentRef = useRef(null);
+
+    const insertMarkdown = (prefix, suffix = '') => {
+        if (!contentRef.current) return;
+
+        const textarea = contentRef.current;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = newProtocol.Contenido;
+        const selection = text.substring(start, end);
+
+        const before = text.substring(0, start);
+        const after = text.substring(end);
+
+        const newText = before + prefix + selection + suffix + after;
+
+        setNewProtocol({ ...newProtocol, Contenido: newText });
+
+        // Restore focus and selection
+        setTimeout(() => {
+            textarea.focus();
+            const newCursorPos = start + prefix.length + selection.length + suffix.length;
+            textarea.setSelectionRange(
+                selection.length > 0 ? start + prefix.length : newCursorPos,
+                newCursorPos
+            );
+        }, 0);
     };
 
     const filteredProtocols = protocols.filter(protocol => {
@@ -71,8 +121,9 @@ const ProtocolsView = () => {
     const handleStartCreate = () => {
         setIsCreating(true);
         setIsEditing(false);
-        setSelectedProtocol(null);
+        handleSelectProtocol(null);
         setNewProtocol({ Nombre: '', Categoria: '', Contenido: '', Editor: '' });
+        setViewMode('code');
     };
 
     const handleStartEdit = () => {
@@ -85,6 +136,7 @@ const ProtocolsView = () => {
         });
         setIsEditing(true);
         setIsCreating(false);
+        setViewMode('code');
     };
 
     const handleCancelCreate = () => {
@@ -108,13 +160,13 @@ const ProtocolsView = () => {
                 setProtocols(protocols.map(p => p.id === updated.id ? updated : p));
                 setCategories([...new Set([...categories, updated.Categoria].filter(Boolean))].sort());
                 setIsEditing(false);
-                setSelectedProtocol(updated);
+                handleSelectProtocol(updated);
             } else {
                 const created = await createProtocol(protocolToSave);
                 setProtocols([created, ...protocols]);
                 setCategories([...new Set([...categories, created.Categoria].filter(Boolean))].sort());
                 setIsCreating(false);
-                setSelectedProtocol(created);
+                handleSelectProtocol(created);
             }
         } catch (error) {
             alert('Error al guardar: ' + error.message);
@@ -186,7 +238,7 @@ const ProtocolsView = () => {
                         filteredProtocols.map((protocol) => (
                             <button
                                 key={protocol.id}
-                                onClick={() => setSelectedProtocol(protocol)}
+                                onClick={() => handleSelectProtocol(protocol)}
                                 className={`
                                     w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-blue-50 transition-colors
                                     ${selectedProtocol?.id === protocol.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
@@ -270,19 +322,115 @@ const ProtocolsView = () => {
                                     ))}
                                 </select>
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 flex flex-col min-h-0">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Contenido (Markdown soportado)</label>
-                                <textarea
-                                    value={newProtocol.Contenido}
-                                    onChange={e => setNewProtocol({ ...newProtocol, Contenido: e.target.value })}
-                                    className="w-full h-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                                    placeholder="# Título Principal&#10;&#10;Contenido del protocolo..."
-                                />
+
+                                {/* Toolbar */}
+                                <div className="flex items-center justify-between p-1 bg-gray-50 border border-b-0 border-gray-300 rounded-t-lg">
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => insertMarkdown('**', '**')}
+                                            disabled={viewMode === 'visual'}
+                                            className="p-1.5 hover:bg-white hover:shadow-sm rounded text-gray-700 transition-all disabled:opacity-30"
+                                            title="Negrita"
+                                        >
+                                            <Bold size={16} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => insertMarkdown('_', '_')}
+                                            disabled={viewMode === 'visual'}
+                                            className="p-1.5 hover:bg-white hover:shadow-sm rounded text-gray-700 transition-all disabled:opacity-30"
+                                            title="Cursiva"
+                                        >
+                                            <Italic size={16} />
+                                        </button>
+                                        <div className="w-px h-4 bg-gray-300 mx-1" />
+                                        <button
+                                            type="button"
+                                            onClick={() => insertMarkdown('# ')}
+                                            disabled={viewMode === 'visual'}
+                                            className="p-1.5 hover:bg-white hover:shadow-sm rounded text-gray-700 transition-all flex items-center gap-0.5 disabled:opacity-30"
+                                            title="Título 1"
+                                        >
+                                            <Type size={16} /><span className="text-[10px] font-bold">1</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => insertMarkdown('## ')}
+                                            disabled={viewMode === 'visual'}
+                                            className="p-1.5 hover:bg-white hover:shadow-sm rounded text-gray-700 transition-all flex items-center gap-0.5 disabled:opacity-30"
+                                            title="Título 2"
+                                        >
+                                            <Type size={16} /><span className="text-[10px] font-bold">2</span>
+                                        </button>
+                                        <div className="w-px h-4 bg-gray-300 mx-1" />
+                                        <button
+                                            type="button"
+                                            onClick={() => insertMarkdown('- ')}
+                                            disabled={viewMode === 'visual'}
+                                            className="p-1.5 hover:bg-white hover:shadow-sm rounded text-gray-700 transition-all disabled:opacity-30"
+                                            title="Lista"
+                                        >
+                                            <List size={16} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => insertMarkdown('[', '](url)')}
+                                            disabled={viewMode === 'visual'}
+                                            className="p-1.5 hover:bg-white hover:shadow-sm rounded text-gray-700 transition-all disabled:opacity-30"
+                                            title="Enlace"
+                                        >
+                                            <Link size={16} />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-1 mr-1">
+                                        <div className="flex bg-gray-200 p-0.5 rounded-md">
+                                            <button
+                                                type="button"
+                                                onClick={() => setViewMode('code')}
+                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-sm text-[11px] font-bold transition-all ${viewMode === 'code' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                            >
+                                                <Code size={14} /> CÓDIGO
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setViewMode('visual')}
+                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-sm text-[11px] font-bold transition-all ${viewMode === 'visual' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                            >
+                                                <Eye size={14} /> VISUAL
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="relative flex-1">
+                                    {viewMode === 'code' ? (
+                                        <textarea
+                                            ref={contentRef}
+                                            value={newProtocol.Contenido}
+                                            onChange={e => setNewProtocol({ ...newProtocol, Contenido: e.target.value })}
+                                            className="w-full h-96 px-3 py-2 border border-gray-300 rounded-b-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                                            placeholder="# Título Principal&#10;&#10;Contenido del protocolo..."
+                                        />
+                                    ) : (
+                                        <div
+                                            id="protocol-editor-preview"
+                                            className="w-full h-96 px-6 py-4 border border-gray-300 border-t-0 rounded-b-lg bg-white overflow-y-auto prose prose-sm max-w-none"
+                                        >
+                                            <ReactMarkdown>
+                                                {newProtocol.Contenido || '*Sin contenido para mostrar*'}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
                 ) : selectedProtocol ? (
-                    <div id="protocols-view-print-view" ref={printRef} className="flex-1 flex flex-col h-full print-container">
+                    <div id="protocols-view-print-view" className="flex-1 flex flex-col h-full print-container">
                         {/* Header */}
                         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white print:border-none">
                             <div className="flex items-start justify-between gap-4">
@@ -317,9 +465,14 @@ const ProtocolsView = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 no-print">
-                                    <PrintButton
-                                        onClick={handlePrint}
-                                    />
+                                    <button
+                                        onClick={() => handleNativePrint('protocols-view-print-view', `Protocolo_${selectedProtocol?.Nombre}`)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                                        title="Descargar PDF"
+                                    >
+                                        <Download size={16} />
+                                        PDF
+                                    </button>
                                     <button
                                         onClick={handleStartEdit}
                                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"

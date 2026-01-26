@@ -70,7 +70,7 @@ function App() {
                         <Route path="/houses/:id/informe" element={<HousesView />} />
                         <Route path="/parcels" element={<HousesView mode="parcels" />} />
                         <Route path="/team" element={<TeamView />} />
-                        <Route path="/protocols" element={<ProtocolsView />} />
+                        <Route path="/protocols/:protocolName?" element={<ProtocolsView />} />
                         <Route path="/materials" element={<MaterialsView />} />
                         <Route path="/directory" element={<DirectoryView />} />
                         <Route path="/calls" element={<CallsView />} />
