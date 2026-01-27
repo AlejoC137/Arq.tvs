@@ -184,8 +184,8 @@ const ProtocolsView = () => {
             {/* LEFT: Protocols List */}
             <div className="w-96 border-r border-gray-200 flex flex-col no-print">
                 {/* Header */}
-                <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center justify-between gap-2">
+                <div className="p-3 border-b border-gray-200">
+                    <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center justify-between gap-2">
                         <span className="flex items-center gap-2">
                             <FileText size={20} className="text-blue-600" />
                             Protocolos
@@ -200,14 +200,14 @@ const ProtocolsView = () => {
                     </h2>
 
                     {/* Search */}
-                    <div className="relative mb-3">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <div className="relative mb-2">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Buscar protocolos..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full pl-8 pr-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
 
@@ -216,7 +216,7 @@ const ProtocolsView = () => {
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                             <option value="all">Todas las categorías</option>
                             {categories.map((cat) => (
@@ -244,11 +244,11 @@ const ProtocolsView = () => {
                                 key={protocol.id}
                                 onClick={() => handleSelectProtocol(protocol)}
                                 className={`
-                                    w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-blue-50 transition-colors
+                                    w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-blue-50 transition-colors
                                     ${selectedProtocol?.id === protocol.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
                                 `}
                             >
-                                <div className="font-medium text-sm text-gray-900 truncate mb-1">
+                                <div className="font-semibold text-[13px] text-gray-900 truncate">
                                     {protocol.Nombre}
                                 </div>
                                 <div className="flex items-center justify-between text-xs text-gray-500">
@@ -266,8 +266,8 @@ const ProtocolsView = () => {
                 {isCreating || isEditing ? (
                     <div className="flex flex-col h-full bg-white">
                         {/* Create/Edit Header */}
-                        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                            <h3 className="text-xl font-bold text-gray-900">
+                        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-gray-900">
                                 {isEditing ? 'Editar Protocolo' : 'Nuevo Protocolo'}
                             </h3>
                             <div className="flex items-center gap-2">
@@ -288,46 +288,48 @@ const ProtocolsView = () => {
                         </div>
 
                         {/* Create Form */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Título del Protocolo</label>
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Título del Protocolo</label>
                                 <input
                                     type="text"
                                     value={newProtocol.Nombre}
                                     onChange={e => setNewProtocol({ ...newProtocol, Nombre: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                     placeholder="Ej: Protocolo de Seguridad..."
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                                <input
-                                    list="categories-list"
-                                    type="text"
-                                    value={newProtocol.Categoria}
-                                    onChange={e => setNewProtocol({ ...newProtocol, Categoria: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Selecciona o escribe una nueva..."
-                                />
-                                <datalist id="categories-list">
-                                    {categories.map(cat => <option key={cat} value={cat} />)}
-                                </datalist>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Editor (Staff)</label>
-                                <select
-                                    value={newProtocol.Editor}
-                                    onChange={e => setNewProtocol({ ...newProtocol, Editor: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                >
-                                    <option value="">Seleccionar editor...</option>
-                                    {staff.map(s => (
-                                        <option key={s.id} value={s.name}>{s.name}</option>
-                                    ))}
-                                </select>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Categoría</label>
+                                    <input
+                                        list="categories-list"
+                                        type="text"
+                                        value={newProtocol.Categoria}
+                                        onChange={e => setNewProtocol({ ...newProtocol, Categoria: e.target.value })}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="Selecciona o escribe..."
+                                    />
+                                    <datalist id="categories-list">
+                                        {categories.map(cat => <option key={cat} value={cat} />)}
+                                    </datalist>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Editor (Staff)</label>
+                                    <select
+                                        value={newProtocol.Editor}
+                                        onChange={e => setNewProtocol({ ...newProtocol, Editor: e.target.value })}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    >
+                                        <option value="">Seleccionar editor...</option>
+                                        {staff.map(s => (
+                                            <option key={s.id} value={s.name}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                             <div className="flex-1 flex flex-col min-h-0">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Contenido (Markdown soportado)</label>
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Contenido (Markdown soportado)</label>
 
                                 {/* Toolbar */}
                                 <div className="flex items-center justify-between p-1 bg-gray-50 border border-b-0 border-gray-300 rounded-t-lg">
@@ -436,17 +438,17 @@ const ProtocolsView = () => {
                 ) : selectedProtocol ? (
                     <div id="protocols-view-print-view" className="flex-1 flex flex-col h-full print-container">
                         {/* Header */}
-                        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white print:border-none">
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-start gap-4 flex-1">
-                                    <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center">
-                                        <FileText size={32} className="text-blue-600" />
+                        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white print:border-none">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3 flex-1">
+                                    <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                                        <FileText size={24} className="text-blue-600" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-gray-900 mb-1">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-0.5">
                                             {selectedProtocol.Nombre}
                                         </h3>
-                                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
                                             {selectedProtocol.Categoria && (
                                                 <span className="flex items-center gap-1">
                                                     <Tag size={14} />
@@ -489,7 +491,7 @@ const ProtocolsView = () => {
                         </div>
 
                         {/* Content - Rendered as Markdown */}
-                        <div className="flex-1 overflow-y-auto p-6">
+                        <div className="flex-1 overflow-y-auto p-4">
                             <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-100 prose-pre:text-gray-800">
                                 <ReactMarkdown>
                                     {selectedProtocol.Contenido || 'Sin contenido'}

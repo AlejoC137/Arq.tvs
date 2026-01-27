@@ -1716,14 +1716,14 @@ const ConcatenatedActionCard = ({ action, widthPercentage, totalTaskDays, color,
                 style={{ borderLeftColor: action.completado ? '#d1d5db' : (color || '#3b82f6') }}
             >
                 {/* Header Area */}
-                <div className="flex justify-between items-start gap-1">
-                    <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start gap-1 flex-1 min-h-0">
+                    <div className="flex-1 h-full min-w-0">
                         <textarea
                             value={action.descripcion || ''}
                             onChange={(e) => onChange('descripcion', e.target.value)}
                             placeholder="Acción parcial..."
-                            className="w-full text-[10px] font-black leading-tight text-gray-900 bg-transparent border-none p-0 resize-none focus:ring-0 line-clamp-2 placeholder:text-gray-300"
-                            rows={2}
+                            className="w-full h-full text-[10px] font-black leading-tight text-gray-900 bg-transparent border-none p-0 resize-none focus:ring-0 placeholder:text-gray-300"
+                            rows={4}
                         />
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
